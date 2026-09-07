@@ -45,3 +45,6 @@ SwiftUI / AppKitのmacOS動画圧縮アプリ。リポジトリはmani1261790/No
 
 ## 圧縮説明の明確化（#17）
 表示名「画質優先」を「品質優先」、「圧縮の強度」を「品質と容量」に変更。rawValueと圧縮計算は不変。各プリセットの説明・映像の自動上限目安・音声kbpsを表示し、「何を圧縮するか」「どの方式で変換するか」を別セクションへ。映像算出の詳細はDisclosureGroup。音声のみでもプリセットが適用され、未選択トラックはcopy、方式はHEVC/AAC共通であることを明記。
+
+## 初期公開（2026-09-08）
+ユーザーがDeveloper IDなしでPublic化・初期公開を明示承認。alpha.1はアドホック署名・未公証の試験版。READMEにシステム設定からの許可と、公式アプリ個別の xattr -dr com.apple.quarantine /Applications/NotchCompressor.app を記載。残る実機/品質確認は既知の制限として追跡。コードCI 47cc817成功、配布ZIPのSHA256 a104bf5209a86ad1eeebf38027ee054b742c8b9bfbc0134dbfcfc49372d73baf。公開前確認で全履歴210 blobとIssues/コメントに対象秘密情報パターンなし、追跡メディアとGitHub添付URLなし。
