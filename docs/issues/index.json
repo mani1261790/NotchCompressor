@@ -1,0 +1,27 @@
+[
+  {
+    "title": "入力解析と3モードの圧縮ルールを実装する",
+    "body": "docs/issues/01.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/1"
+  },
+  {
+    "title": "安全な変換エンジンと実メディア検証を実装する",
+    "body": "docs/issues/02.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/2"
+  },
+  {
+    "title": "直列キューと設定・結果画面を実装する",
+    "body": "docs/issues/03.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/3"
+  },
+  {
+    "title": "ノッチのドラッグ操作と3領域を仕上げる",
+    "body": "docs/issues/04.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/4"
+  },
+  {
+    "title": "回帰検証とローカル配布手順を整備する",
+    "body": "docs/issues/05.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/5"
+  }
+]
