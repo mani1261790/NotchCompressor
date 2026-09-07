@@ -118,3 +118,7 @@ build-app.sh/test.sh共通のselect-xcode.shを追加。明示したDEVELOPER_DI
 NotchTests 7件成功、releaseビルドと修正版起動成功。Mission Controlが同じ操作で再発しないことは未検証で、完了を断言しない。提供動画自体は読み取りのみ。展開の証拠と干渉解消の証拠を区別する。
 
 参照: https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct
+
+
+## 公開方針
+ユーザーは全体完成後のGitHub Public化・リリースを希望。docs/RELEASE_PLAN.mdに残作業と公開条件を整理。現在Private、Releaseなし、Developer ID Application identityは0件。FFmpeg同梱は未実装。公開条件を満たす前にPublicへ変更しない。
