@@ -39,6 +39,16 @@ final class NotchTests: XCTestCase {
         state.update(changeCount: 3, leftButtonDown: true, hasFiles: true)
         XCTAssertFalse(state.active)
     }
+    func testCollapsedFrameFitsNotchAndRemainsAtScreenTop() {
+        let screen = CGRect(x: -1512, y: 200, width: 1512, height: 982)
+        let geometry = NotchGeometry(screen: screen, topInset: 32, notchWidth: 210)
+        XCTAssertEqual(geometry.collapsed, CGRect(x: screen.midX - 105, y: screen.maxY - 32, width: 210, height: 32))
+        XCTAssertEqual(geometry.collapsed.maxY, geometry.panel.maxY)
+        let external = NotchGeometry(screen: screen, topInset: 0)
+        XCTAssertEqual(external.collapsed.size, CGSize(width: 180, height: 28))
+        XCTAssertEqual(external.collapsed.maxY, screen.maxY)
+    }
+
     func testNotchAndExternalScreenCoordinates() {
         for screen in [CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080)] {
             for inset: CGFloat in [0, 32] {

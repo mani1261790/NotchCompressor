@@ -112,24 +112,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct DropPanel: View {
     @ObservedObject var presentation: DropPresentation
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        VStack(spacing: 0) {
-            Color.clear.frame(height: presentation.topInset)
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    ForEach(CompressionMode.allCases) { mode in
-                        DropZone(mode: mode, targeted: presentation.mode == mode)
-                    }
+        ZStack(alignment: .top) {
+            UnevenRoundedRectangle(bottomLeadingRadius: presentation.visible ? 26 : 10,
+                                   bottomTrailingRadius: presentation.visible ? 26 : 10)
+                .fill(.black)
+            if presentation.visible {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: presentation.topInset)
+                    VStack(spacing: 12) {
+                        HStack(spacing: 8) {
+                            ForEach(CompressionMode.allCases) { mode in
+                                DropZone(mode: mode, targeted: presentation.mode == mode)
+                            }
+                        }
+                        Text("ドロップして圧縮・元ファイルは残ります")
+                            .font(.caption2).foregroundStyle(.white.opacity(0.65))
+                    }.padding(14).frame(height: 148)
                 }
-                Text("ドロップして圧縮・元ファイルは残ります")
-                    .font(.caption2).foregroundStyle(.white.opacity(0.65))
-            }.padding(14).frame(height: 148)
+            }
         }
-        .background(.black.opacity(0.97), in: UnevenRoundedRectangle(bottomLeadingRadius: 26, bottomTrailingRadius: 26))
-        .scaleEffect(x: presentation.visible || reduceMotion ? 1 : 0.6, y: presentation.visible || reduceMotion ? 1 : 0.02, anchor: .top)
-        .opacity(presentation.visible ? 1 : 0)
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: presentation.visible)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .environment(\.colorScheme, .dark)
     }
 }

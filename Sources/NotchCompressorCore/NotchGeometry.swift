@@ -21,11 +21,16 @@ public struct FileDragState {
 }
 
 public struct NotchGeometry {
+    public let collapsed: CGRect
     public let panel: CGRect
     public let trigger: CGRect
     public let topInset: CGFloat
-    public init(screen: CGRect, topInset: CGFloat) {
+    public init(screen: CGRect, topInset: CGFloat, notchWidth: CGFloat = 180) {
         self.topInset = max(0, topInset)
+        let compactWidth = min(max(1, notchWidth), screen.width)
+        let compactHeight = self.topInset > 0 ? self.topInset : 28
+        collapsed = CGRect(x: screen.midX - compactWidth / 2, y: screen.maxY - compactHeight,
+                           width: compactWidth, height: compactHeight)
         let width = min(480, screen.width)
         let height = self.topInset + 148
         panel = CGRect(x: screen.midX - width / 2, y: screen.maxY - height, width: width, height: height)

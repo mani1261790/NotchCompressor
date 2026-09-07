@@ -15,6 +15,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
     var geometry: NotchGeometry?
     let presentation: DropPresentation
     var onEnd: (() -> Void)?
+    var onFileEntered: (() -> Void)?
     required init(rootView: DropPanel) {
         self.presentation = rootView.presentation
         super.init(rootView: rootView)
@@ -48,6 +49,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
             presentation.mode = nil
             return []
         }
+        onFileEntered?()
         presentation.mode = selectedMode(sender)
         return presentation.mode == nil ? [] : .copy
     }
@@ -73,7 +75,12 @@ final class NotchPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
         panel.contentView = host
-        host.onEnd = { [weak self] in self?.drag.end(); self?.hide() }
+        host.onEnd = { [weak self] in self?.drag.end(); self?.collapse() }
+        host.onFileEntered = { [weak self] in
+            guard let self, let screen = self.panel.screen else { return }
+            self.expand(on: screen)
+        }
+        collapse()
         timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.update() }
         }
@@ -81,14 +88,36 @@ final class NotchPanelController {
     }
     deinit { timer?.invalidate() }
 
-    private func hide() {
-        guard panel.isVisible else { return }
+    private func geometry(on screen: NSScreen) -> NotchGeometry {
+        let notchWidth = (screen.auxiliaryTopRightArea?.minX ?? 0) - (screen.auxiliaryTopLeftArea?.maxX ?? 0)
+        return NotchGeometry(screen: screen.frame, topInset: screen.safeAreaInsets.top,
+                             notchWidth: notchWidth > 0 ? notchWidth : 180)
+    }
+
+    private func setFrame(_ frame: CGRect) {
+        guard panel.frame != frame else { return }
+        let animate = panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel.setFrame(frame, display: true, animate: animate)
+    }
+
+    private func collapse() {
+        guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens.first else { return }
+        let geometry = geometry(on: screen)
         presentation.visible = false
         presentation.mode = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            guard let self, !self.presentation.visible else { return }
-            self.panel.orderOut(nil)
-        }
+        presentation.topInset = geometry.topInset
+        host.geometry = geometry
+        setFrame(geometry.collapsed)
+        if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+
+    private func expand(on screen: NSScreen) {
+        let geometry = geometry(on: screen)
+        host.geometry = geometry
+        presentation.topInset = geometry.topInset
+        presentation.visible = true
+        setFrame(geometry.panel)
+        if !panel.isVisible { panel.orderFrontRegardless() }
     }
 
     private func update() {
@@ -101,14 +130,10 @@ final class NotchPanelController {
             log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
         }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
-        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { hide(); return }
-        let geometry = NotchGeometry(screen: screen.frame, topInset: screen.safeAreaInsets.top)
+        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { collapse(); return }
+        let geometry = geometry(on: screen)
         let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
-        guard geometry.trigger.contains(pointer) || insidePanel else { hide(); return }
-        host.geometry = geometry
-        presentation.topInset = geometry.topInset
-        if panel.frame != geometry.panel { panel.setFrame(geometry.panel, display: true) }
-        if !panel.isVisible { log.notice("Showing drop panel"); panel.orderFrontRegardless() }
-        presentation.visible = true
+        guard geometry.trigger.contains(pointer) || insidePanel else { collapse(); return }
+        expand(on: screen)
     }
 }
