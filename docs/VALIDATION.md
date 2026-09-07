@@ -66,3 +66,5 @@ Finderのネイティブ自動操作では一時ScreenCaptureKitエラー `-3811
 [初回CI](https://github.com/mani1261790/NotchCompressor/actions/runs/34104957251)（fe74ba6）は成功。macos-15で単体テスト、release app生成、codesign検証を実行。ハードウェア依存の実メディア4件はCIではスキップし、開発Macで別途検証。
 
 追加の環境別確認はIssue #6、実収録での品質評価はIssue #7、配布版はIssue #8。基本のノッチ実ドラッグは引き続きIssue #4で追跡する。
+
+最終のアプリ再起動はMacロックにより実施できず。ロック解除後の通常デスクトップ確認が必要。94eb636のCI（run 34106097827）も成功。その後、checkoutを公式v7.0.1のSHAに固定してNode 24へ更新した。
