@@ -4,6 +4,8 @@
 
 READMEとリリースノートにアプリ個別の起動許可・隔離属性解除手順、上書き動作、未確認範囲を明記する。
 
+公開完了: [v0.1.0-alpha.1](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.1.0-alpha.1)。リポジトリはPublic。匿名ダウンロードと配布ZIPのSHA-256一致を確認済み。
+
 ## 旧計画（経緯）
 
 # 公開リリースまでの残作業
