@@ -3,6 +3,22 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testDelayedFileURLsActivateDuringSamePressOnly() {
+        var state = FileDragState(changeCount: 1)
+        state.update(changeCount: 2, leftButtonDown: true, hasFiles: false)
+        XCTAssertFalse(state.active)
+        state.update(changeCount: 2, leftButtonDown: true, hasFiles: true)
+        XCTAssertTrue(state.active)
+        state.end()
+        state.update(changeCount: 2, leftButtonDown: true, hasFiles: true)
+        XCTAssertFalse(state.active)
+
+        state.update(changeCount: 3, leftButtonDown: true, hasFiles: false)
+        state.update(changeCount: 3, leftButtonDown: false, hasFiles: false)
+        state.update(changeCount: 3, leftButtonDown: true, hasFiles: true)
+        XCTAssertFalse(state.active)
+    }
+
     func testOrdinaryClickAndStalePasteboardDoNotActivate() {
         var state = FileDragState(changeCount: 1)
         state.update(changeCount: 1, leftButtonDown: true, hasFiles: true)

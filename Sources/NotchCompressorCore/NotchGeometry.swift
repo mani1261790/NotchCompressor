@@ -3,16 +3,21 @@ import Foundation
 
 public struct FileDragState {
     private var changeCount: Int
+    private var pendingDrag = false
     public private(set) var active = false
     public init(changeCount: Int) { self.changeCount = changeCount }
     public mutating func update(changeCount: Int, leftButtonDown: Bool, hasFiles: Bool) {
         if self.changeCount != changeCount {
             self.changeCount = changeCount
-            active = leftButtonDown && hasFiles
+            // Providers may publish their file URLs after declaring a new drag.
+            // Keep that generation eligible only until this mouse press ends.
+            pendingDrag = leftButtonDown
+            active = false
         }
-        if !leftButtonDown { active = false }
+        if !leftButtonDown { end() }
+        else if pendingDrag && hasFiles { active = true }
     }
-    public mutating func end() { active = false }
+    public mutating func end() { active = false; pendingDrag = false }
 }
 
 public struct NotchGeometry {
