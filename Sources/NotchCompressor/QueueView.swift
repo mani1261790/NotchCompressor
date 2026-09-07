@@ -14,18 +14,23 @@ struct QueueView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Menu("動画を選ぶ…") {
+                Menu {
                     ForEach(CompressionMode.allCases) { mode in
-                        Button(mode.title) { app.chooseVideos(mode: mode) }
+                        Button { app.chooseVideos(mode: mode) } label: { Label(mode.title, systemImage: mode.symbol) }
                     }
-                }.fixedSize()
-                Button { app.settingsPresented = true } label: { Image(systemName: "gearshape") }
-                    .help("設定").accessibilityLabel("設定")
+                } label: {
+                    Label("動画を追加", systemImage: "plus").labelStyle(.iconOnly)
+                        .font(.system(size: 16, weight: .medium)).frame(width: 24, height: 24)
+                }
+                .menuStyle(.borderlessButton).menuIndicator(.hidden)
+                .fixedSize().padding(8).modifier(GlassCapsuleSurface())
+                .help("動画を追加して圧縮方法を選ぶ").accessibilityLabel("動画を追加")
+                IconControl(title: "設定", symbol: "gearshape") { app.settingsPresented = true }
             }
             .padding(24)
             Divider()
             if let error = app.dropError {
-                HStack { Text(error).font(.callout); Spacer(); Button("閉じる") { app.dropError = nil } }.padding()
+                HStack { Text(error).font(.callout); Spacer(); IconControl(title: "閉じる", symbol: "xmark") { app.dropError = nil } }.padding()
             }
             if let error = queue.persistenceError { Text(error).font(.caption).foregroundStyle(.orange).padding() }
             if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil {
@@ -33,7 +38,7 @@ struct QueueView: View {
                     Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
                     Text("圧縮ツールの設定が必要です")
                     Spacer()
-                    Button("設定を開く") { app.settingsPresented = true }
+                    Button("設定を開く") { app.settingsPresented = true }.capsuleControl()
                 }.padding()
             }
             if queue.jobs.isEmpty {
@@ -49,20 +54,22 @@ struct QueueView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 12) {
                         ForEach(queue.jobs.reversed()) { job in
-                            JobRow(job: job, queue: queue).padding(.horizontal, 24).padding(.vertical, 16)
-                            Divider().padding(.horizontal, 24)
+                            JobRow(job: job, queue: queue)
+                                .padding(18)
+                                .background(.background, in: RoundedRectangle(cornerRadius: 20))
+                                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.06)))
                         }
-                    }
-                }
+                    }.padding(20)
+                }.background(.quaternary.opacity(0.35))
             }
             Divider()
             HStack {
                 Text("元ファイルは残ります。確認後にFinderで整理できます。")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                Button("完了履歴を消す") { queue.clearFinished() }
+                IconControl(title: "完了履歴を消す（動画は残ります）", symbol: "clock.badge.xmark") { queue.clearFinished() }
                     .disabled(!queue.jobs.contains { $0.phase.isFinished })
                     .help("履歴だけを消します。動画ファイルは削除しません。")
             }.padding(16)
@@ -77,7 +84,9 @@ private struct JobRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .top) {
-                Image(systemName: job.mode.symbol).font(.title3).frame(width: 26)
+                Image(systemName: job.mode.symbol).font(.title3)
+                    .foregroundStyle(.tint).frame(width: 42, height: 42)
+                    .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
                 VStack(alignment: .leading, spacing: 4) {
                     Text(job.input.lastPathComponent).font(.headline).lineLimit(2).textSelection(.enabled)
                     Text("\(job.mode.title)・\(job.settings.quality.title)").font(.caption).foregroundStyle(.secondary)
@@ -85,6 +94,8 @@ private struct JobRow: View {
                 Spacer()
                 Text(queue.cancelling.contains(job.id) ? "停止中…" : job.phase.title)
                     .font(.caption.weight(.medium))
+                    .padding(.horizontal, 10).padding(.vertical, 5)
+                    .background(.quaternary, in: Capsule())
                     .foregroundStyle(job.phase == .failed ? Color.orange : job.phase == .completed ? Color.green : Color.secondary)
             }
             if job.phase == .encoding {
@@ -103,16 +114,17 @@ private struct JobRow: View {
             }
             if let message = job.message { Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
-                Button("元ファイルを表示") { NSWorkspace.shared.activateFileViewerSelecting([job.input]) }
+                IconControl(title: "元ファイルをFinderに表示", symbol: "doc") { NSWorkspace.shared.activateFileViewerSelecting([job.input]) }
                 if let result = job.result {
-                    Button("圧縮した動画を表示") { NSWorkspace.shared.activateFileViewerSelecting([result.output]) }
-                        .buttonStyle(.borderedProminent)
+                    Button { NSWorkspace.shared.activateFileViewerSelecting([result.output]) } label: {
+                        Label("圧縮した動画", systemImage: "folder")
+                    }.capsuleControl(prominent: true).controlSize(.large)
                 }
                 Spacer()
                 if !job.phase.isFinished {
-                    Button("キャンセル") { queue.cancel(job.id) }.disabled(queue.cancelling.contains(job.id))
+                    IconControl(title: "圧縮をキャンセル", symbol: "xmark") { queue.cancel(job.id) }.disabled(queue.cancelling.contains(job.id))
                 } else if job.phase != .completed {
-                    Button("再試行") { queue.retry(job.id) }
+                    IconControl(title: "再試行", symbol: "arrow.clockwise") { queue.retry(job.id) }
                 }
             }.controlSize(.small)
         }

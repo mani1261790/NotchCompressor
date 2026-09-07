@@ -73,3 +73,13 @@ NotchTests 5件成功、releaseビルド成功、修正版起動済み。起動�
 NativeDropSessionを追加。AppKitからドラッグ進入を受けた間は、全体ポーリングによる縮小を抑止し、マウスアップからドロップ通知まで対象領域を維持する。終了・離脱通知で解除し、通知が来ない場合はボタンを離して350msで縮小へ戻す。開始・リリース・終了・キャンセルの単体テスト追加。状態変化のみをOSLogへ記録し、ファイル名は記録しない。
 
 実FFmpegを含む25テスト成功（スキップ0）、releaseビルド成功、修正版起動済み。Computer Useのアプリスクリーンショットで黒い180×28の縮小表示を実際に確認。19:11:51のOSLogに実ファイルドラッグのpasteboard変更（leftDown=true,files=true）が記録された。ただしFinderからのドロップ→キュー成功はまだ確認できていない。自動dragはユーザーによるFinderウインドウ変更を検出して実行前に止まった。Finderを再取得するとDesktopが選ばれる。確認できていない操作を合格としない。
+
+
+## 2026-09-07 キューと設定のUI刷新
+
+AppleのLiquid Glass導入ガイドとSwiftUIのglass/glassEffect APIに合わせ、macOS 26以降では標準Glassボタンを採用。macOS 14/15では標準の丸いボタンとMaterialにフォールバックする。追加・設定・元ファイル・再試行・キャンセル・履歴消去は説明付きアイコンにし、結果表示・フォルダ選択はピル型。キューは静かな背景のカード、設定はgrouped Form、標準segmented pickerとswitch。ガラスは操作部品に限定する。
+
+releaseビルド成功。起動したキューのスクリーンショットで追加ボタンの過剰な横幅を見つけて修正し、丸い追加・設定とピル型結果ボタンを再確認。設定シートの全セクション、ツール検出、設定を閉じる操作を実画面で確認。追加アイコンから3モードのメニューが開くことも確認。ログイン設定の変更や新たな変換は実行していない。ノッチ実ドロップ検証は別途未完了。
+
+参照: https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
+参照: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views

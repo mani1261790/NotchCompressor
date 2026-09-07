@@ -10,38 +10,56 @@ struct SettingsView: View {
     @State private var message: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack { Text("設定").font(.title2.weight(.semibold)); Spacer(); Button("完了") { dismiss() }.keyboardShortcut(.defaultAction) }
-            Form {
-                Picker("圧縮の強度", selection: $queue.settings.quality) {
-                    ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
-                }
-                Text("画質を変える場合は解像度を維持し、最大30fpsにします。音質のみでは映像をそのまま保持します。")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Divider()
-            Text("圧縮ツール").font(.headline)
-            if let tools = try? Toolchain.discover(directory: queue.settings.toolsDirectory) {
-                Label("ffmpeg / ffprobe 検出済み", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                Text(tools.ffmpeg.deletingLastPathComponent().path).font(.caption).textSelection(.enabled)
-            } else {
-                Label("ffmpeg / ffprobe が必要です", systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
-                Text("両方を同じMacへインストールし、そのフォルダを選択してください。Homebrewを利用する場合は brew install ffmpeg で導入できます。")
-                    .font(.caption).textSelection(.enabled)
-            }
+        VStack(spacing: 0) {
             HStack {
-                Button("ツールのフォルダを選択…", action: chooseTools)
-                Button("自動検出に戻す") { queue.settings.toolsDirectory = nil; message = nil }
-            }
-            Divider()
-            Toggle("ログイン時に起動", isOn: Binding(get: { loginEnabled }, set: updateLogin))
-            if SMAppService.mainApp.status == .requiresApproval {
-                Button("システム設定でログイン項目を確認") { SMAppService.openSystemSettingsLoginItems() }
-            }
-            if let message { Text(message).font(.caption).foregroundStyle(.orange) }
-            Text("出力は元動画と同じフォルダにMOV形式で別名保存します。元動画を自動で削除することはありません。")
-                .font(.caption).foregroundStyle(.secondary)
-        }.padding(24).frame(width: 500)
+                Label("設定", systemImage: "slider.horizontal.3").font(.title2.weight(.semibold))
+                Spacer()
+                IconControl(title: "設定を閉じる", symbol: "checkmark", prominent: true) { dismiss() }
+                    .keyboardShortcut(.defaultAction)
+            }.padding(24)
+            Form {
+                Section {
+                    Picker("圧縮の強度", selection: $queue.settings.quality) {
+                        ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
+                    }.pickerStyle(.segmented)
+                    Text("画質の変更は解像度を維持し、最大30fpsに。音質のみの場合は映像をそのまま保持します。")
+                        .font(.callout).foregroundStyle(.secondary)
+                } header: { Label("圧縮", systemImage: "slider.horizontal.3") }
+                Section {
+                    if let tools = try? Toolchain.discover(directory: queue.settings.toolsDirectory) {
+                        Label("圧縮ツールを検出しました", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                        Text(tools.ffmpeg.deletingLastPathComponent().path)
+                            .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                    } else {
+                        Label("圧縮ツールを設定してください", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text("ffmpegとffprobeを同じMacにインストールしてください。Homebrewでは brew install ffmpeg で導入できます。")
+                            .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    }
+                    HStack {
+                        Button(action: chooseTools) { Label("フォルダを選択", systemImage: "folder") }.capsuleControl()
+                        Spacer()
+                        IconControl(title: "自動検出に戻す", symbol: "arrow.counterclockwise") {
+                            queue.settings.toolsDirectory = nil; message = nil
+                        }
+                    }
+                } header: { Label("圧縮ツール", systemImage: "wrench.and.screwdriver") }
+                Section {
+                    Toggle("ログイン時に起動", isOn: Binding(get: { loginEnabled }, set: updateLogin))
+                        .toggleStyle(.switch)
+                    if SMAppService.mainApp.status == .requiresApproval {
+                        Button { SMAppService.openSystemSettingsLoginItems() } label: {
+                            Label("ログイン項目を確認", systemImage: "arrow.up.forward.app")
+                        }.capsuleControl()
+                    }
+                    if let message { Text(message).font(.callout).foregroundStyle(.orange) }
+                } header: { Label("起動", systemImage: "power") }
+                Section {
+                    Label("元動画はそのまま残ります", systemImage: "checkmark.shield")
+                    Text("同じフォルダにMOV形式で別名保存します。元動画を自動で削除することはありません。")
+                        .font(.callout).foregroundStyle(.secondary)
+                } header: { Text("保存") }
+            }.formStyle(.grouped)
+        }.frame(width: 560, height: 620)
     }
 
     private func chooseTools() {
