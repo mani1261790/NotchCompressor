@@ -52,9 +52,25 @@ public struct NotchGeometry {
         let width = min(480, screen.width)
         let height = self.topInset + 148
         panel = CGRect(x: screen.midX - width / 2, y: screen.maxY - height, width: width, height: height)
-        let triggerHeight = max(76, self.topInset + 44)
+        let triggerHeight = max(120, self.topInset + 88)
         trigger = CGRect(x: screen.midX - 180, y: screen.maxY - triggerHeight, width: 360, height: triggerHeight)
     }
+    public func isInTrigger(_ point: CGPoint) -> Bool {
+        Self.containsIncludingEdges(trigger, point: point)
+    }
+
+    public static func screenIndex(containing point: CGPoint, frames: [CGRect]) -> Int? {
+        // Prefer normal containment on shared edges, then include the outermost
+        // maxX/maxY pixels where CGRect.contains otherwise excludes the cursor.
+        frames.firstIndex(where: { $0.contains(point) }) ??
+            frames.firstIndex(where: { containsIncludingEdges($0, point: point) })
+    }
+
+    private static func containsIncludingEdges(_ rect: CGRect, point: CGPoint) -> Bool {
+        point.x >= rect.minX && point.x <= rect.maxX &&
+        point.y >= rect.minY && point.y <= rect.maxY
+    }
+
     public func mode(at local: CGPoint) -> CompressionMode? {
         guard local.y >= 28, local.y <= panel.height - topInset,
               local.x >= 0, local.x <= panel.width else { return nil }

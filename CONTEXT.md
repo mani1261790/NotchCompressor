@@ -107,3 +107,14 @@ releaseビルド成功。起動した実画面で円形ボタン、ピル型の�
 build-app.sh/test.sh共通のselect-xcode.shを追加。明示したDEVELOPER_DIRを尊重し、それが無い場合のみインストール済みのSDK26以上かつフルXcodeを選ぶ。システム設定は変えない。対応SDKが無い・明示パスが不正なら必要バージョンと指定方法を出して停止。通常のbash scripts/build-app.shでビルド成功、不正な明示パスが案内付きexit1となることを確認。
 
 基本Finderドラッグは引き続き未確認。このターンでもドラッグ呼び出しはFinder状態変更エラーで止まり、観察用pasteboardはcount117/filesfalseのまま。新しいキュー追加・展開を示す証拠なし。
+
+
+## 2026-09-07 Mission Control干渉への対策
+
+ユーザー提供の10.2秒録画を確認。ファイルドラッグでノッチ展開と3領域の強調は実際に動き、その後Mission Controlが開いている。19:56:21.440にexpanded、19:56:21.806にnative destinationが記録された。従来の「展開すら未確認」はこの録画で更新。ただし今回録画はドロップ完了の証拠ではない。
+
+パネルをstationary/ignoresCycle/canJoinAllApplicationsとしてMission Controlの整列から除外し、isMovableと背景移動を禁止。ドラッグ中に受付矩形が移動するNSWindowのフレームアニメーションを停止。接近判定を上端から120pt（ノッチ高32ptでも120pt）まで広げる。screenIndexとtrigger判定に外側境界を含め、CGRectのmaxY境界で判定を失わないよう修正。通常のマウス移動では展開しない条件は維持。OSのMission Control設定は変更していない。
+
+NotchTests 7件成功、releaseビルドと修正版起動成功。Mission Controlが同じ操作で再発しないことは未検証で、完了を断言しない。提供動画自体は読み取りのみ。展開の証拠と干渉解消の証拠を区別する。
+
+参照: https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct

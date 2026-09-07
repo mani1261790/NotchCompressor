@@ -75,7 +75,9 @@ final class NotchPanelController {
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .canJoinAllApplications]
+        panel.isMovable = false
+        panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.contentView = host
         host.onEnd = { [weak self] in self?.nativeDrop.ended(); self?.drag.end(); self?.collapse() }
@@ -101,8 +103,9 @@ final class NotchPanelController {
 
     private func setFrame(_ frame: CGRect) {
         guard panel.frame != frame else { return }
-        let animate = panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(frame, display: true, animate: animate)
+        // AppKit must see the final drop surface immediately. Animating the actual
+        // window makes its tracking rectangle move under an ongoing Finder drag.
+        panel.setFrame(frame, display: true, animate: false)
     }
 
     private func trace(_ phase: String) {
@@ -143,10 +146,12 @@ final class NotchPanelController {
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
         // Do not resize away the drop target between mouse-up and performDragOperation.
         if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) { trace("native destination"); return }
-        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { trace("compact: no active file drag"); collapse(); return }
+        let screens = NSScreen.screens
+        guard drag.active, let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame)) else { trace("compact: no active file drag"); collapse(); return }
+        let screen = screens[screenIndex]
         let geometry = geometry(on: screen)
         let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
-        guard geometry.trigger.contains(pointer) || insidePanel else { trace("compact: file outside trigger"); collapse(); return }
+        guard geometry.isInTrigger(pointer) || insidePanel else { trace("compact: file outside trigger"); collapse(); return }
         trace("expanded: file inside trigger")
         expand(on: screen)
     }

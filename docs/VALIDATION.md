@@ -122,3 +122,14 @@ build-app.sh/test.sh共通のselect-xcode.shを追加。明示したDEVELOPER_DI
 ユーザーが成功時の上書きを明示指定。従来の別名保存を廃止し、元と同じ名前・場所に置き換える。一時ファイルで変換・再解析・全デコード検証を完了し、元のサイズ/mtime/inodeを直前確認してFileManager.replaceItemAtを実行。既存ファイル権限を維持。MOVはMOV、MP4/M4VはMP4コンテナで書き出す。失敗・キャンセル・外部変更検出なら元データを維持。成功後の圧縮前データは残さない。サイズ増加時も置き換え、実測増加を表示する。
 
 実FFmpegを含む26テスト、失敗0/スキップ0。3モードで同名出力・変更側codec・保持側packet hash一致、MP4/M4Vのftyp、Unicode名と権限、外部変更拒否、置き換え失敗時保持、キャンセル時元バイト列一致を確認。合成した一時ファイルだけを使用し、既存のユーザー動画には実行していない。旧履歴に残る別名出力は移動/削除しない。ノッチ実ドラッグ検証はこの変更の成功証拠ではない。
+
+
+## 2026-09-07 Mission Control干渉への対策
+
+ユーザー提供の10.2秒録画を確認。ファイルドラッグでノッチ展開と3領域の強調は実際に動き、その後Mission Controlが開いている。19:56:21.440にexpanded、19:56:21.806にnative destinationが記録された。従来の「展開すら未確認」はこの録画で更新。ただし今回録画はドロップ完了の証拠ではない。
+
+パネルをstationary/ignoresCycle/canJoinAllApplicationsとしてMission Controlの整列から除外し、isMovableと背景移動を禁止。ドラッグ中に受付矩形が移動するNSWindowのフレームアニメーションを停止。接近判定を上端から120pt（ノッチ高32ptでも120pt）まで広げる。screenIndexとtrigger判定に外側境界を含め、CGRectのmaxY境界で判定を失わないよう修正。通常のマウス移動では展開しない条件は維持。OSのMission Control設定は変更していない。
+
+NotchTests 7件成功、releaseビルドと修正版起動成功。Mission Controlが同じ操作で再発しないことは未検証で、完了を断言しない。提供動画自体は読み取りのみ。展開の証拠と干渉解消の証拠を区別する。
+
+参照: https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct

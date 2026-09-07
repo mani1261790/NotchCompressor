@@ -3,6 +3,19 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testOuterScreenEdgeKeepsDropTargetAndApproachOpensBeforeTop() {
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let second = CGRect(x: 1920, y: -81, width: 1080, height: 1920)
+        XCTAssertEqual(NotchGeometry.screenIndex(containing: CGPoint(x: 960, y: 1080), frames: [screen, second]), 0)
+        XCTAssertEqual(NotchGeometry.screenIndex(containing: CGPoint(x: 1920, y: 800), frames: [screen, second]), 1)
+        XCTAssertEqual(NotchGeometry.screenIndex(containing: CGPoint(x: 3000, y: 1839), frames: [screen, second]), 1)
+        XCTAssertNil(NotchGeometry.screenIndex(containing: CGPoint(x: -1, y: 500), frames: [screen, second]))
+        let geometry = NotchGeometry(screen: screen, topInset: 32)
+        XCTAssertTrue(geometry.isInTrigger(CGPoint(x: 960, y: 1080)))
+        XCTAssertTrue(geometry.isInTrigger(CGPoint(x: 960, y: 980)))
+        XCTAssertFalse(geometry.isInTrigger(CGPoint(x: 960, y: 900)))
+    }
+
     func testDelayedFileURLsActivateDuringSamePressOnly() {
         var state = FileDragState(changeCount: 1)
         state.update(changeCount: 2, leftButtonDown: true, hasFiles: false)
