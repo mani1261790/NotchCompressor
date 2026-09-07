@@ -37,13 +37,17 @@ final class EngineTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: folder) }
         let source = folder.appendingPathComponent("収録 ; $dollar.mov")
         try await makeVideo(source, tools: tools)
-        let before = SHA256.hash(data: try Data(contentsOf: source))
+        let originalData = try Data(contentsOf: source)
+        let before = SHA256.hash(data: originalData)
         let audioHashes = try await packetHashes(source, stream: "a:0", tools: tools)
         let videoHashes = try await packetHashes(source, stream: "v:0", tools: tools)
         XCTAssertFalse(audioHashes.isEmpty)
         XCTAssertFalse(videoHashes.isEmpty)
         for mode in CompressionMode.allCases {
+            try originalData.write(to: source, options: .atomic)
             let result = try await CompressionEngine().compress(input: source, mode: mode, settings: .init())
+            XCTAssertEqual(result.output, source)
+            XCTAssertNotEqual(SHA256.hash(data: try Data(contentsOf: source)), before)
             let output = try await CompressionEngine().probe(result.output, tools: tools)
             XCTAssertEqual(output.video.codecName, mode == .audio ? "h264" : "hevc")
             XCTAssertNotNil(output.audio)
@@ -51,7 +55,6 @@ final class EngineTests: XCTestCase {
             if mode == .video { let hashes = try await packetHashes(result.output, stream: "a:0", tools: tools); XCTAssertEqual(hashes, audioHashes) }
             if mode == .audio { let hashes = try await packetHashes(result.output, stream: "v:0", tools: tools); XCTAssertEqual(hashes, videoHashes) }
         }
-        XCTAssertEqual(SHA256.hash(data: try Data(contentsOf: source)), before)
         XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: folder.path).contains { $0.hasPrefix(".notchcompressor-") })
     }
 
@@ -72,33 +75,52 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: broken), contents)
     }
 
-    func testPublishDoesNotReplaceExistingFilesOrSymlinks() throws {
-        let folder = try directory()
-        defer { try? FileManager.default.removeItem(at: folder) }
-        let source = folder.appendingPathComponent("screen.mov"), staged = folder.appendingPathComponent("staged.mov")
-        try Data("source".utf8).write(to: source)
-        try Data("output".utf8).write(to: staged)
-        let occupied = folder.appendingPathComponent("screen-compressed-video.mov")
-        try FileManager.default.createSymbolicLink(at: occupied, withDestinationURL: source)
-        let first = try CompressionEngine.publish(staged, beside: source, mode: .video)
-        try Data("second output".utf8).write(to: staged)
-        let second = try CompressionEngine.publish(staged, beside: source, mode: .video)
-        XCTAssertNotEqual(first, second)
-        XCTAssertEqual(try String(contentsOf: source), "source")
-        XCTAssertEqual(try String(contentsOf: first), "output")
-    }
-
-    func testLongUnicodeNameCanBePublished() throws {
+    func testReplacementPreservesNameAndPermissions() throws {
         let folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }
         let source = folder.appendingPathComponent(String(repeating: "🎬", count: 60) + ".mov")
         let staged = folder.appendingPathComponent("staged.mov")
         try Data("original".utf8).write(to: source)
+        try FileManager.default.setAttributes([.posixPermissions: 0o640], ofItemAtPath: source.path)
+        let expected = try Fingerprint(source)
+        try Data("verified output".utf8).write(to: staged)
+        let result = try CompressionEngine.replaceOriginal(staged, original: source, expected: expected)
+        XCTAssertEqual(result, source)
+        XCTAssertEqual(try Data(contentsOf: source), Data("verified output".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: staged.path))
+        let attrs = try FileManager.default.attributesOfItem(atPath: source.path)
+        XCTAssertEqual((attrs[.posixPermissions] as? NSNumber)?.intValue, 0o640)
+    }
+
+    func testChangedSourceAndFailedReplacementLeaveOriginalIntact() throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.mov")
+        let staged = folder.appendingPathComponent("staged.mov")
+        try Data("original".utf8).write(to: source)
+        let expected = try Fingerprint(source)
+        try Data("externally edited original".utf8).write(to: source)
         try Data("output".utf8).write(to: staged)
-        let result = try CompressionEngine.publish(staged, beside: source, mode: .both)
-        XCTAssertLessThan(result.lastPathComponent.utf8.count, 255)
-        XCTAssertEqual(try String(contentsOf: result), "output")
-        XCTAssertEqual(try String(contentsOf: source), "original")
+        XCTAssertThrowsError(try CompressionEngine.replaceOriginal(staged, original: source, expected: expected))
+        XCTAssertEqual(try Data(contentsOf: source), Data("externally edited original".utf8))
+        try FileManager.default.removeItem(at: staged)
+        XCTAssertThrowsError(try CompressionEngine.replaceOriginal(staged, original: source, expected: Fingerprint(source)))
+        XCTAssertEqual(try Data(contentsOf: source), Data("externally edited original".utf8))
+    }
+
+    func testMP4AndM4VKeepContainerAndReplaceInPlace() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        for ext in ["mp4", "m4v"] {
+            let source = folder.appendingPathComponent("source." + ext)
+            try await makeVideo(source, tools: tools)
+            let result = try await CompressionEngine().compress(input: source, mode: .both, settings: .init())
+            XCTAssertEqual(result.output, source)
+            let header = try Data(contentsOf: source).prefix(12)
+            XCTAssertEqual(String(data: header[4..<8], encoding: .ascii), "ftyp")
+            XCTAssertNotEqual(String(data: header[8..<12], encoding: .ascii), "qt  ")
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path).filter { $0.hasPrefix(".notchcompressor-") }, [])
+        }
     }
 
     func testRealFFmpegCancellationStopsPromptly() async throws {
@@ -120,6 +142,7 @@ final class EngineTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: folder) }
         let source = folder.appendingPathComponent("source.mov")
         try await makeVideo(source, tools: tools)
+        let before = try Data(contentsOf: source)
         let encoding = expectation(description: "Encoding phase")
         let task = Task {
             try await CompressionEngine().compress(input: source, mode: .both, settings: .init()) { phase, _, _ in
@@ -130,6 +153,7 @@ final class EngineTests: XCTestCase {
         task.cancel()
         do { _ = try await task.value; XCTFail("Expected cancellation") }
         catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(try Data(contentsOf: source), before)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["source.mov"])
     }
 

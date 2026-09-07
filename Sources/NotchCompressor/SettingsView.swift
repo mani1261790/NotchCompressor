@@ -54,8 +54,8 @@ struct SettingsView: View {
                     if let message { Text(message).font(.callout).foregroundStyle(.orange) }
                 } header: { Label("起動", systemImage: "power") }
                 Section {
-                    Label("元動画はそのまま残ります", systemImage: "checkmark.shield")
-                    Text("同じフォルダにMOV形式で別名保存します。元動画を自動で削除することはありません。")
+                    Label("検証後に元動画を置き換えます", systemImage: "checkmark.shield")
+                    Text("同じファイル名・場所・拡張子で保存します。失敗・キャンセル時は元動画を保持します。置き換え後、圧縮前の動画は残りません。")
                         .font(.callout).foregroundStyle(.secondary)
                 } header: { Text("保存") }
             }.formStyle(.grouped)

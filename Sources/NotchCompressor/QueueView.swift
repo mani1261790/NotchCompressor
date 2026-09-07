@@ -73,7 +73,7 @@ struct QueueView: View {
             }
             Divider()
             HStack {
-                Text("元ファイルは残ります。確認後にFinderで整理できます。")
+                Text("圧縮結果を検証してから、元動画を置き換えます。")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 IconControl(title: "完了履歴を消す（動画は残ります）", symbol: "clock.badge.xmark") { queue.clearFinished() }
@@ -116,11 +116,13 @@ private struct JobRow: View {
                     Text(result.savedFraction >= 0 ? "\(Int(result.savedFraction * 100))%削減" : "\(Int(-result.savedFraction * 100))%増加")
                         .foregroundStyle(result.savedFraction >= 0 ? Color.green : Color.orange)
                 }.font(.callout)
-                if result.savedFraction < 0 { Text("この動画は元の方が小さい結果でした。").font(.caption).foregroundStyle(.secondary) }
+                if result.savedFraction < 0 { Text("圧縮前よりファイル容量が増えました。").font(.caption).foregroundStyle(.secondary) }
             }
             if let message = job.message { Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
-                IconControl(title: "元ファイルをFinderに表示", symbol: "doc") { NSWorkspace.shared.activateFileViewerSelecting([job.input]) }
+                if job.result?.output != job.input.resolvingSymlinksInPath() {
+                    IconControl(title: "入力ファイルをFinderに表示", symbol: "doc") { NSWorkspace.shared.activateFileViewerSelecting([job.input]) }
+                }
                 if let result = job.result {
                     Button { NSWorkspace.shared.activateFileViewerSelecting([result.output]) } label: {
                         Label("圧縮した動画", systemImage: "folder")

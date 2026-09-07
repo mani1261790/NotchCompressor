@@ -89,7 +89,8 @@ public struct CompressionPlan: Sendable {
         } else {
             args += ["-c:a", "copy"]
         }
-        args += ["-movflags", "+faststart", "-f", "mov", output.path]
+        let container = output.pathExtension.lowercased() == "mov" ? "mov" : "mp4"
+        args += ["-movflags", "+faststart", "-f", container, output.path]
         return args
     }
 }

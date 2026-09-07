@@ -61,7 +61,7 @@ struct NotchCompressorApp: App {
                 .keyboardShortcut(",")
             Divider()
             Text("左：画質　中央：両方　右：音質")
-            Text("元ファイルを残して別名保存します")
+            Text("検証後に元動画を置き換えます")
             Divider()
             Button("NotchCompressorを終了") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
@@ -126,7 +126,7 @@ struct DropPanel: View {
                                 DropZone(mode: mode, targeted: presentation.mode == mode)
                             }
                         }
-                        Text("ドロップして圧縮・元ファイルは残ります")
+                        Text("ドロップして圧縮・検証後に元動画を置き換え")
                             .font(.caption2).foregroundStyle(.white.opacity(0.65))
                     }.padding(14).frame(height: 148)
                 }

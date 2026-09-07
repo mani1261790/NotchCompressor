@@ -1,5 +1,4 @@
 import Foundation
-import Darwin
 
 public enum JobPhase: String, Codable, Sendable {
     case waiting, probing, encoding, validating, completed, failed, cancelled, interrupted
@@ -20,7 +19,7 @@ public struct CompressionResult: Codable, Sendable {
     public var savedFraction: Double { 1 - Double(outputBytes) / Double(max(1, originalBytes)) }
 }
 
-private struct Fingerprint: Equatable {
+struct Fingerprint: Equatable {
     let size: UInt64
     let modified: Date
     let inode: UInt64
@@ -65,7 +64,7 @@ public struct CompressionEngine: Sendable {
         let staging = folder.appendingPathComponent(".notchcompressor-" + UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: staging) }
-        let output = staging.appendingPathComponent("output.mov")
+        let output = staging.appendingPathComponent("output." + source.pathExtension.lowercased())
         update(.encoding, 0, plan.note)
         _ = try await runner.run(executable: tools.ffmpeg, arguments: plan.arguments(input: source, output: output)) { text in
             if let value = text.split(separator: "\n").last(where: { $0.hasPrefix("out_time_us=") })?.split(separator: "=").last,
@@ -85,7 +84,7 @@ public struct CompressionEngine: Sendable {
         guard try Fingerprint(source) == fingerprint else {
             throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。もう一度お試しください。")
         }
-        let destination = try Self.publish(output, beside: source, mode: mode)
+        let destination = try Self.replaceOriginal(output, original: source, expected: fingerprint)
         return CompressionResult(output: destination, originalBytes: media.size, outputBytes: resultMedia.size, note: plan.note)
     }
 
@@ -103,19 +102,18 @@ public struct CompressionEngine: Sendable {
         }
     }
 
-    /// Exclusive rename on the same volume publishes atomically without replacing an existing name.
-    static func publish(_ staged: URL, beside input: URL, mode: CompressionMode) throws -> URL {
-        let folder = input.deletingLastPathComponent()
-        var sourceStem = input.deletingPathExtension().lastPathComponent
-        while sourceStem.utf8.count > 180 { sourceStem.removeLast() }
-        let stem = sourceStem + "-compressed-" + mode.rawValue
-        for number in 0..<10_000 {
-            let suffix = number == 0 ? "" : "-\(number)"
-            let target = folder.appendingPathComponent(stem + suffix + ".mov")
-            let result = staged.path.withCString { source in target.path.withCString { destination in renamex_np(source, destination, UInt32(RENAME_EXCL)) } }
-            if result == 0 { return target }
-            if errno != EEXIST { throw CompressionError.message("出力を保存できませんでした: \(String(cString: strerror(errno)))") }
+    /// Validate immediately before the filesystem replacement. The original is never
+    /// truncated or removed before the fully verified staged file is ready.
+    static func replaceOriginal(_ staged: URL, original: URL, expected: Fingerprint) throws -> URL {
+        try Task.checkCancellation()
+        guard try Fingerprint(original) == expected else {
+            throw CompressionError.message("処理中に元ファイルが変更されたため、置き換えませんでした。")
         }
-        throw CompressionError.message("同名の出力が多すぎます。保存先を整理してください。")
+        do {
+            _ = try FileManager.default.replaceItemAt(original, withItemAt: staged)
+        } catch {
+            throw CompressionError.message("圧縮した動画に置き換えられませんでした: \(error.localizedDescription)")
+        }
+        return original
     }
 }
