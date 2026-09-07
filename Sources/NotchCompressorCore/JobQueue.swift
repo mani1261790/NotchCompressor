@@ -63,7 +63,10 @@ public final class JobQueue: ObservableObject {
     public var runningCount: Int { runningIDs.count }
     public var waitingJobs: [CompressionJob] { jobs.filter { $0.phase == .waiting } }
     public var displayedJobs: [CompressionJob] {
-        jobs.filter { runningIDs.contains($0.id) } + waitingJobs + jobs.filter { $0.phase.isFinished }.reversed()
+        // Successful results remain in bounded storage, but leave the visible queue immediately.
+        jobs.filter { runningIDs.contains($0.id) && !$0.phase.isFinished }
+            + waitingJobs
+            + jobs.filter { $0.phase.isFinished && $0.phase != .completed }.reversed()
     }
     public var schedulingDescription: String {
         if isPaused { return "新しい処理を一時停止中・実行中の動画は続行します" }

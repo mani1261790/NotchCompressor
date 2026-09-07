@@ -186,6 +186,26 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
+    func testCompletedCardsDisappearIndividuallyWhileOthersKeepRunning() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .parallel
+        queue.enqueue([input("a"), input("b"), input("c")], mode: .both)
+        try await waitFor { await gate.started.count == 2 }
+        XCTAssertEqual(queue.displayedJobs.count, 3)
+        await gate.release(input("b").lastPathComponent)
+        try await waitFor { await gate.started.count == 3 }
+        XCTAssertEqual(Set(queue.displayedJobs.map(\.input)), Set([input("a"), input("c")]))
+        XCTAssertEqual(queue.jobs.first { $0.input == input("b") }?.phase, .completed)
+        queue.cancel(queue.jobs.first { $0.input == input("c") }!.id)
+        await gate.finishAll(); await queue.waitUntilIdle()
+        XCTAssertEqual(queue.displayedJobs.map(\.phase), [.cancelled])
+        XCTAssertEqual(queue.jobs.filter { $0.phase == .completed }.count, 2)
+        queue.clearFinished()
+        XCTAssertTrue(queue.displayedJobs.isEmpty)
+    }
+
+    @MainActor
     func testSchedulingPreferencesPersistAndLegacySnapshotRemainsReadable() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

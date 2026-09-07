@@ -71,7 +71,7 @@ struct QueueView: View {
                     Spacer()
                 }.padding()
             }
-            if queue.jobs.isEmpty {
+            if queue.displayedJobs.isEmpty {
                 VStack(spacing: 18) {
                     Image(systemName: "arrow.up.document").font(.system(size: 38, weight: .light)).foregroundStyle(.secondary)
                     Text("ドロップする場所で、圧縮方法を選べます").font(.headline)
@@ -107,8 +107,8 @@ struct QueueView: View {
                 Text("圧縮結果を検証してから、元動画を置き換えます。")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                IconControl(title: "完了履歴を消す（動画は残ります）", symbol: "clock.badge.xmark") { queue.clearFinished() }
-                    .disabled(!queue.jobs.contains { $0.phase.isFinished })
+                IconControl(title: "終了した項目を消す（動画は残ります）", symbol: "clock.badge.xmark") { queue.clearFinished() }
+                    .disabled(!queue.displayedJobs.contains { $0.phase.isFinished })
                     .help("履歴だけを消します。動画ファイルは削除しません。")
             }.padding(16)
         }
@@ -215,7 +215,6 @@ private struct QueueCardDrop: DropDelegate {
     @Binding var targeted: Bool
     func validateDrop(info: DropInfo) -> Bool {
         let supported = info.hasItemsConforming(to: [.notchQueueJob])
-        queueDragLog.info("queue validate supported=\(supported) source=\(draggingID != nil)")
         guard supported, let source = draggingID else { return false }
         let waiting = queue.waitingJobs.map(\.id)
         return source != destination && waiting.contains(source) && waiting.contains(destination)

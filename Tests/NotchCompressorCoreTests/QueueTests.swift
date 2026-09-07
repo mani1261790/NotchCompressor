@@ -62,6 +62,7 @@ final class QueueTests: XCTestCase {
         let queue = JobQueue(storage: url)
         XCTAssertEqual(queue.jobs.map(\.phase), [.interrupted, .completed])
         XCTAssertFalse(queue.isBusy)
+        XCTAssertEqual(queue.displayedJobs.map(\.phase), [.interrupted])
         XCTAssertEqual(queue.settings.quality, .compact)
         let saved = try JSONDecoder().decode(QueueSnapshot.self, from: Data(contentsOf: url))
         XCTAssertEqual(saved.jobs.first?.phase, .interrupted)
