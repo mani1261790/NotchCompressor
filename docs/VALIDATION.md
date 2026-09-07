@@ -99,3 +99,10 @@ releaseビルド成功。起動したキューのスクリーンショットで�
 
 参照: https://developer.apple.com/documentation/technologyoverviews/adopting-liquid-glass
 参照: https://developer.apple.com/documentation/swiftui/applying-liquid-glass-to-custom-views
+
+
+## 2026-09-07 円形操作と動画サムネイル
+
+ユーザー訂正: アイコンのみは円、文字付き横長ボタンはピル。IconControlを標準glass + circleに変更し、追加メニューも44ptの円へ統一。macOS 14/15はCircle + Material。大きな圧縮モード記号を廃止し、Quick Lookで各動画のサムネイルを非同期取得。完了時は出力を優先し、なければ元動画。未ダウンロードのiCloudファイルはサムネイル生成をスキップ。失敗時は形式付きプレースホルダー、画面から消えたリクエストはキャンセル。圧縮モードはファイル名下の補足ラベル。
+
+releaseビルド成功。起動した実画面で円形ボタン、ピル型の結果ボタン、個別動画サムネイルを確認。追加ボタンだけ小さくなる問題を再調整し、最終スクリーンショットで設定ボタンと揃う円を確認。検証動画は同じカラーバー素材なのでサムネイルが似ているが、各URLをQuick Lookに渡している。大元のFinder→ノッチドロップ検証はこのUI変更の検証に含めない。

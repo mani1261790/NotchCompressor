@@ -9,7 +9,7 @@ struct QueueView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("収録を、軽く。").font(.title2.weight(.semibold))
+                    Text("圧縮キュー").font(.title2.weight(.semibold))
                     Text(queue.pendingCount > 0 ? "\(queue.pendingCount)件を順番に処理します" : "動画を画面上端の中央へドラッグ")
                         .font(.callout).foregroundStyle(.secondary)
                 }
@@ -20,10 +20,10 @@ struct QueueView: View {
                     }
                 } label: {
                     Label("動画を追加", systemImage: "plus").labelStyle(.iconOnly)
-                        .font(.system(size: 16, weight: .medium)).frame(width: 24, height: 24)
+                        .font(.system(size: 16, weight: .medium)).frame(width: 36, height: 36)
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden)
-                .fixedSize().padding(8).modifier(GlassCapsuleSurface())
+                .frame(width: 44, height: 44).modifier(GlassCircleSurface())
                 .help("動画を追加して圧縮方法を選ぶ").accessibilityLabel("動画を追加")
                 IconControl(title: "設定", symbol: "gearshape") { app.settingsPresented = true }
             }
@@ -84,12 +84,11 @@ private struct JobRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .top) {
-                Image(systemName: job.mode.symbol).font(.title3)
-                    .foregroundStyle(.tint).frame(width: 42, height: 42)
-                    .background(.tint.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
                 VStack(alignment: .leading, spacing: 4) {
                     Text(job.input.lastPathComponent).font(.headline).lineLimit(2).textSelection(.enabled)
-                    Text("\(job.mode.title)・\(job.settings.quality.title)").font(.caption).foregroundStyle(.secondary)
+                    Label("\(job.mode.title)・\(job.settings.quality.title)", systemImage: job.mode.symbol)
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
                 Text(queue.cancelling.contains(job.id) ? "停止中…" : job.phase.title)

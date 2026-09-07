@@ -36,21 +36,35 @@ struct IconControl: View {
             Label(title, systemImage: symbol)
                 .labelStyle(.iconOnly)
                 .font(.system(size: 14, weight: .medium))
-                .frame(width: 24, height: 24)
+                .frame(width: 36, height: 36)
         }
-        .capsuleControl(prominent: prominent)
-        .controlSize(.large)
+        .modifier(CircularControlStyle(prominent: prominent))
         .help(title)
         .accessibilityLabel(title)
     }
 }
 
-struct GlassCapsuleSurface: ViewModifier {
+struct GlassCircleSurface: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if #available(macOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: Capsule())
+            content.glassEffect(.regular.interactive(), in: Circle())
         } else {
-            content.background(.regularMaterial, in: Capsule())
+            content.background(.regularMaterial, in: Circle())
+        }
+    }
+}
+
+struct CircularControlStyle: ViewModifier {
+    var prominent = false
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.buttonStyle(.glass).buttonBorderShape(.circle)
+                .tint(prominent ? Color.accentColor : nil)
+                .controlSize(.regular)
+        } else {
+            content.buttonStyle(.plain)
+                .background(.regularMaterial, in: Circle())
+                .contentShape(Circle())
         }
     }
 }
