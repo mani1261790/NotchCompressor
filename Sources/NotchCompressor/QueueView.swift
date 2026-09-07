@@ -1,10 +1,13 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
+import OSLog
 import NotchCompressorCore
 
 struct QueueView: View {
     @ObservedObject var queue: JobQueue
     @ObservedObject var app: AppState
+    @State private var draggingJobID: UUID?
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
@@ -48,13 +51,13 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel("実行方式：\(queue.execution.title)")
                     Spacer()
-                    Text(queue.isPaused ? "待機を一時停止" : "優先度順に処理")
+                    Text(queue.isPaused ? "待機を一時停止" : "ドラッグで待機順を変更")
                         .font(.caption).foregroundStyle(.secondary)
                     IconControl(title: queue.isPaused ? "待機中の処理を再開" : "新しい処理を一時停止",
                                 symbol: queue.isPaused ? "play.fill" : "pause.fill") { queue.togglePause() }
                 }
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
-                .help("空き枠で実行できる動画から開始します。待機中は優先度を変更できます。")
+                .help("空き枠で実行できる動画から開始します。待機中のカードをドラッグして順番を変更できます。")
             }.padding(.horizontal, 24).padding(.bottom, 14)
             Divider()
             if let error = app.dropError {
@@ -83,10 +86,18 @@ struct QueueView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(queue.displayedJobs) { job in
-                            JobRow(job: job, queue: queue)
-                                .padding(18)
-                                .background(.background, in: RoundedRectangle(cornerRadius: 20))
-                                .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.06)))
+                            if job.phase == .waiting {
+                                card(job)
+                                    .onDrag {
+                                        draggingJobID = job.id
+                                        queueDragLog.info("queue drag began")
+                                        return NSItemProvider(item: Data(job.id.uuidString.utf8) as NSData,
+                                                              typeIdentifier: UTType.notchQueueJob.identifier)
+                                    }
+                                    .modifier(QueueDropTarget(queue: queue, job: job, draggingID: $draggingJobID))
+                            } else {
+                                card(job)
+                            }
                         }
                     }.padding(20)
                 }.background(.quaternary.opacity(0.35))
@@ -103,6 +114,13 @@ struct QueueView: View {
         }
         .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
     }
+    private func card(_ job: CompressionJob) -> some View {
+        JobRow(job: job, queue: queue)
+            .padding(18)
+            .background(.background, in: RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.06)))
+    }
+
 }
 
 private struct JobRow: View {
@@ -113,7 +131,7 @@ private struct JobRow: View {
             HStack(alignment: .top) {
                 VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(job.input.lastPathComponent).font(.headline).lineLimit(2).textSelection(.enabled)
+                    Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
                     Label("\(job.mode.title)・\(job.settings.quality.title)", systemImage: job.mode.symbol)
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -150,22 +168,8 @@ private struct JobRow: View {
                 }
                 Spacer()
                 if job.phase == .waiting {
-                    Menu {
-                        ForEach(JobPriority.allCases.reversed()) { priority in
-                            Button {
-                                queue.setPriority(job.id, to: priority)
-                            } label: {
-                                if job.effectivePriority == priority { Label(priority.title, systemImage: "checkmark") }
-                                else { Text(priority.title) }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 6) {
-                            Label("優先度：\(job.effectivePriority.title)", systemImage: "flag")
-                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
-                        }
-                    }.capsuleMenu()
-                    IconControl(title: "次に処理（優先度を高にして先頭へ）", symbol: "arrow.up.to.line") { queue.runNext(job.id) }
+                    Label("ドラッグで並べ替え", systemImage: "line.3.horizontal")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 if !job.phase.isFinished {
                     IconControl(title: "圧縮をキャンセル", symbol: "xmark") { queue.cancel(job.id) }.disabled(queue.cancelling.contains(job.id))
@@ -177,3 +181,59 @@ private struct JobRow: View {
     }
     private func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
 }
+
+private extension UTType {
+    static let notchQueueJob = UTType(exportedAs: "com.mani.NotchCompressor.queue-job", conformingTo: .data)
+}
+
+private struct QueueDropTarget: ViewModifier {
+    @ObservedObject var queue: JobQueue
+    let job: CompressionJob
+    @Binding var draggingID: UUID?
+    @State private var targeted = false
+    private var movesDown: Bool {
+        let ids = queue.waitingJobs.map(\.id)
+        guard let source = draggingID.flatMap({ ids.firstIndex(of: $0) }), let target = ids.firstIndex(of: job.id) else { return false }
+        return source < target
+    }
+    func body(content: Content) -> some View {
+        content
+            .overlay(alignment: movesDown ? .bottom : .top) {
+                if targeted && draggingID != job.id {
+                    Capsule().fill(Color.accentColor).frame(height: 3).padding(.horizontal, 8)
+                }
+            }
+            .onDrop(of: [.notchQueueJob], delegate: QueueCardDrop(queue: queue, destination: job.id,
+                                                               draggingID: $draggingID, targeted: $targeted))
+    }
+}
+
+private struct QueueCardDrop: DropDelegate {
+    let queue: JobQueue
+    let destination: UUID
+    @Binding var draggingID: UUID?
+    @Binding var targeted: Bool
+    func validateDrop(info: DropInfo) -> Bool {
+        let supported = info.hasItemsConforming(to: [.notchQueueJob])
+        queueDragLog.info("queue validate supported=\(supported) source=\(draggingID != nil)")
+        guard supported, let source = draggingID else { return false }
+        let waiting = queue.waitingJobs.map(\.id)
+        return source != destination && waiting.contains(source) && waiting.contains(destination)
+    }
+    func dropEntered(info: DropInfo) {
+        targeted = validateDrop(info: info)
+        queueDragLog.info("queue drop entered accepted=\(targeted)")
+    }
+    func dropExited(info: DropInfo) { targeted = false }
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: validateDrop(info: info) ? .move : .forbidden)
+    }
+    func performDrop(info: DropInfo) -> Bool {
+        defer { targeted = false; draggingID = nil }
+        guard validateDrop(info: info), let source = draggingID else { return false }
+        queueDragLog.info("queue drop committed")
+        return withAnimation(.easeInOut(duration: 0.18)) { queue.moveWaiting(source, to: destination) }
+    }
+}
+
+private let queueDragLog = Logger(subsystem: "com.mani.NotchCompressor", category: "QueueReorder")

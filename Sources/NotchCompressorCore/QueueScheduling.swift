@@ -8,14 +8,6 @@ public enum QueueExecution: String, CaseIterable, Codable, Identifiable, Sendabl
     }
 }
 
-public enum JobPriority: Int, CaseIterable, Codable, Identifiable, Sendable {
-    case low = 0, normal = 1, high = 2
-    public var id: Int { rawValue }
-    public var title: String {
-        switch self { case .low: "低"; case .normal: "標準"; case .high: "高" }
-    }
-}
-
 public struct SchedulingEnvironment: Equatable, Sendable {
     public var conservesResources: Bool
     public init(conservesResources: Bool) { self.conservesResources = conservesResources }

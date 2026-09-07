@@ -16,14 +16,14 @@ final class QueueTests: XCTestCase {
     @MainActor
     func testSerialQueueContinuesAfterFailureAndSnapshotsSettings() async throws {
         let log = ExecutionLog()
-        let queue = JobQueue { url, _, settings, update in
+        let queue = JobQueue(operation: { url, _, settings, update in
             await log.start(url, quality: settings.quality)
             update(.encoding, 0.5, nil)
             try await Task.sleep(for: .milliseconds(40))
             await log.finish()
             if url.lastPathComponent == "bad.mov" { throw CompressionError.message("fixture failure") }
             return CompressionResult(output: url, originalBytes: 100, outputBytes: 50, note: nil)
-        }
+        })
         let inputs = ["bad.mov", "good.mov", "last.mov"].map { URL(fileURLWithPath: "/tmp/" + $0) }
         XCTAssertEqual(queue.enqueue(inputs, mode: .both), 3)
         queue.settings.quality = .compact
@@ -37,10 +37,10 @@ final class QueueTests: XCTestCase {
 
     @MainActor
     func testCancellationAndPendingDuplicate() async throws {
-        let queue = JobQueue { url, _, _, _ in
+        let queue = JobQueue(operation: { url, _, _, _ in
             try await Task.sleep(for: .seconds(30))
             return CompressionResult(output: url, originalBytes: 100, outputBytes: 50, note: nil)
-        }
+        })
         let input = URL(fileURLWithPath: "/tmp/first.mov")
         XCTAssertEqual(queue.enqueue([input, input, URL(fileURLWithPath: "/tmp/second.mov")], mode: .audio), 2)
         await queue.stopForTermination()

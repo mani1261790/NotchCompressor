@@ -20,6 +20,11 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <plist version="1.0"><dict>
 <key>CFBundleExecutable</key><string>NotchCompressor</string>
 <key>CFBundleIdentifier</key><string>com.mani.NotchCompressor</string>
+<key>UTExportedTypeDeclarations</key><array><dict>
+<key>UTTypeIdentifier</key><string>com.mani.NotchCompressor.queue-job</string>
+<key>UTTypeDescription</key><string>NotchCompressor queue item</string>
+<key>UTTypeConformsTo</key><array><string>public.data</string></array>
+</dict></array>
 <key>CFBundleIconFile</key><string>AppIcon</string>
 <key>CFBundleName</key><string>NotchCompressor</string>
 <key>CFBundlePackageType</key><string>APPL</string>

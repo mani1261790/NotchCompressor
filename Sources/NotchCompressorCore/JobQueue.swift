@@ -11,9 +11,6 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public var progress: Double
     public var message: String?
     public var result: CompressionResult?
-    // Optional on disk so version-1 histories without priorities remain readable.
-    public var priority: JobPriority?
-    public var effectivePriority: JobPriority { priority ?? .normal }
     public init(input: URL, mode: CompressionMode, settings: CompressionSettings) {
         id = UUID(); self.input = input; self.mode = mode; self.settings = settings
         createdAt = Date(); phase = .waiting; progress = 0
@@ -64,19 +61,14 @@ public final class JobQueue: ObservableObject {
     public var pendingCount: Int { jobs.filter { !$0.phase.isFinished }.count }
     public var isBusy: Bool { pendingCount > 0 || !workers.isEmpty }
     public var runningCount: Int { runningIDs.count }
-    public var waitingJobs: [CompressionJob] {
-        jobs.enumerated().filter { $0.element.phase == .waiting }.sorted {
-            let left = $0.element.effectivePriority.rawValue, right = $1.element.effectivePriority.rawValue
-            return left == right ? $0.offset < $1.offset : left > right
-        }.map(\.element)
-    }
+    public var waitingJobs: [CompressionJob] { jobs.filter { $0.phase == .waiting } }
     public var displayedJobs: [CompressionJob] {
         jobs.filter { runningIDs.contains($0.id) } + waitingJobs + jobs.filter { $0.phase.isFinished }.reversed()
     }
     public var schedulingDescription: String {
         if isPaused { return "新しい処理を一時停止中・実行中の動画は続行します" }
         switch execution {
-        case .serial: return "追加順・優先度に従って1件ずつ処理"
+        case .serial: return "キューの上から1件ずつ処理"
         case .parallel: return "最大2件を並列処理・同じ元動画は順番に処理"
         case .automatic:
             return environment.conservesResources ? "省電力・発熱・構成に合わせ、新しい処理は1件まで" : "最大2件・映像圧縮は1件まで、音質のみは併走可能"
@@ -120,19 +112,17 @@ public final class JobQueue: ObservableObject {
         if !isPaused { startNext() }
     }
 
-    public func setPriority(_ id: UUID, to priority: JobPriority) {
-        guard let index = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }) else { return }
-        jobs[index].priority = priority
-        persist(); startNext()
-    }
-
-    public func runNext(_ id: UUID) {
-        guard let index = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }) else { return }
-        var job = jobs.remove(at: index)
-        job.priority = .high
-        let firstWaiting = jobs.firstIndex(where: { $0.phase == .waiting }) ?? jobs.endIndex
-        jobs.insert(job, at: firstWaiting)
-        persist(); startNext()
+    /// Move a waiting card to another waiting card's position, preserving every other state.
+    @discardableResult
+    public func moveWaiting(_ id: UUID, to destination: UUID) -> Bool {
+        guard id != destination,
+              let source = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }),
+              let target = jobs.firstIndex(where: { $0.id == destination && $0.phase == .waiting }) else { return false }
+        let job = jobs.remove(at: source)
+        jobs.insert(job, at: target)
+        persist()
+        startNext()
+        return true
     }
 
     @discardableResult

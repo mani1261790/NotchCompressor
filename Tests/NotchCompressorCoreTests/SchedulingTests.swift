@@ -53,14 +53,15 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
-    func testPriorityRunNextAndPauseDoNotReverseFIFO() async throws {
+    func testDragReorderAndPausePreserveWaitingOrder() async throws {
         let gate = WorkGate()
-        let queue = JobQueue { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
         queue.execution = .serial
         queue.togglePause()
         queue.enqueue([input("first"), input("second"), input("third"), input("fourth")], mode: .both)
-        queue.setPriority(queue.jobs[2].id, to: .high)
-        queue.runNext(queue.jobs[1].id)
+        let third = queue.jobs[2].id, second = queue.jobs[1].id, first = queue.jobs[0].id
+        XCTAssertTrue(queue.moveWaiting(third, to: first))
+        XCTAssertTrue(queue.moveWaiting(second, to: third))
         XCTAssertEqual(queue.waitingJobs.map(\.input), [input("second"), input("third"), input("first"), input("fourth")])
         XCTAssertEqual(queue.runningCount, 0)
         await gate.finishAll()
@@ -105,7 +106,7 @@ final class SchedulingTests: XCTestCase {
         try FileManager.default.linkItem(at: original, to: hard)
         try FileManager.default.createSymbolicLink(at: symbolic, withDestinationURL: original)
         let gate = WorkGate()
-        let queue = JobQueue { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
         queue.execution = .parallel
         queue.enqueue([original], mode: .both)
         queue.enqueue([hard, symbolic], mode: .audio)
@@ -121,7 +122,7 @@ final class SchedulingTests: XCTestCase {
     @MainActor
     func testCancellationHoldsSlotUntilWorkerStopsAndTerminationCancelsAll() async throws {
         let gate = WorkGate()
-        let queue = JobQueue { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
         queue.execution = .serial
         queue.enqueue([input("a"), input("b"), input("c")], mode: .audio)
         try await waitFor { await gate.started.count == 1 }
@@ -144,11 +145,11 @@ final class SchedulingTests: XCTestCase {
     @MainActor
     func testPauseAllowsActiveWorkToFinishAndParallelFailureFreesOnlyOneSlot() async throws {
         let gate = WorkGate()
-        let queue = JobQueue { url, _, _, _ in
+        let queue = JobQueue(operation: { url, _, _, _ in
             let result = try await gate.run(url)
             if url.lastPathComponent.contains("failure") { throw CompressionError.message("fixture failure") }
             return result
-        }
+        })
         queue.execution = .parallel
         queue.enqueue([input("failure"), input("good"), input("waiting")], mode: .both)
         try await waitFor { await gate.started.count == 2 }
@@ -167,6 +168,24 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
+    func testDraggingDownAndInvalidOrRunningCards() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .serial
+        queue.enqueue([input("active"), input("a"), input("b"), input("c")], mode: .both)
+        let active = queue.jobs[0].id, a = queue.jobs[1].id, c = queue.jobs[3].id
+        XCTAssertFalse(queue.moveWaiting(active, to: c))
+        XCTAssertFalse(queue.moveWaiting(c, to: active))
+        XCTAssertFalse(queue.moveWaiting(UUID(), to: c))
+        XCTAssertFalse(queue.moveWaiting(a, to: a))
+        XCTAssertTrue(queue.moveWaiting(a, to: c))
+        XCTAssertEqual(queue.waitingJobs.map(\.input), [input("b"), input("c"), input("a")])
+        queue.cancel(c)
+        XCTAssertFalse(queue.moveWaiting(a, to: c))
+        await gate.finishAll(); await queue.waitUntilIdle()
+    }
+
+    @MainActor
     func testSchedulingPreferencesPersistAndLegacySnapshotRemainsReadable() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -175,20 +194,20 @@ final class SchedulingTests: XCTestCase {
         let queue = JobQueue(storage: storage)
         queue.togglePause()
         queue.execution = .parallel
-        queue.enqueue([input("persist")], mode: .both)
-        queue.setPriority(queue.jobs[0].id, to: .high)
+        queue.enqueue([input("persist"), input("move")], mode: .both)
+        queue.moveWaiting(queue.jobs[1].id, to: queue.jobs[0].id)
         let restored = JobQueue(storage: storage)
         XCTAssertEqual(restored.execution, .parallel)
-        XCTAssertEqual(restored.jobs[0].effectivePriority, .high)
+        XCTAssertEqual(restored.jobs.map(\.input), [input("move"), input("persist")])
         XCTAssertEqual(restored.jobs[0].phase, .interrupted)
         var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: storage)) as? [String: Any])
         legacy.removeValue(forKey: "execution")
         var jobs = try XCTUnwrap(legacy["jobs"] as? [[String: Any]])
-        jobs[0].removeValue(forKey: "priority"); legacy["jobs"] = jobs
+        jobs[0]["priority"] = 2; legacy["jobs"] = jobs
         try JSONSerialization.data(withJSONObject: legacy).write(to: storage)
         let migrated = JobQueue(storage: storage)
         XCTAssertNil(migrated.persistenceError)
         XCTAssertEqual(migrated.execution, .automatic)
-        XCTAssertEqual(migrated.jobs[0].effectivePriority, .normal)
+        XCTAssertEqual(migrated.jobs.map(\.input), [input("move"), input("persist")])
     }
 }
