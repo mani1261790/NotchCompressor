@@ -19,11 +19,18 @@ struct QueueView: View {
                         Button { app.chooseVideos(mode: mode) } label: { Label(mode.title, systemImage: mode.symbol) }
                     }
                 } label: {
-                    Label("動画を追加", systemImage: "plus").labelStyle(.iconOnly)
-                        .font(.system(size: 16, weight: .medium)).frame(width: 36, height: 36)
+                    Color.clear.frame(width: 36, height: 36)
                 }
                 .menuStyle(.borderlessButton).menuIndicator(.hidden)
                 .frame(width: 44, height: 44).modifier(GlassCircleSurface())
+                // Center against the visible circle, independent of NSMenu's label insets.
+                .overlay {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .medium))
+                        .frame(width: 44, height: 44, alignment: .center)
+                        .allowsHitTesting(false)
+                        .accessibilityHidden(true)
+                }
                 .help("動画を追加して圧縮方法を選ぶ").accessibilityLabel("動画を追加")
                 IconControl(title: "設定", symbol: "gearshape") { app.settingsPresented = true }
             }
