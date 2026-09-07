@@ -28,3 +28,9 @@ ProcessRunnerとCompressionEngineを追加。非同期進捗・キャンセル�
 ProcessはisRunningがfalseになるまで待つ。async中にスレッドをまたいでwaitUntilExitを重ねるとFoundationで停止したため、二重待機を除去して回帰確認した。
 
 Codexのタスクが旧作業場所を参照していたため、旧DocumentsパスにはDeveloper実体への互換シンボリックリンクを設置。ソースとビルドの実体はDeveloper配下。
+
+## Issue #3 完了
+
+JobQueueを追加し、直列実行・キャンセル・再試行・受付時設定・JSON永続化・中断復元を実装。破損した履歴は上書きしない。SwiftUIのキュー／設定画面、元と出力のFinder表示、サイズ増減、依存不足の直接導線、SMAppServiceのログイン起動設定、終了確認とプロセス停止待機を接続。
+
+単体テスト14件成功（全18件のうち実メディア4件は明示的に無効）。新規キューテスト4件で順序、最大同時数1、失敗後継続、設定固定、重複、停止、復元、破損履歴保持を確認。ネイティブ操作はIssue #4/#5で行う。
