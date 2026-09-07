@@ -75,7 +75,7 @@ public struct CompressionPlan: Sendable {
     public func arguments(input: URL, output: URL) -> [String] {
         var args = ["-nostdin", "-hide_banner", "-loglevel", "error", "-xerror", "-n",
                     "-progress", "pipe:1", "-nostats", "-protocol_whitelist", "file,pipe",
-                    "-i", input.path, "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0", "-map_chapters", "0"]
+                    "-noautorotate", "-i", input.path, "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0", "-map_chapters", "0"]
         if mode.changesVideo {
             args += ["-c:v", "hevc_videotoolbox", "-allow_sw", "0", "-tag:v", "hvc1",
                      "-pix_fmt", "yuv420p", "-b:v", String(videoBitrate)]

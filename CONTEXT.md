@@ -20,3 +20,11 @@
 ## Issue #1 完了
 
 CoreにMediaInfo/InputFile/Toolchain/CompressionPlanを分離。3モード・音声なし・HDR・追加トラック・JSON異常・ツール欠落等の8テスト成功。テストは `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcrun swift test`（既定CLTではXCTestを解決できないため、このコマンドだけXcodeを指定）。
+
+## Issue #2 完了
+
+ProcessRunnerとCompressionEngineを追加。非同期進捗・キャンセル・容量事前確認・一時出力・全体デコード・元の変更検知・衝突しない保存を実装。NOTCH_MEDIA_TESTS=1付きswift testで14件成功（実FFmpeg 7.1.1 / VideoToolbox）。3モードのcopy側全パケットSHA256一致、元ファイルSHA256不変、無音声、破損、衝突、キャンセルを確認。
+
+ProcessはisRunningがfalseになるまで待つ。async中にスレッドをまたいでwaitUntilExitを重ねるとFoundationで停止したため、二重待機を除去して回帰確認した。
+
+Codexのタスクが旧作業場所を参照していたため、旧DocumentsパスにはDeveloper実体への互換シンボリックリンクを設置。ソースとビルドの実体はDeveloper配下。
