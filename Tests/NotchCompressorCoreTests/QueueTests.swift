@@ -14,6 +14,27 @@ private actor ExecutionLog {
 
 final class QueueTests: XCTestCase {
     @MainActor
+    func testCustomSettingsPersistAndAreCapturedAtEnqueue() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = folder.appendingPathComponent("queue.json")
+        let queue = JobQueue(storage: storage)
+        queue.togglePause()
+        queue.settings = .init(quality: .custom, videoPercent: 50, audioKbps: 80)
+        queue.enqueue([URL(fileURLWithPath: "/tmp/custom-first.mov")], mode: .both)
+        queue.settings.videoPercent = 35
+        queue.settings.audioKbps = 64
+        queue.enqueue([URL(fileURLWithPath: "/tmp/custom-second.mov")], mode: .both)
+        let restored = JobQueue(storage: storage)
+        XCTAssertEqual(restored.settings.effectiveVideoPercent, 35)
+        XCTAssertEqual(restored.settings.effectiveAudioKbps, 64)
+        XCTAssertEqual(restored.jobs.map { $0.settings.effectiveVideoPercent }, [50, 35])
+        XCTAssertEqual(restored.jobs.map { $0.settings.effectiveAudioKbps }, [80, 64])
+        XCTAssertEqual(restored.jobs[0].settings.summary(for: .both), "映像50%・音声80 kbps")
+    }
+
+    @MainActor
     func testSerialQueueContinuesAfterFailureAndSnapshotsSettings() async throws {
         let log = ExecutionLog()
         let queue = JobQueue(operation: { url, _, settings, update in

@@ -51,6 +51,39 @@ final class PolicyTests: XCTestCase {
         XCTAssertGreaterThan(budgets[1], budgets[2])
     }
 
+    func testCustomBitratesAndCopyModes() throws {
+        let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
+        let settings = CompressionSettings(quality: .custom, videoPercent: 50, audioKbps: 80)
+        for mode in CompressionMode.allCases {
+            let plan = try CompressionPlan(media: media, mode: mode, settings: settings)
+            XCTAssertEqual(plan.videoBitrate, 4_000_000)
+            XCTAssertEqual(plan.audioBitrate, 80_000)
+            let args = plan.arguments(input: URL(fileURLWithPath: "/tmp/input.mov"), output: URL(fileURLWithPath: "/tmp/output.mov"))
+            XCTAssertEqual(args.contains("-b:v"), mode.changesVideo)
+            XCTAssertEqual(args.contains("-b:a"), mode.changesAudio)
+            if mode.changesVideo { XCTAssertEqual(args[args.firstIndex(of: "-b:v")! + 1], "4000000") }
+            if mode.changesAudio { XCTAssertEqual(args[args.firstIndex(of: "-b:a")! + 1], "80000") }
+        }
+    }
+
+    func testCustomBoundsMissingSourceBitrateAndLegacySettings() throws {
+        let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
+        let bounded = CompressionSettings(quality: .custom, videoPercent: -20, audioKbps: 999)
+        let plan = try CompressionPlan(media: media, mode: .both, settings: bounded)
+        XCTAssertEqual(plan.videoBitrate, 800_000)
+        XCTAssertEqual(plan.audioBitrate, 192_000, "Do not exceed source audio rate")
+        XCTAssertEqual(CompressionSettings(quality: .custom, videoPercent: 999, audioKbps: -10).effectiveVideoPercent, 100)
+        XCTAssertEqual(CompressionSettings(quality: .custom, audioKbps: -10).effectiveAudioKbps, 32)
+        let data = String(decoding: fixture(), as: UTF8.self).replacingOccurrences(of: "\"bit_rate\":\"8000000\"", with: "\"bit_rate\":\"N/A\"")
+        let estimated = try MediaInfo.decode(Data(data.utf8), fileSize: 10_000_000)
+        XCTAssertEqual(try CompressionPlan(media: estimated, mode: .both, settings: .init(quality: .custom, videoPercent: 50)).videoBitrate, 3_904_000)
+        let legacy = try JSONDecoder().decode(CompressionSettings.self, from: Data("{\"quality\":\"balanced\"}".utf8))
+        XCTAssertNil(legacy.videoPercent)
+        XCTAssertNil(legacy.audioKbps)
+        XCTAssertEqual(try CompressionPlan(media: media, mode: .both, settings: legacy).videoBitrate,
+                       try CompressionPlan(media: media, mode: .both, quality: .balanced).videoBitrate)
+    }
+
     func testMissingExplicitToolsDoesNotSilentlyFallback() {
         XCTAssertThrowsError(try Toolchain.discover(directory: "/nonexistent/NotchCompressor"))
     }

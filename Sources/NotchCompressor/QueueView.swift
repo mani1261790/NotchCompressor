@@ -130,7 +130,7 @@ private struct JobRow: View {
                 VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
                 VStack(alignment: .leading, spacing: 4) {
                     Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
-                    Label("\(job.mode.title)・\(job.settings.quality.title)", systemImage: job.mode.symbol)
+                    Label("\(job.mode.title)・\(job.settings.summary(for: job.mode))", systemImage: job.mode.symbol)
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()

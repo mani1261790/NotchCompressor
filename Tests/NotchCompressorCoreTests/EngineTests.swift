@@ -58,6 +58,21 @@ final class EngineTests: XCTestCase {
         XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: folder.path).contains { $0.hasPrefix(".notchcompressor-") })
     }
 
+    func testRealCustomCompressionKeepsContainerAndUsesSelectedAudioRate() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("custom.mov")
+        try await makeVideo(source, tools: tools)
+        let result = try await CompressionEngine().compress(input: source, mode: .both,
+            settings: .init(quality: .custom, videoPercent: 50, audioKbps: 80))
+        let output = try await CompressionEngine().probe(result.output, tools: tools)
+        XCTAssertEqual(result.output, source)
+        XCTAssertEqual(output.video.codecName, "hevc")
+        XCTAssertEqual(output.audio?.codecName, "aac")
+        XCTAssertLessThan(try XCTUnwrap(output.audio?.bitRate), 128_000)
+        XCTAssertLessThan(abs(output.duration - 2), 0.1)
+    }
+
     func testSilentAndBrokenMediaKeepOriginal() async throws {
         let tools = try tools(), folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }

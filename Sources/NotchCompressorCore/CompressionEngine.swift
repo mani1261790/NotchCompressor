@@ -53,7 +53,7 @@ public struct CompressionEngine: Sendable {
         let fingerprint = try Fingerprint(source)
         let media = try await probe(source, tools: tools)
         try await CompressionControl.current?.checkpoint()
-        let plan = try CompressionPlan(media: media, mode: mode, quality: settings.quality)
+        let plan = try CompressionPlan(media: media, mode: mode, settings: settings)
         let folder = source.deletingLastPathComponent()
         guard FileManager.default.isWritableFile(atPath: folder.path) else {
             throw CompressionError.message("元ファイルのフォルダに書き込めません。書き込み可能なフォルダに動画を置いてください。")

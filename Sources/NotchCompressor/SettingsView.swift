@@ -22,6 +22,32 @@ struct SettingsView: View {
                     Picker("圧縮の強度", selection: $queue.settings.quality) {
                         ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
                     }.pickerStyle(.segmented)
+                    if queue.settings.quality == .custom {
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent("映像のビットレート", value: "元の\(queue.settings.effectiveVideoPercent)%")
+                                .monospacedDigit()
+                            Slider(value: Binding(get: { Double(queue.settings.effectiveVideoPercent) },
+                                                  set: { queue.settings.videoPercent = Int($0) }), in: 10...100, step: 1)
+                                .accessibilityLabel("映像のビットレート割合")
+                                .accessibilityValue("元の\(queue.settings.effectiveVideoPercent)%")
+                            Text("小さいほど容量を抑え、画質が下がります。元の値が不明な場合は容量と長さから推定します。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent("音声のビットレート", value: "\(queue.settings.effectiveAudioKbps) kbps")
+                                .monospacedDigit()
+                            Slider(value: Binding(get: { Double(queue.settings.effectiveAudioKbps) },
+                                                  set: { queue.settings.audioKbps = Int($0) }), in: 32...256, step: 8)
+                                .accessibilityLabel("音声のビットレート")
+                                .accessibilityValue("\(queue.settings.effectiveAudioKbps) kbps")
+                            Text("小さいほど容量を抑え、音質が下がります。元音声のビットレートを上限にします。")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Text("映像50%は、ファイル容量を必ず半分にする指定ではありません。実際の容量は内容や保持する音声・映像によって変わります。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Text("設定は自動保存し、次に追加する動画から適用します。追加済みの動画の設定は変わりません。")
+                        .font(.caption).foregroundStyle(.secondary)
                     Text("画質の変更は解像度を維持し、最大30fpsに。音質のみの場合は映像をそのまま保持します。")
                         .font(.callout).foregroundStyle(.secondary)
                 } header: { Label("圧縮", systemImage: "slider.horizontal.3") }

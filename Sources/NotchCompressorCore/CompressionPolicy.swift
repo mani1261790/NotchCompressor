@@ -14,28 +14,39 @@ public enum CompressionMode: String, CaseIterable, Identifiable, Codable, Sendab
 }
 
 public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sendable {
-    case gentle, balanced, compact
+    case gentle, balanced, compact, custom
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .gentle: "画質優先"; case .balanced: "標準"; case .compact: "容量優先" }
+        switch self { case .gentle: "画質優先"; case .balanced: "標準"; case .compact: "容量優先"; case .custom: "カスタム" }
     }
     public var audioBitrate: Int {
-        switch self { case .gentle: 128_000; case .balanced: 96_000; case .compact: 64_000 }
+        switch self { case .gentle: 128_000; case .balanced, .custom: 96_000; case .compact: 64_000 }
     }
     var bitsPerPixel: Double {
-        switch self { case .gentle: 0.09; case .balanced: 0.06; case .compact: 0.035 }
+        switch self { case .gentle: 0.09; case .balanced, .custom: 0.06; case .compact: 0.035 }
     }
     var sourceRatio: Double {
-        switch self { case .gentle: 0.85; case .balanced: 0.65; case .compact: 0.45 }
+        switch self { case .gentle: 0.85; case .balanced, .custom: 0.65; case .compact: 0.45 }
     }
 }
 
 public struct CompressionSettings: Codable, Equatable, Sendable {
     public var quality: CompressionQuality
     public var toolsDirectory: String?
-    public init(quality: CompressionQuality = .balanced, toolsDirectory: String? = nil) {
+    public var videoPercent: Int?
+    public var audioKbps: Int?
+    public var effectiveVideoPercent: Int { min(100, max(10, videoPercent ?? 65)) }
+    public var effectiveAudioKbps: Int { min(256, max(32, audioKbps ?? 96)) }
+    public func summary(for mode: CompressionMode) -> String {
+        guard quality == .custom else { return quality.title }
+        return [mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
+                mode.changesAudio ? "音声\(effectiveAudioKbps) kbps" : nil].compactMap { $0 }.joined(separator: "・")
+    }
+    public init(quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil, audioKbps: Int? = nil) {
         self.quality = quality
         self.toolsDirectory = toolsDirectory
+        self.videoPercent = videoPercent
+        self.audioKbps = audioKbps
     }
 }
 
@@ -49,11 +60,17 @@ public struct CompressionPlan: Sendable {
     public let mode: CompressionMode
     public let quality: CompressionQuality
     public let videoBitrate: Int
+    public let audioBitrate: Int
     public var note: String? {
         mode == .both && media.audio == nil ? "音声がないため、映像のみ圧縮します。" : nil
     }
 
     public init(media: MediaInfo, mode: CompressionMode, quality: CompressionQuality) throws {
+        try self.init(media: media, mode: mode, settings: .init(quality: quality))
+    }
+
+    public init(media: MediaInfo, mode: CompressionMode, settings: CompressionSettings) throws {
+        let quality = settings.quality
         if mode == .audio && media.audio == nil {
             throw CompressionError.message("音声のない動画です。「画質のみ」を選んでください。")
         }
@@ -69,7 +86,15 @@ public struct CompressionPlan: Sendable {
         let pixelRate = Double(media.video.width ?? 0) * Double(media.video.height ?? 0) * min(media.video.fps, 30)
         let target = pixelRate * quality.bitsPerPixel
         let sourceCap = media.video.bitRate.map { Double($0) * quality.sourceRatio } ?? 12_000_000
-        self.videoBitrate = Int(max(150_000, min(target, sourceCap, 12_000_000)))
+        if quality == .custom {
+            let estimatedVideoRate = max(32_000, Double(media.size) * 8 / media.duration - Double(media.audio?.bitRate ?? 0))
+            let sourceRate = media.video.bitRate.map(Double.init) ?? estimatedVideoRate
+            self.videoBitrate = Int(max(32_000, min(100_000_000, sourceRate * Double(settings.effectiveVideoPercent) / 100)))
+        } else {
+            self.videoBitrate = Int(max(150_000, min(target, sourceCap, 12_000_000)))
+        }
+        let requestedAudio = quality == .custom ? settings.effectiveAudioKbps * 1000 : quality.audioBitrate
+        self.audioBitrate = max(32_000, min(requestedAudio, media.audio?.bitRate ?? requestedAudio))
     }
 
     public func arguments(input: URL, output: URL) -> [String] {
@@ -84,8 +109,7 @@ public struct CompressionPlan: Sendable {
             args += ["-c:v", "copy"]
         }
         if mode.changesAudio && media.audio != nil {
-            let bitrate = min(quality.audioBitrate, media.audio?.bitRate ?? quality.audioBitrate)
-            args += ["-c:a", "aac", "-b:a", String(max(32_000, bitrate))]
+            args += ["-c:a", "aac", "-b:a", String(audioBitrate)]
         } else {
             args += ["-c:a", "copy"]
         }
