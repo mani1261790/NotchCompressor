@@ -23,5 +23,23 @@
     "title": "回帰検証とローカル配布手順を整備する",
     "body": "docs/issues/05.md",
     "url": "https://github.com/mani1261790/NotchCompressor/issues/5"
+  },
+  {
+    "title": "追加の画面構成とログイン時起動を実機検証する",
+    "body": "docs/issues/06.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/6",
+    "phase": "follow-up"
+  },
+  {
+    "title": "代表的な画面収録で圧縮プリセットを評価する",
+    "body": "docs/issues/07.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/7",
+    "phase": "follow-up"
+  },
+  {
+    "title": "配布版のFFmpegセットアップと署名・公証を整備する",
+    "body": "docs/issues/08.md",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/8",
+    "phase": "follow-up"
   }
 ]

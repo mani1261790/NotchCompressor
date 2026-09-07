@@ -1,4 +1,5 @@
 import AppKit
+import OSLog
 import SwiftUI
 import NotchCompressorCore
 
@@ -54,6 +55,8 @@ private final class DropHostingView: NSHostingView<DropPanel> {
 
 @MainActor
 final class NotchPanelController {
+    private let log = Logger(subsystem: "com.mani.NotchCompressor", category: "Drag")
+    private var lastLoggedPasteboard = NSPasteboard(name: .drag).changeCount
     private let panel: NSPanel
     private let presentation = DropPresentation()
     private let host: DropHostingView
@@ -91,8 +94,13 @@ final class NotchPanelController {
     private func update() {
         let pointer = NSEvent.mouseLocation
         let pasteboard = NSPasteboard(name: .drag)
-        drag.update(changeCount: pasteboard.changeCount, leftButtonDown: NSEvent.pressedMouseButtons & 1 != 0,
-                    hasFiles: pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]))
+        let leftDown = NSEvent.pressedMouseButtons & 1 != 0
+        let hasFiles = pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+        if lastLoggedPasteboard != pasteboard.changeCount {
+            lastLoggedPasteboard = pasteboard.changeCount
+            log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
+        }
+        drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
         guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { hide(); return }
         let geometry = NotchGeometry(screen: screen.frame, topInset: screen.safeAreaInsets.top)
         let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
@@ -100,7 +108,7 @@ final class NotchPanelController {
         host.geometry = geometry
         presentation.topInset = geometry.topInset
         if panel.frame != geometry.panel { panel.setFrame(geometry.panel, display: true) }
-        if !panel.isVisible { panel.orderFrontRegardless() }
+        if !panel.isVisible { log.notice("Showing drop panel"); panel.orderFrontRegardless() }
         presentation.visible = true
     }
 }
