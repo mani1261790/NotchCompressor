@@ -60,8 +60,8 @@ final class SchedulingTests: XCTestCase {
         queue.togglePause()
         queue.enqueue([input("first"), input("second"), input("third"), input("fourth")], mode: .both)
         let third = queue.jobs[2].id, second = queue.jobs[1].id, first = queue.jobs[0].id
-        XCTAssertTrue(queue.moveWaiting(third, to: first))
-        XCTAssertTrue(queue.moveWaiting(second, to: third))
+        XCTAssertTrue(queue.moveQueued(third, to: first))
+        XCTAssertTrue(queue.moveQueued(second, to: third))
         XCTAssertEqual(queue.waitingJobs.map(\.input), [input("second"), input("third"), input("first"), input("fourth")])
         XCTAssertEqual(queue.runningCount, 0)
         await gate.finishAll()
@@ -174,14 +174,14 @@ final class SchedulingTests: XCTestCase {
         queue.execution = .serial
         queue.enqueue([input("active"), input("a"), input("b"), input("c")], mode: .both)
         let active = queue.jobs[0].id, a = queue.jobs[1].id, c = queue.jobs[3].id
-        XCTAssertFalse(queue.moveWaiting(active, to: c))
-        XCTAssertFalse(queue.moveWaiting(c, to: active))
-        XCTAssertFalse(queue.moveWaiting(UUID(), to: c))
-        XCTAssertFalse(queue.moveWaiting(a, to: a))
-        XCTAssertTrue(queue.moveWaiting(a, to: c))
+        XCTAssertFalse(queue.moveQueued(active, to: c))
+        XCTAssertFalse(queue.moveQueued(c, to: active))
+        XCTAssertFalse(queue.moveQueued(UUID(), to: c))
+        XCTAssertFalse(queue.moveQueued(a, to: a))
+        XCTAssertTrue(queue.moveQueued(a, to: c))
         XCTAssertEqual(queue.waitingJobs.map(\.input), [input("b"), input("c"), input("a")])
         queue.cancel(c)
-        XCTAssertFalse(queue.moveWaiting(a, to: c))
+        XCTAssertTrue(queue.moveQueued(a, to: c))
         await gate.finishAll(); await queue.waitUntilIdle()
     }
 
@@ -206,6 +206,83 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
+    func testRunningAndStoppingStayPinnedUntilWorkerReturns() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(environment: { .init(conservesResources: false) }) { url, _, _, _ in try await gate.run(url) }
+        queue.enqueue([input("v1"), input("v2")], mode: .video)
+        queue.enqueue([input("audio")], mode: .audio)
+        try await waitFor { await gate.started.count == 2 }
+        let v1 = queue.jobs[0].id, v2 = queue.jobs[1].id, audio = queue.jobs[2].id
+        XCTAssertEqual(queue.displayedJobs.map(\.id), [v1, audio, v2])
+        XCTAssertFalse(queue.remove(v1))
+        XCTAssertFalse(queue.moveQueued(v2, to: audio))
+        queue.cancel(v1)
+        XCTAssertTrue(queue.cancelling.contains(v1))
+        XCTAssertFalse(queue.remove(v1))
+        XCTAssertFalse(queue.moveQueued(v1, to: v2))
+        XCTAssertEqual(queue.displayedJobs.first?.id, v1)
+        XCTAssertFalse(queue.cancelling.contains(audio), "Individual stop must not cancel another worker")
+        await gate.release(input("v1").lastPathComponent)
+        try await waitFor { await gate.started.count == 3 }
+        XCTAssertEqual(queue.displayedJobs.map(\.id), [audio, v2, v1], "Backfilled work must follow the already running card")
+        XCTAssertTrue(queue.remove(v1))
+        XCTAssertFalse(queue.remove(audio))
+        await gate.finishAll(); await queue.waitUntilIdle()
+    }
+
+    @MainActor
+    func testStopAllPausesDispatchAndLeavesWaitingCardsRemovable() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .parallel
+        queue.enqueue([input("a"), input("b"), input("c"), input("d")], mode: .both)
+        try await waitFor { await gate.started.count == 2 }
+        let ids = queue.jobs.map(\.id)
+        queue.stopAll()
+        XCTAssertTrue(queue.isPaused)
+        XCTAssertEqual(queue.cancelling, Set(ids.prefix(2)))
+        XCTAssertFalse(queue.remove(ids[0]))
+        XCTAssertTrue(queue.moveQueued(ids[3], to: ids[2]))
+        XCTAssertTrue(queue.remove(ids[2]))
+        await gate.finishAll(); await queue.waitUntilIdle()
+        let started = await gate.started
+        XCTAssertEqual(started.count, 2, "Stopping all must not dispatch a waiting job as workers exit")
+        XCTAssertEqual(queue.waitingJobs.map(\.id), [ids[3]])
+        XCTAssertTrue(queue.moveQueued(ids[0], to: ids[3]))
+        XCTAssertTrue(queue.remove(ids[1]))
+        queue.togglePause()
+        await queue.waitUntilIdle()
+        XCTAssertEqual(queue.jobs.first { $0.id == ids[3] }?.phase, .completed)
+    }
+
+    @MainActor
+    func testRemovingInactiveCardsPersistsWithoutDeletingFiles() throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.mov")
+        let storage = folder.appendingPathComponent("queue.json")
+        let bytes = Data("preserve original".utf8)
+        try bytes.write(to: source)
+        let queue = JobQueue(storage: storage)
+        queue.togglePause()
+        queue.enqueue([source], mode: .both)
+        XCTAssertTrue(queue.remove(queue.jobs[0].id))
+        XCTAssertFalse(queue.remove(UUID()))
+        XCTAssertEqual(try Data(contentsOf: source), bytes)
+        XCTAssertTrue(JobQueue(storage: storage).jobs.isEmpty)
+        for phase: JobPhase in [.cancelled, .failed, .interrupted] {
+            var job = CompressionJob(input: source, mode: .both, settings: .init())
+            job.phase = phase
+            try JSONEncoder().encode(QueueSnapshot(settings: .init(), jobs: [job])).write(to: storage)
+            let restored = JobQueue(storage: storage)
+            XCTAssertTrue(restored.remove(job.id))
+            XCTAssertTrue(JobQueue(storage: storage).jobs.isEmpty)
+            XCTAssertEqual(try Data(contentsOf: source), bytes)
+        }
+    }
+
+    @MainActor
     func testSchedulingPreferencesPersistAndLegacySnapshotRemainsReadable() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -215,7 +292,7 @@ final class SchedulingTests: XCTestCase {
         queue.togglePause()
         queue.execution = .parallel
         queue.enqueue([input("persist"), input("move")], mode: .both)
-        queue.moveWaiting(queue.jobs[1].id, to: queue.jobs[0].id)
+        queue.moveQueued(queue.jobs[1].id, to: queue.jobs[0].id)
         let restored = JobQueue(storage: storage)
         XCTAssertEqual(restored.execution, .parallel)
         XCTAssertEqual(restored.jobs.map(\.input), [input("move"), input("persist")])

@@ -52,6 +52,7 @@ public final class JobQueue: ObservableObject {
     @Published public private(set) var environment: SchedulingEnvironment
     @Published public private(set) var runningIDs = Set<UUID>()
     private var workers: [UUID: Task<Void, Never>] = [:]
+    private var activeOrder: [UUID] = []
     private var activeResources: [UUID: String] = [:]
     private let readEnvironment: () -> SchedulingEnvironment
     private var resourceMonitor: AnyCancellable?
@@ -62,14 +63,22 @@ public final class JobQueue: ObservableObject {
     public var isBusy: Bool { pendingCount > 0 || !workers.isEmpty }
     public var runningCount: Int { runningIDs.count }
     public var waitingJobs: [CompressionJob] { jobs.filter { $0.phase == .waiting } }
+    public func canReorder(_ id: UUID) -> Bool {
+        guard workers[id] == nil, !runningIDs.contains(id), !cancelling.contains(id),
+              let job = jobs.first(where: { $0.id == id }) else { return false }
+        return job.phase == .waiting || (job.phase.isFinished && job.phase != .completed)
+    }
+    public func canRemove(_ id: UUID) -> Bool { canReorder(id) }
+    public var queuedJobs: [CompressionJob] { jobs.filter { canReorder($0.id) } }
     public var displayedJobs: [CompressionJob] {
-        // Successful results remain in bounded storage, but leave the visible queue immediately.
-        jobs.filter { runningIDs.contains($0.id) && !$0.phase.isFinished }
-            + waitingJobs
-            + jobs.filter { $0.phase.isFinished && $0.phase != .completed }.reversed()
+        // Running cards retain start order; completed results remain only in bounded storage.
+        activeOrder.compactMap { id in jobs.first { $0.id == id && $0.phase != .completed } } + queuedJobs
     }
     public var schedulingDescription: String {
-        if isPaused { return "新しい処理を一時停止中・実行中の動画は続行します" }
+        if isPaused {
+            if !cancelling.isEmpty { return "圧縮を停止しています。次の処理は開始しません" }
+            return runningCount > 0 ? "新しい処理を一時停止中・実行中の動画は続行します" : "待機中の動画は再開すると処理を開始します"
+        }
         switch execution {
         case .serial: return "キューの上から1件ずつ処理"
         case .parallel: return "最大2件を並列処理・同じ元動画は順番に処理"
@@ -115,12 +124,12 @@ public final class JobQueue: ObservableObject {
         if !isPaused { startNext() }
     }
 
-    /// Move a waiting card to another waiting card's position, preserving every other state.
+    /// Reorder only inactive cards. Running and stopping workers are immutable anchors.
     @discardableResult
-    public func moveWaiting(_ id: UUID, to destination: UUID) -> Bool {
-        guard id != destination,
-              let source = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }),
-              let target = jobs.firstIndex(where: { $0.id == destination && $0.phase == .waiting }) else { return false }
+    public func moveQueued(_ id: UUID, to destination: UUID) -> Bool {
+        guard id != destination, canReorder(id), canReorder(destination),
+              let source = jobs.firstIndex(where: { $0.id == id }),
+              let target = jobs.firstIndex(where: { $0.id == destination }) else { return false }
         let job = jobs.remove(at: source)
         jobs.insert(job, at: target)
         persist()
@@ -157,12 +166,32 @@ public final class JobQueue: ObservableObject {
         startNext()
     }
 
+    /// Removing a card never deletes its source or output file.
+    @discardableResult
+    public func remove(_ id: UUID) -> Bool {
+        guard canRemove(id) else { return false }
+        jobs.removeAll { $0.id == id }
+        persist()
+        startNext()
+        return true
+    }
+
+    public func stopAll() {
+        // Close the scheduling gate before cancelling any worker.
+        isPaused = true
+        for id in Array(workers.keys) { cancel(id) }
+    }
+
     public func retry(_ id: UUID) {
         guard let job = jobs.first(where: { $0.id == id }), job.phase.isFinished else { return }
         enqueue([job.input], mode: job.mode)
     }
 
-    public func clearFinished() { jobs.removeAll { $0.phase.isFinished }; persist() }
+    public func clearFinished() {
+        let removable = Set(jobs.filter { $0.phase.isFinished && workers[$0.id] == nil && !runningIDs.contains($0.id) }.map(\.id))
+        jobs.removeAll { removable.contains($0.id) }
+        persist()
+    }
 
     public func stopForTermination() async {
         accepting = false
@@ -203,6 +232,7 @@ public final class JobQueue: ObservableObject {
     private func launch(_ job: CompressionJob) {
         guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { return }
         jobs[index].phase = .probing
+        activeOrder.append(job.id)
         runningIDs.insert(job.id)
         activeResources[job.id] = resourceKey(job.input)
         workers[job.id] = Task { [weak self] in
@@ -234,6 +264,7 @@ public final class JobQueue: ObservableObject {
             }
             cancelling.remove(job.id)
             activeResources.removeValue(forKey: job.id)
+            activeOrder.removeAll { $0 == job.id }
             runningIDs.remove(job.id)
             workers.removeValue(forKey: job.id)
             trimHistory()
@@ -244,7 +275,7 @@ public final class JobQueue: ObservableObject {
     }
 
     private func trimHistory() {
-        let finished = jobs.filter { $0.phase.isFinished }
+        let finished = jobs.filter { $0.phase.isFinished && workers[$0.id] == nil && !runningIDs.contains($0.id) }
         let remove = Set(finished.prefix(max(0, finished.count - 100)).map(\.id))
         jobs.removeAll { remove.contains($0.id) }
     }

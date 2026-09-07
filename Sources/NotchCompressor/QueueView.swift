@@ -51,13 +51,15 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel("実行方式：\(queue.execution.title)")
                     Spacer()
-                    Text(queue.isPaused ? "待機を一時停止" : "ドラッグで待機順を変更")
+                    Text(queue.isPaused ? "待機を一時停止" : "実行中は先頭に固定")
                         .font(.caption).foregroundStyle(.secondary)
                     IconControl(title: queue.isPaused ? "待機中の処理を再開" : "新しい処理を一時停止",
                                 symbol: queue.isPaused ? "play.fill" : "pause.fill") { queue.togglePause() }
+                    IconControl(title: "すべての圧縮を停止", symbol: "stop.fill") { queue.stopAll() }
+                        .disabled(queue.runningCount == 0 || queue.cancelling.count == queue.runningCount)
                 }
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
-                .help("空き枠で実行できる動画から開始します。待機中のカードをドラッグして順番を変更できます。")
+                .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")
             }.padding(.horizontal, 24).padding(.bottom, 14)
             Divider()
             if let error = app.dropError {
@@ -86,7 +88,7 @@ struct QueueView: View {
                 ScrollView {
                     LazyVStack(spacing: 12) {
                         ForEach(queue.displayedJobs) { job in
-                            if job.phase == .waiting {
+                            if queue.canReorder(job.id) {
                                 card(job)
                                     .onDrag {
                                         draggingJobID = job.id
@@ -167,14 +169,21 @@ private struct JobRow: View {
                     }.capsuleControl(prominent: true).controlSize(.large)
                 }
                 Spacer()
-                if job.phase == .waiting {
+                if queue.canReorder(job.id) {
                     Label("ドラッグで並べ替え", systemImage: "line.3.horizontal")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if !job.phase.isFinished {
-                    IconControl(title: "圧縮をキャンセル", symbol: "xmark") { queue.cancel(job.id) }.disabled(queue.cancelling.contains(job.id))
-                } else if job.phase != .completed {
-                    IconControl(title: "再試行", symbol: "arrow.clockwise") { queue.retry(job.id) }
+                if queue.runningIDs.contains(job.id) {
+                    Label("先頭に固定", systemImage: "pin.fill")
+                        .font(.caption).foregroundStyle(.secondary)
+                    IconControl(title: "この圧縮を停止", symbol: "stop.fill") { queue.cancel(job.id) }
+                        .disabled(queue.cancelling.contains(job.id))
+                } else {
+                    if job.phase.isFinished && job.phase != .completed {
+                        IconControl(title: "再試行", symbol: "arrow.clockwise") { queue.retry(job.id) }
+                    }
+                    IconControl(title: "キューから外す（動画は残ります）", symbol: "xmark") { queue.remove(job.id) }
+                        .disabled(!queue.canRemove(job.id))
                 }
             }.controlSize(.small)
         }
@@ -192,7 +201,7 @@ private struct QueueDropTarget: ViewModifier {
     @Binding var draggingID: UUID?
     @State private var targeted = false
     private var movesDown: Bool {
-        let ids = queue.waitingJobs.map(\.id)
+        let ids = queue.queuedJobs.map(\.id)
         guard let source = draggingID.flatMap({ ids.firstIndex(of: $0) }), let target = ids.firstIndex(of: job.id) else { return false }
         return source < target
     }
@@ -216,8 +225,7 @@ private struct QueueCardDrop: DropDelegate {
     func validateDrop(info: DropInfo) -> Bool {
         let supported = info.hasItemsConforming(to: [.notchQueueJob])
         guard supported, let source = draggingID else { return false }
-        let waiting = queue.waitingJobs.map(\.id)
-        return source != destination && waiting.contains(source) && waiting.contains(destination)
+        return source != destination && queue.canReorder(source) && queue.canReorder(destination)
     }
     func dropEntered(info: DropInfo) {
         targeted = validateDrop(info: info)
@@ -231,7 +239,7 @@ private struct QueueCardDrop: DropDelegate {
         defer { targeted = false; draggingID = nil }
         guard validateDrop(info: info), let source = draggingID else { return false }
         queueDragLog.info("queue drop committed")
-        return withAnimation(.easeInOut(duration: 0.18)) { queue.moveWaiting(source, to: destination) }
+        return withAnimation(.easeInOut(duration: 0.18)) { queue.moveQueued(source, to: destination) }
     }
 }
 

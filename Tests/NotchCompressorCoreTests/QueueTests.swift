@@ -56,7 +56,7 @@ final class QueueTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: folder) }
         let url = folder.appendingPathComponent("queue.json")
         let pending = CompressionJob(input: URL(fileURLWithPath: "/tmp/video.mov"), mode: .video, settings: .init())
-        var done = pending
+        var done = CompressionJob(input: URL(fileURLWithPath: "/tmp/done.mov"), mode: .video, settings: .init())
         done.phase = .completed
         try JSONEncoder().encode(QueueSnapshot(settings: .init(quality: .compact), jobs: [pending, done])).write(to: url)
         let queue = JobQueue(storage: url)
