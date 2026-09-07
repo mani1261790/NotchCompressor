@@ -13,7 +13,7 @@ struct QueueView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("圧縮キュー").font(.title2.weight(.semibold))
-                    Text(queue.pendingCount > 0 ? "実行中 \(queue.runningCount)件 · 待機 \(queue.waitingJobs.count)件" : "動画を画面上端の中央へドラッグ")
+                    Text(queue.pendingCount > 0 ? "実行中 \(queue.runningCount)件 · 一時停止 \(queue.pausedIDs.count)件 · 待機 \(queue.waitingJobs.count)件" : "動画を画面上端の中央へドラッグ")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -55,8 +55,11 @@ struct QueueView: View {
                         .font(.caption).foregroundStyle(.secondary)
                     IconControl(title: queue.isPaused ? "待機中の処理を再開" : "新しい処理を一時停止",
                                 symbol: queue.isPaused ? "play.fill" : "pause.fill") { queue.togglePause() }
-                    IconControl(title: "すべての圧縮を停止", symbol: "stop.fill") { queue.stopAll() }
-                        .disabled(queue.runningCount == 0 || queue.cancelling.count == queue.runningCount)
+                    IconControl(title: "すべての圧縮を一時停止", symbol: "pause.circle") { queue.pauseAll() }
+                        .disabled(queue.runningCount == 0)
+                    if !queue.pausedIDs.isEmpty {
+                        IconControl(title: "すべて途中から再開", symbol: "play.circle") { queue.resumeAll() }
+                    }
                 }
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
                 .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")
@@ -144,7 +147,7 @@ private struct JobRow: View {
                     .background(.quaternary, in: Capsule())
                     .foregroundStyle(job.phase == .failed ? Color.orange : job.phase == .completed ? Color.green : Color.secondary)
             }
-            if job.phase == .encoding {
+            if job.phase == .encoding || job.phase == .paused {
                 ProgressView(value: job.progress)
                 Text("\(Int(job.progress * 100))%・圧縮後に出力を検証します").font(.caption).foregroundStyle(.secondary)
             } else if [.probing, .validating].contains(job.phase) {
@@ -158,6 +161,8 @@ private struct JobRow: View {
                 }.font(.callout)
                 if result.savedFraction < 0 { Text("圧縮前よりファイル容量が増えました。").font(.caption).foregroundStyle(.secondary) }
             }
+            if job.phase == .paused { Text("アプリを開いたままなら、途中から再開できます。終了すると途中データは破棄されます。")
+                .font(.caption).foregroundStyle(.secondary) }
             if let message = job.message { Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
             HStack {
                 if job.result?.output != job.input.resolvingSymlinksInPath() {
@@ -173,10 +178,15 @@ private struct JobRow: View {
                     Label("ドラッグで並べ替え", systemImage: "line.3.horizontal")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                if queue.runningIDs.contains(job.id) {
+                if queue.pausedIDs.contains(job.id) {
+                    IconControl(title: "途中から再開", symbol: "play.fill") { queue.resume(job.id) }
+                        .disabled(queue.cancelling.contains(job.id))
+                    IconControl(title: "キューから外す（途中データは破棄・元動画は保持）", symbol: "xmark") { queue.remove(job.id) }
+                        .disabled(!queue.canRemove(job.id))
+                } else if queue.runningIDs.contains(job.id) {
                     Label("先頭に固定", systemImage: "pin.fill")
                         .font(.caption).foregroundStyle(.secondary)
-                    IconControl(title: "この圧縮を停止", symbol: "stop.fill") { queue.cancel(job.id) }
+                    IconControl(title: "この圧縮を一時停止", symbol: "pause.fill") { queue.pause(job.id) }
                         .disabled(queue.cancelling.contains(job.id))
                 } else {
                     if job.phase.isFinished && job.phase != .completed {

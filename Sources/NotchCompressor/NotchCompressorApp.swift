@@ -97,7 +97,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !terminating else { return .terminateLater }
         let alert = NSAlert()
         alert.messageText = "圧縮を中止して終了しますか？"
-        alert.informativeText = "処理中・待機中の\(queue.pendingCount)件をキャンセルします。元ファイルと完了済みの出力は残ります。"
+        alert.informativeText = "実行中・一時停止中・待機中の\(queue.pendingCount)件を中止します。途中データは破棄され、次回は最初からの再試行になります。元ファイルと完了済みの出力は残ります。"
         alert.addButton(withTitle: "処理を続ける")
         alert.addButton(withTitle: "中止して終了")
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }

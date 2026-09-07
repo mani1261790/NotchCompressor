@@ -316,6 +316,58 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
+    func testPauseRetainsWorkerAndResumeContinuesWithoutNewOperation() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .parallel
+        queue.enqueue([input("p1"), input("p2"), input("waiting")], mode: .both)
+        try await waitFor { await gate.started.count == 2 }
+        let ids = queue.jobs.map(\.id)
+        queue.pause(ids[0])
+        XCTAssertEqual(queue.jobs.first { $0.id == ids[0] }?.phase, .paused)
+        XCTAssertEqual(queue.runningCount, 1)
+        XCTAssertEqual(queue.pausedIDs, [ids[0]])
+        XCTAssertTrue(queue.canReorder(ids[0]))
+        XCTAssertTrue(queue.canRemove(ids[0]))
+        XCTAssertFalse(queue.canRemove(ids[1]))
+        XCTAssertEqual(queue.waitingJobs.count, 1, "Pause keeps its reserved worker slot")
+        XCTAssertEqual(queue.displayedJobs.map(\.id), [ids[1], ids[0], ids[2]])
+        queue.resume(ids[0])
+        XCTAssertEqual(queue.runningCount, 2)
+        let started = await gate.started
+        XCTAssertEqual(started.count, 2, "Resume must not invoke the operation again")
+        await gate.finishAll(); await queue.waitUntilIdle()
+        XCTAssertTrue(queue.jobs.allSatisfy { $0.phase == .completed })
+    }
+
+    @MainActor
+    func testPausedRemovalWaitsForCleanupAndRestorationIsInterrupted() async throws {
+        let gate = WorkGate()
+        let queue = JobQueue(operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .serial
+        queue.enqueue([input("paused"), input("waiting")], mode: .both)
+        try await waitFor { await gate.started.count == 1 }
+        let id = queue.jobs[0].id
+        queue.pauseAll()
+        XCTAssertTrue(queue.isPaused)
+        XCTAssertEqual(queue.jobs[0].phase, .paused)
+        let snapshot = QueueSnapshot(settings: .init(), jobs: queue.jobs)
+        let restored = try JSONDecoder().decode(QueueSnapshot.self, from: JSONEncoder().encode(snapshot)).recovered()
+        XCTAssertEqual(restored[0].phase, .interrupted)
+        XCTAssertTrue(queue.remove(id))
+        XCTAssertTrue(queue.cancelling.contains(id))
+        XCTAssertTrue(queue.displayedJobs.contains { $0.id == id }, "Keep the removing card visible until its worker exits")
+        XCTAssertFalse(queue.canRemove(id))
+        XCTAssertEqual(queue.runningIDs.count, 1)
+        await gate.finishAll(); await queue.waitUntilIdle()
+        XCTAssertFalse(queue.jobs.contains { $0.id == id })
+        XCTAssertEqual(queue.waitingJobs.count, 1)
+        queue.resumeAll()
+        await queue.waitUntilIdle()
+        XCTAssertEqual(queue.jobs[0].phase, .completed)
+    }
+
+    @MainActor
     func testSchedulingPreferencesPersistAndLegacySnapshotRemainsReadable() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

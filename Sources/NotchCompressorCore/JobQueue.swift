@@ -53,6 +53,10 @@ public final class JobQueue: ObservableObject {
     @Published public private(set) var runningIDs = Set<UUID>()
     private var workers: [UUID: Task<Void, Never>] = [:]
     private var activeOrder: [UUID] = []
+    private var controls: [UUID: CompressionControl] = [:]
+    private var resumedPhases: [UUID: JobPhase] = [:]
+    private var removalRequests = Set<UUID>()
+    @Published public private(set) var pausedIDs = Set<UUID>()
     private var activeResources: [UUID: String] = [:]
     private let readEnvironment: () -> SchedulingEnvironment
     private var resourceMonitor: AnyCancellable?
@@ -61,24 +65,28 @@ public final class JobQueue: ObservableObject {
 
     public var pendingCount: Int { jobs.filter { !$0.phase.isFinished }.count }
     public var isBusy: Bool { pendingCount > 0 || !workers.isEmpty }
-    public var runningCount: Int { runningIDs.count }
+    public var runningCount: Int { runningIDs.subtracting(pausedIDs).count }
     public var waitingJobs: [CompressionJob] { jobs.filter { $0.phase == .waiting } }
     public func canReorder(_ id: UUID) -> Bool {
-        guard workers[id] == nil, !runningIDs.contains(id), !cancelling.contains(id),
+        guard !cancelling.contains(id),
               let job = jobs.first(where: { $0.id == id }) else { return false }
+        if pausedIDs.contains(id) { return true }
+        guard workers[id] == nil, !runningIDs.contains(id) else { return false }
         return job.phase == .waiting || (job.phase.isFinished && job.phase != .completed)
     }
     public func canRemove(_ id: UUID) -> Bool { canReorder(id) }
     public var queuedJobs: [CompressionJob] { jobs.filter { canReorder($0.id) } }
     public var displayedJobs: [CompressionJob] {
         // Running cards retain start order; completed results remain only in bounded storage.
-        activeOrder.compactMap { id in jobs.first { $0.id == id && $0.phase != .completed } } + queuedJobs
+        activeOrder.compactMap { id in jobs.first { $0.id == id && $0.phase != .completed && (!pausedIDs.contains(id) || cancelling.contains(id)) } } + queuedJobs
     }
     public var schedulingDescription: String {
         if isPaused {
+            if !pausedIDs.isEmpty { return "一時停止中・アプリを開いたままなら途中から再開できます" }
             if !cancelling.isEmpty { return "圧縮を停止しています。次の処理は開始しません" }
             return runningCount > 0 ? "新しい処理を一時停止中・実行中の動画は続行します" : "待機中の動画は再開すると処理を開始します"
         }
+        if !pausedIDs.isEmpty { return "一時停止中は途中データと実行枠を保持します。▶で続きから再開できます" }
         switch execution {
         case .serial: return "キューの上から1件ずつ処理"
         case .parallel: return "最大2件を並列処理・同じ元動画は順番に処理"
@@ -153,6 +161,37 @@ public final class JobQueue: ObservableObject {
         return added
     }
 
+    public func pause(_ id: UUID) {
+        guard !cancelling.contains(id), !pausedIDs.contains(id),
+              let index = jobs.firstIndex(where: { $0.id == id }),
+              !jobs[index].phase.isFinished, let control = controls[id], control.pause() else { return }
+        resumedPhases[id] = jobs[index].phase
+        jobs[index].phase = .paused
+        pausedIDs.insert(id)
+        let job = jobs.remove(at: index)
+        jobs.insert(job, at: 0)
+        persist()
+    }
+
+    public func resume(_ id: UUID) {
+        guard pausedIDs.contains(id), !cancelling.contains(id),
+              let index = jobs.firstIndex(where: { $0.id == id }), controls[id]?.resume() == true else { return }
+        jobs[index].phase = resumedPhases.removeValue(forKey: id) ?? .encoding
+        pausedIDs.remove(id)
+        persist()
+    }
+
+    public func pauseAll() {
+        isPaused = true
+        for id in activeOrder { pause(id) }
+    }
+
+    public func resumeAll() {
+        for id in Array(pausedIDs) { resume(id) }
+        isPaused = false
+        startNext()
+    }
+
     public func cancel(_ id: UUID) {
         guard let index = jobs.firstIndex(where: { $0.id == id }), !jobs[index].phase.isFinished else { return }
         if let worker = workers[id] {
@@ -170,6 +209,11 @@ public final class JobQueue: ObservableObject {
     @discardableResult
     public func remove(_ id: UUID) -> Bool {
         guard canRemove(id) else { return false }
+        if workers[id] != nil {
+            removalRequests.insert(id)
+            cancel(id)
+            return true
+        }
         jobs.removeAll { $0.id == id }
         persist()
         startNext()
@@ -235,21 +279,26 @@ public final class JobQueue: ObservableObject {
         activeOrder.append(job.id)
         runningIDs.insert(job.id)
         activeResources[job.id] = resourceKey(job.input)
+        let control = CompressionControl()
+        controls[job.id] = control
         workers[job.id] = Task { [weak self] in
             guard let self else { return }
             do {
                 try Task.checkCancellation()
-                let result = try await operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
-                    Task { @MainActor in
-                        guard let self, self.runningIDs.contains(job.id),
-                              let index = self.jobs.firstIndex(where: { $0.id == job.id }), !self.jobs[index].phase.isFinished else { return }
-                        let changedPhase = self.jobs[index].phase != phase
-                        self.jobs[index].phase = phase
-                        self.jobs[index].progress = progress
-                        self.jobs[index].message = note
-                        if changedPhase { self.persist() }
+                let result = try await CompressionControl.$current.withValue(control) {
+                    try await self.operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
+                        Task { @MainActor in
+                            guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
+                                  let index = self.jobs.firstIndex(where: { $0.id == job.id }), !self.jobs[index].phase.isFinished else { return }
+                            let changedPhase = self.jobs[index].phase != phase
+                            self.jobs[index].phase = phase
+                            self.jobs[index].progress = progress
+                            self.jobs[index].message = note
+                            if changedPhase { self.persist() }
+                        }
                     }
                 }
+                try await control.checkpoint()
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
                     jobs[index].phase = .completed
                     jobs[index].progress = 1
@@ -268,6 +317,10 @@ public final class JobQueue: ObservableObject {
                     }
                 }
             }
+            pausedIDs.remove(job.id)
+            resumedPhases.removeValue(forKey: job.id)
+            controls.removeValue(forKey: job.id)
+            if removalRequests.remove(job.id) != nil { jobs.removeAll { $0.id == job.id } }
             cancelling.remove(job.id)
             activeResources.removeValue(forKey: job.id)
             activeOrder.removeAll { $0 == job.id }

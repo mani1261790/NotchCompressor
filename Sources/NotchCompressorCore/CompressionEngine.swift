@@ -1,10 +1,10 @@
 import Foundation
 
 public enum JobPhase: String, Codable, Sendable {
-    case waiting, probing, encoding, validating, completed, failed, cancelled, interrupted
+    case waiting, probing, encoding, validating, paused, completed, failed, cancelled, interrupted
     public var title: String {
         switch self {
-        case .waiting: "待機中"; case .probing: "動画を確認中"; case .encoding: "圧縮中"; case .validating: "出力を検証中"
+        case .paused: "一時停止中"; case .waiting: "待機中"; case .probing: "動画を確認中"; case .encoding: "圧縮中"; case .validating: "出力を検証中"
         case .completed: "完了"; case .failed: "失敗"; case .cancelled: "キャンセル済み"; case .interrupted: "前回の処理が中断"
         }
     }
@@ -44,6 +44,7 @@ public struct CompressionEngine: Sendable {
 
     public func compress(input: URL, mode: CompressionMode, settings: CompressionSettings,
                          update: @escaping @Sendable (JobPhase, Double, String?) -> Void = { _, _, _ in }) async throws -> CompressionResult {
+        try await CompressionControl.current?.checkpoint()
         try Task.checkCancellation()
         update(.probing, 0, nil)
         let source = input.resolvingSymlinksInPath()
@@ -51,6 +52,7 @@ public struct CompressionEngine: Sendable {
         _ = try InputFile.validate(source)
         let fingerprint = try Fingerprint(source)
         let media = try await probe(source, tools: tools)
+        try await CompressionControl.current?.checkpoint()
         let plan = try CompressionPlan(media: media, mode: mode, quality: settings.quality)
         let folder = source.deletingLastPathComponent()
         guard FileManager.default.isWritableFile(atPath: folder.path) else {
@@ -73,6 +75,7 @@ public struct CompressionEngine: Sendable {
             }
         }
         try Task.checkCancellation()
+        try await CompressionControl.current?.checkpoint()
         update(.validating, 0, plan.note)
         let resultMedia = try await probe(output, tools: tools)
         try Self.validateOutput(original: media, output: resultMedia, mode: mode)
@@ -84,7 +87,18 @@ public struct CompressionEngine: Sendable {
         guard try Fingerprint(source) == fingerprint else {
             throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。もう一度お試しください。")
         }
-        let destination = try Self.replaceOriginal(output, original: source, expected: fingerprint)
+        let destination: URL
+        if let control = CompressionControl.current {
+            while true {
+                try await control.checkpoint()
+                if let committed = try control.commit({ try Self.replaceOriginal(output, original: source, expected: fingerprint) }) {
+                    destination = committed
+                    break
+                }
+            }
+        } else {
+            destination = try Self.replaceOriginal(output, original: source, expected: fingerprint)
+        }
         return CompressionResult(output: destination, originalBytes: media.size, outputBytes: resultMedia.size, note: plan.note)
     }
 

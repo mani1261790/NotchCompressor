@@ -14,6 +14,7 @@ public struct ProcessRunner: Sendable {
     public func run(executable: URL, arguments: [String], timeout: TimeInterval = 86_400,
                     progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> Data {
         let cancellation = CancellationFlag()
+        let control = CompressionControl.current
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await Task.detached(priority: .utility) {
@@ -35,19 +36,27 @@ public struct ProcessRunner: Sendable {
                 process.standardOutput = output
                 process.standardError = errors
                 guard !cancellation.cancelled else { throw CancellationError() }
-                try process.run()
-                let started = Date()
+                if let control { try control.launch(process) } else { try process.run() }
+                defer { control?.detach(process) }
+                var lastTick = ProcessInfo.processInfo.systemUptime
+                var activeTime: TimeInterval = 0
                 var stopTime: Date?
                 var timedOut = false
                 while process.isRunning {
-                    if cancellation.cancelled || Date().timeIntervalSince(started) > timeout {
+                    let now = ProcessInfo.processInfo.systemUptime
+                    if control?.isPaused != true { activeTime += now - lastTick }
+                    lastTick = now
+                    if cancellation.cancelled || activeTime > timeout {
                         timedOut = !cancellation.cancelled
-                        if stopTime == nil { process.terminate(); stopTime = Date() }
+                        if stopTime == nil {
+                            _ = control?.resume()
+                            process.terminate(); stopTime = Date()
+                        }
                         if let stopTime, Date().timeIntervalSince(stopTime) > 2, process.isRunning {
                             kill(process.processIdentifier, SIGKILL)
                         }
                     }
-                    if let tail = try? Self.tail(stdout, limit: 8192), let text = String(data: tail, encoding: .utf8) { progress(text) }
+                    if control?.isPaused != true, let tail = try? Self.tail(stdout, limit: 8192), let text = String(data: tail, encoding: .utf8) { progress(text) }
                     try? await Task.sleep(for: .milliseconds(100))
                 }
                 if cancellation.cancelled { throw CancellationError() }
