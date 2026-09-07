@@ -17,7 +17,23 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
     case gentle, balanced, compact, custom
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .gentle: "画質優先"; case .balanced: "標準"; case .compact: "容量優先"; case .custom: "カスタム" }
+        switch self { case .gentle: "品質優先"; case .balanced: "標準"; case .compact: "容量優先"; case .custom: "カスタム" }
+    }
+    public var explanation: String {
+        switch self {
+        case .gentle: "画質・音質の変化を抑える設定です。容量の削減は控えめになります。"
+        case .balanced: "画質・音質と容量のバランスを取る設定です。"
+        case .compact: "画質・音質より、容量を小さくすることを優先します。"
+        case .custom: "映像の割合と音声のビットレートを、自分で指定します。"
+        }
+    }
+    public var videoBudgetDescription: String {
+        switch self {
+        case .gentle: "自動調整・元の85%を上限の目安に"
+        case .balanced: "自動調整・元の65%を上限の目安に"
+        case .compact: "自動調整・元の45%を上限の目安に"
+        case .custom: "指定した割合を目標に"
+        }
     }
     public var audioBitrate: Int {
         switch self { case .gentle: 128_000; case .balanced, .custom: 96_000; case .compact: 64_000 }
