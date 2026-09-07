@@ -1,8 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-swift build -c release
-bin_dir="$(swift build -c release --show-bin-path)"
+source scripts/select-xcode.sh
+xcrun swift build -c release
+bin_dir="$(xcrun swift build -c release --show-bin-path)"
 app_dir="$PWD/dist/NotchCompressor.app"
 mkdir -p "$app_dir/Contents/MacOS"
 cp "$bin_dir/NotchCompressor" "$app_dir/Contents/MacOS/NotchCompressor"

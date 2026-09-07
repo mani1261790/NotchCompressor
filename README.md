@@ -39,7 +39,7 @@ brew install ffmpeg
 
 ## ビルドと起動
 
-Swift 5.10以上とmacOS SDKが必要です。Xcodeで `Package.swift` を開いて編集できます。
+Xcode 26以降とmacOS 26以降のSDKが必要です。Xcodeで `Package.swift` を開いて編集できます。
 
 ```sh
 bash scripts/build-app.sh
@@ -60,7 +60,7 @@ bash scripts/test.sh
 NOTCH_MEDIA_TESTS=1 bash scripts/test.sh
 ```
 
-XCTestにはフルXcodeを使います。`test.sh` は既定がCommand Line Toolsの場合、インストール済みのXcodeをこのコマンドだけ指定します。システムの `xcode-select` は変更しません。明示した `DEVELOPER_DIR` が優先です。
+XCTestにはフルXcodeを使います。ビルド・テストスクリプトは既定SDKが古い場合、インストール済みの対応Xcodeをコマンド内だけで選びます。システムの `xcode-select` は変更しません。明示した `DEVELOPER_DIR` が優先です。
 
 統合テストは一時フォルダに合成動画を作ります。ユーザーの既存動画は使用しません。3モード、保持側のパケットSHA256一致、元ファイル不変、破損、無音声、出力名衝突、キャンセルを検証します。
 
