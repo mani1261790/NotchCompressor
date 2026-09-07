@@ -1,25 +1,7 @@
+import NotchCompressorCore
 import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
-
-enum CompressionMode: String, CaseIterable, Identifiable {
-    case video, both, audio
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .video: "画質のみ"
-        case .both: "画質＋音質"
-        case .audio: "音質のみ"
-        }
-    }
-    var symbol: String {
-        switch self {
-        case .video: "video"
-        case .both: "arrow.down.right.and.arrow.up.left"
-        case .audio: "waveform"
-        }
-    }
-}
 
 @MainActor
 final class AppState: ObservableObject {

@@ -5,5 +5,9 @@ let package = Package(
     name: "NotchCompressor",
     platforms: [.macOS(.v14)],
     products: [.executable(name: "NotchCompressor", targets: ["NotchCompressor"])],
-    targets: [.executableTarget(name: "NotchCompressor")]
+    targets: [
+        .target(name: "NotchCompressorCore"),
+        .executableTarget(name: "NotchCompressor", dependencies: ["NotchCompressorCore"]),
+        .testTarget(name: "NotchCompressorCoreTests", dependencies: ["NotchCompressorCore"])
+    ]
 )
