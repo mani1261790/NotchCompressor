@@ -260,6 +260,12 @@ public final class JobQueue: ObservableObject {
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
                     jobs[index].message = error is CancellationError ? "処理を停止しました。元ファイルは保持しています。" : error.localizedDescription
+                    if error is CancellationError {
+                        // Keep the stopped card visible above inactive cards instead of
+                        // returning it to its old enqueue position below the viewport.
+                        let stopped = jobs.remove(at: index)
+                        jobs.insert(stopped, at: 0)
+                    }
                 }
             }
             cancelling.remove(job.id)
@@ -275,7 +281,7 @@ public final class JobQueue: ObservableObject {
     }
 
     private func trimHistory() {
-        let finished = jobs.filter { $0.phase.isFinished && workers[$0.id] == nil && !runningIDs.contains($0.id) }
+        let finished = jobs.filter { $0.phase == .completed && workers[$0.id] == nil && !runningIDs.contains($0.id) }
         let remove = Set(finished.prefix(max(0, finished.count - 100)).map(\.id))
         jobs.removeAll { remove.contains($0.id) }
     }

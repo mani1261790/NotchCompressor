@@ -283,6 +283,39 @@ final class SchedulingTests: XCTestCase {
     }
 
     @MainActor
+    func testStoppedCardRemainsFirstAndSurvivesHistoryTrimmingAndRestore() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = folder.appendingPathComponent("queue.json")
+        var old = CompressionJob(input: input("old"), mode: .both, settings: .init())
+        old.phase = .cancelled
+        try JSONEncoder().encode(QueueSnapshot(settings: .init(), jobs: [old])).write(to: storage)
+        let gate = WorkGate()
+        let queue = JobQueue(storage: storage, operation: { url, _, _, _ in try await gate.run(url) })
+        queue.execution = .serial
+        queue.enqueue([input("stop"), input("waiting")], mode: .both)
+        try await waitFor { await gate.started.count == 1 }
+        let stoppedID = try XCTUnwrap(queue.jobs.first { $0.input == input("stop") }?.id)
+        queue.stopAll()
+        await gate.finishAll(); await queue.waitUntilIdle()
+        XCTAssertEqual(queue.displayedJobs.first?.id, stoppedID)
+        XCTAssertEqual(queue.displayedJobs.first?.phase, .cancelled)
+        XCTAssertTrue(queue.canRemove(stoppedID))
+        XCTAssertTrue(queue.canReorder(stoppedID))
+        XCTAssertEqual(JobQueue(storage: storage).displayedJobs.first?.id, stoppedID)
+        // Retained stopped cards must not be pruned as completed history grows.
+        queue.togglePause()
+        queue.enqueue((0..<105).map { input("history-\($0)") }, mode: .audio)
+        await queue.waitUntilIdle()
+        XCTAssertEqual(queue.displayedJobs.map(\.id), [stoppedID, old.id])
+        XCTAssertEqual(queue.jobs.filter { $0.phase == .completed }.count, 100)
+        XCTAssertTrue(queue.moveQueued(stoppedID, to: old.id))
+        XCTAssertEqual(queue.displayedJobs.last?.id, stoppedID)
+        XCTAssertTrue(queue.remove(stoppedID))
+    }
+
+    @MainActor
     func testSchedulingPreferencesPersistAndLegacySnapshotRemainsReadable() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
