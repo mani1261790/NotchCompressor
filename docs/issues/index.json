@@ -41,5 +41,10 @@
     "body": "docs/issues/08.md",
     "url": "https://github.com/mani1261790/NotchCompressor/issues/8",
     "phase": "follow-up"
+  },
+  {
+    "number": 10,
+    "title": "圧縮キューの自動並列調整と優先度操作を追加する",
+    "url": "https://github.com/mani1261790/NotchCompressor/issues/10"
   }
 ]

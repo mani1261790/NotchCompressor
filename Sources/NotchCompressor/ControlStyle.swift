@@ -68,3 +68,22 @@ struct CircularControlStyle: ViewModifier {
         }
     }
 }
+
+/// NSMenu does not adopt Button's border shape; supply the surface explicitly.
+struct GlassCapsuleSurface: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular.interactive(), in: Capsule())
+        } else {
+            content.background(.regularMaterial, in: Capsule())
+        }
+    }
+}
+
+extension View {
+    func capsuleMenu() -> some View {
+        menuStyle(.borderlessButton).menuIndicator(.hidden)
+            .fixedSize().padding(.horizontal, 12).padding(.vertical, 8)
+            .modifier(GlassCapsuleSurface())
+    }
+}

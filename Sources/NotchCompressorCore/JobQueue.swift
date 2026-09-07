@@ -11,6 +11,9 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public var progress: Double
     public var message: String?
     public var result: CompressionResult?
+    // Optional on disk so version-1 histories without priorities remain readable.
+    public var priority: JobPriority?
+    public var effectivePriority: JobPriority { priority ?? .normal }
     public init(input: URL, mode: CompressionMode, settings: CompressionSettings) {
         id = UUID(); self.input = input; self.mode = mode; self.settings = settings
         createdAt = Date(); phase = .waiting; progress = 0
@@ -21,7 +24,10 @@ public struct QueueSnapshot: Codable {
     public var version = 1
     public var settings: CompressionSettings
     public var jobs: [CompressionJob]
-    public init(settings: CompressionSettings, jobs: [CompressionJob]) { self.settings = settings; self.jobs = jobs }
+    public var execution: QueueExecution?
+    public init(settings: CompressionSettings, jobs: [CompressionJob], execution: QueueExecution? = nil) {
+        self.settings = settings; self.jobs = jobs; self.execution = execution
+    }
     public func recovered() -> [CompressionJob] {
         jobs.map { original in
             var job = original
@@ -44,31 +50,89 @@ public final class JobQueue: ObservableObject {
     @Published public private(set) var cancelling = Set<UUID>()
     private let storage: URL?
     private let operation: Operation
-    private var worker: Task<Void, Never>?
-    private var activeID: UUID?
+    @Published public var execution: QueueExecution = .automatic { didSet { persist(); startNext() } }
+    @Published public private(set) var isPaused = false
+    @Published public private(set) var environment: SchedulingEnvironment
+    @Published public private(set) var runningIDs = Set<UUID>()
+    private var workers: [UUID: Task<Void, Never>] = [:]
+    private var activeResources: [UUID: String] = [:]
+    private let readEnvironment: () -> SchedulingEnvironment
+    private var resourceMonitor: AnyCancellable?
     private var accepting = true
     private var mayPersist = true
 
     public var pendingCount: Int { jobs.filter { !$0.phase.isFinished }.count }
-    public var isBusy: Bool { pendingCount > 0 || worker != nil }
+    public var isBusy: Bool { pendingCount > 0 || !workers.isEmpty }
+    public var runningCount: Int { runningIDs.count }
+    public var waitingJobs: [CompressionJob] {
+        jobs.enumerated().filter { $0.element.phase == .waiting }.sorted {
+            let left = $0.element.effectivePriority.rawValue, right = $1.element.effectivePriority.rawValue
+            return left == right ? $0.offset < $1.offset : left > right
+        }.map(\.element)
+    }
+    public var displayedJobs: [CompressionJob] {
+        jobs.filter { runningIDs.contains($0.id) } + waitingJobs + jobs.filter { $0.phase.isFinished }.reversed()
+    }
+    public var schedulingDescription: String {
+        if isPaused { return "新しい処理を一時停止中・実行中の動画は続行します" }
+        switch execution {
+        case .serial: return "追加順・優先度に従って1件ずつ処理"
+        case .parallel: return "最大2件を並列処理・同じ元動画は順番に処理"
+        case .automatic:
+            return environment.conservesResources ? "省電力・発熱・構成に合わせ、新しい処理は1件まで" : "最大2件・映像圧縮は1件まで、音質のみは併走可能"
+        }
+    }
 
-    public init(storage: URL? = nil, operation: @escaping Operation = { url, mode, settings, update in
+    public init(storage: URL? = nil,
+                environment: @escaping () -> SchedulingEnvironment = { .current },
+                operation: @escaping Operation = { url, mode, settings, update in
         try await CompressionEngine().compress(input: url, mode: mode, settings: settings, update: update)
     }) {
         self.storage = storage
         self.operation = operation
+        self.readEnvironment = environment
+        self.environment = environment()
         if let storage, FileManager.default.fileExists(atPath: storage.path) {
             do {
                 let snapshot = try JSONDecoder().decode(QueueSnapshot.self, from: Data(contentsOf: storage))
                 guard snapshot.version == 1 else { throw CompressionError.message("未対応の履歴形式です。") }
                 settings = snapshot.settings
+                execution = snapshot.execution ?? .automatic
                 jobs = snapshot.recovered()
             } catch {
                 mayPersist = false
                 persistenceError = "履歴を読み込めませんでした。既存の履歴ファイルは保持しています。この起動中の変更は保存されません。\n\(error.localizedDescription)"
             }
         }
+        resourceMonitor = Timer.publish(every: 5, on: .main, in: .common).autoconnect().sink { [weak self] _ in
+            self?.refreshEnvironment()
+        }
         persist()
+    }
+
+    public func refreshEnvironment() {
+        let current = readEnvironment()
+        if current != environment { environment = current; startNext() }
+    }
+
+    public func togglePause() {
+        isPaused.toggle()
+        if !isPaused { startNext() }
+    }
+
+    public func setPriority(_ id: UUID, to priority: JobPriority) {
+        guard let index = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }) else { return }
+        jobs[index].priority = priority
+        persist(); startNext()
+    }
+
+    public func runNext(_ id: UUID) {
+        guard let index = jobs.firstIndex(where: { $0.id == id && $0.phase == .waiting }) else { return }
+        var job = jobs.remove(at: index)
+        job.priority = .high
+        let firstWaiting = jobs.firstIndex(where: { $0.phase == .waiting }) ?? jobs.endIndex
+        jobs.insert(job, at: firstWaiting)
+        persist(); startNext()
     }
 
     @discardableResult
@@ -76,7 +140,7 @@ public final class JobQueue: ObservableObject {
         guard accepting else { return 0 }
         var added = 0
         for url in urls {
-            let source = url.standardizedFileURL
+            let source = url.standardizedFileURL.resolvingSymlinksInPath()
             guard !jobs.contains(where: { $0.input == source && $0.mode == mode && !$0.phase.isFinished }) else { continue }
             jobs.append(CompressionJob(input: source, mode: mode, settings: settings))
             added += 1
@@ -89,14 +153,15 @@ public final class JobQueue: ObservableObject {
 
     public func cancel(_ id: UUID) {
         guard let index = jobs.firstIndex(where: { $0.id == id }), !jobs[index].phase.isFinished else { return }
-        if id == activeID {
+        if let worker = workers[id] {
             cancelling.insert(id)
-            worker?.cancel()
+            worker.cancel()
         } else {
             jobs[index].phase = .cancelled
             jobs[index].message = "待機中にキャンセルしました。"
         }
         persist()
+        startNext()
     }
 
     public func retry(_ id: UUID) {
@@ -113,18 +178,47 @@ public final class JobQueue: ObservableObject {
     }
 
     public func waitUntilIdle() async {
-        while let task = worker { await task.value }
+        while let task = workers.values.first { await task.value }
+    }
+
+    // Inode + volume also catches hard links; re-read at dispatch after earlier replacements.
+    private func resourceKey(_ url: URL) -> String {
+        if let values = try? FileManager.default.attributesOfItem(atPath: url.path),
+           let inode = values[.systemFileNumber] as? NSNumber,
+           let volume = values[.systemNumber] as? NSNumber {
+            return "\(volume):\(inode)"
+        }
+        return url.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     private func startNext() {
-        guard worker == nil, let job = jobs.first(where: { $0.phase == .waiting }) else { return }
-        activeID = job.id
-        worker = Task { [weak self] in
+        guard accepting, !isPaused else { return }
+        environment = readEnvironment()
+        let limit = execution == .serial || (execution == .automatic && environment.conservesResources) ? 1 : 2
+        while workers.count < limit {
+            let activePaths = Set(jobs.filter { runningIDs.contains($0.id) }.map { $0.input.path })
+            let videoActive = jobs.contains { runningIDs.contains($0.id) && $0.mode != .audio }
+            guard let job = waitingJobs.first(where: {
+                !activePaths.contains($0.input.path)
+                && !activeResources.values.contains(resourceKey($0.input))
+                && !(execution == .automatic && videoActive && $0.mode != .audio)
+            }) else { break }
+            launch(job)
+        }
+    }
+
+    private func launch(_ job: CompressionJob) {
+        guard let index = jobs.firstIndex(where: { $0.id == job.id }) else { return }
+        jobs[index].phase = .probing
+        runningIDs.insert(job.id)
+        activeResources[job.id] = resourceKey(job.input)
+        workers[job.id] = Task { [weak self] in
             guard let self else { return }
             do {
+                try Task.checkCancellation()
                 let result = try await operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
                     Task { @MainActor in
-                        guard let self, self.activeID == job.id,
+                        guard let self, self.runningIDs.contains(job.id),
                               let index = self.jobs.firstIndex(where: { $0.id == job.id }), !self.jobs[index].phase.isFinished else { return }
                         let changedPhase = self.jobs[index].phase != phase
                         self.jobs[index].phase = phase
@@ -146,11 +240,14 @@ public final class JobQueue: ObservableObject {
                 }
             }
             cancelling.remove(job.id)
-            activeID = nil
-            worker = nil
+            activeResources.removeValue(forKey: job.id)
+            runningIDs.remove(job.id)
+            workers.removeValue(forKey: job.id)
+            trimHistory()
             persist()
             startNext()
         }
+        persist()
     }
 
     private func trimHistory() {
@@ -163,7 +260,7 @@ public final class JobQueue: ObservableObject {
         guard let storage, mayPersist else { return }
         do {
             try FileManager.default.createDirectory(at: storage.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            let data = try JSONEncoder().encode(QueueSnapshot(settings: settings, jobs: jobs))
+            let data = try JSONEncoder().encode(QueueSnapshot(settings: settings, jobs: jobs, execution: execution))
             try data.write(to: storage, options: .atomic)
             persistenceError = nil
         } catch {

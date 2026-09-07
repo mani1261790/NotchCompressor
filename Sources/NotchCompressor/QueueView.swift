@@ -10,7 +10,7 @@ struct QueueView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("圧縮キュー").font(.title2.weight(.semibold))
-                    Text(queue.pendingCount > 0 ? "\(queue.pendingCount)件を順番に処理します" : "動画を画面上端の中央へドラッグ")
+                    Text(queue.pendingCount > 0 ? "実行中 \(queue.runningCount)件 · 待機 \(queue.waitingJobs.count)件" : "動画を画面上端の中央へドラッグ")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -35,6 +35,27 @@ struct QueueView: View {
                 IconControl(title: "設定", symbol: "gearshape") { app.settingsPresented = true }
             }
             .padding(24)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Menu {
+                        Picker("実行方式", selection: $queue.execution) {
+                            ForEach(QueueExecution.allCases) { mode in Text(mode.title).tag(mode) }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Label(queue.execution.title, systemImage: "slider.horizontal.3")
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
+                    }.capsuleMenu().accessibilityLabel("実行方式：\(queue.execution.title)")
+                    Spacer()
+                    Text(queue.isPaused ? "待機を一時停止" : "優先度順に処理")
+                        .font(.caption).foregroundStyle(.secondary)
+                    IconControl(title: queue.isPaused ? "待機中の処理を再開" : "新しい処理を一時停止",
+                                symbol: queue.isPaused ? "play.fill" : "pause.fill") { queue.togglePause() }
+                }
+                Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
+                .help("空き枠で実行できる動画から開始します。待機中は優先度を変更できます。")
+            }.padding(.horizontal, 24).padding(.bottom, 14)
             Divider()
             if let error = app.dropError {
                 HStack { Text(error).font(.callout); Spacer(); IconControl(title: "閉じる", symbol: "xmark") { app.dropError = nil } }.padding()
@@ -61,7 +82,7 @@ struct QueueView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(queue.jobs.reversed()) { job in
+                        ForEach(queue.displayedJobs) { job in
                             JobRow(job: job, queue: queue)
                                 .padding(18)
                                 .background(.background, in: RoundedRectangle(cornerRadius: 20))
@@ -128,6 +149,24 @@ private struct JobRow: View {
                     }.capsuleControl(prominent: true).controlSize(.large)
                 }
                 Spacer()
+                if job.phase == .waiting {
+                    Menu {
+                        ForEach(JobPriority.allCases.reversed()) { priority in
+                            Button {
+                                queue.setPriority(job.id, to: priority)
+                            } label: {
+                                if job.effectivePriority == priority { Label(priority.title, systemImage: "checkmark") }
+                                else { Text(priority.title) }
+                            }
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Label("優先度：\(job.effectivePriority.title)", systemImage: "flag")
+                            Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
+                        }
+                    }.capsuleMenu()
+                    IconControl(title: "次に処理（優先度を高にして先頭へ）", symbol: "arrow.up.to.line") { queue.runNext(job.id) }
+                }
                 if !job.phase.isFinished {
                     IconControl(title: "圧縮をキャンセル", symbol: "xmark") { queue.cancel(job.id) }.disabled(queue.cancelling.contains(job.id))
                 } else if job.phase != .completed {

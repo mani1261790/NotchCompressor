@@ -162,4 +162,26 @@ final class EngineTests: XCTestCase {
         let silent = try MediaInfo.decode(fixture(audio: false), fileSize: 500)
         XCTAssertThrowsError(try CompressionEngine.validateOutput(original: original, output: silent, mode: .both))
     }
+    @MainActor
+    func testRealParallelQueueBatchAndSubsequentSubmission() async throws {
+        let tools = try tools()
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let inputs = ["batch-a.mov", "batch-b.mov", "later.mov"].map { folder.appendingPathComponent($0) }
+        for input in inputs { try await makeVideo(input, tools: tools) }
+        let queue = JobQueue()
+        queue.execution = .parallel
+        queue.settings.toolsDirectory = tools.ffmpeg.deletingLastPathComponent().path
+        XCTAssertEqual(queue.enqueue(Array(inputs.prefix(2)), mode: .both), 2)
+        XCTAssertEqual(queue.enqueue([inputs[2]], mode: .audio), 1)
+        XCTAssertEqual(queue.runningCount, 2)
+        await queue.waitUntilIdle()
+        XCTAssertEqual(queue.jobs.map(\.phase), [.completed, .completed, .completed], "\(queue.jobs.compactMap(\.message))")
+        XCTAssertEqual(queue.jobs.compactMap { $0.result?.output }, inputs)
+        for input in inputs {
+            let media = try await CompressionEngine().probe(input, tools: tools)
+            XCTAssertGreaterThan(media.duration, 0)
+        }
+    }
+
 }
