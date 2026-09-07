@@ -26,24 +26,6 @@ struct SettingsView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 } header: { Label("圧縮", systemImage: "slider.horizontal.3") }
                 Section {
-                    if let tools = try? Toolchain.discover(directory: queue.settings.toolsDirectory) {
-                        Label("圧縮ツールを検出しました", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
-                        Text(tools.ffmpeg.deletingLastPathComponent().path)
-                            .font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                    } else {
-                        Label("圧縮ツールを設定してください", systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("ffmpegとffprobeを同じMacにインストールしてください。Homebrewでは brew install ffmpeg で導入できます。")
-                            .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
-                    }
-                    HStack {
-                        Button(action: chooseTools) { Label("フォルダを選択", systemImage: "folder") }.capsuleControl()
-                        Spacer()
-                        IconControl(title: "自動検出に戻す", symbol: "arrow.counterclockwise") {
-                            queue.settings.toolsDirectory = nil; message = nil
-                        }
-                    }
-                } header: { Label("圧縮ツール", systemImage: "wrench.and.screwdriver") }
-                Section {
                     Toggle("ログイン時に起動", isOn: Binding(get: { loginEnabled }, set: updateLogin))
                         .toggleStyle(.switch)
                     if SMAppService.mainApp.status == .requiresApproval {
@@ -58,23 +40,18 @@ struct SettingsView: View {
                     Text("同じファイル名・場所・拡張子で保存します。失敗・キャンセル時は元動画を保持します。置き換え後、圧縮前の動画は残りません。")
                         .font(.callout).foregroundStyle(.secondary)
                 } header: { Text("保存") }
+                Section {
+                    LabeledContent("バージョン", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "開発版")
+                    Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button {
+                        if let url = Bundle.main.resourceURL?.appendingPathComponent("Licenses") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: { Label("ライセンス", systemImage: "doc.text") }.capsuleControl()
+                } header: { Text("このアプリについて") }
             }.formStyle(.grouped)
         }.frame(width: 560, height: 620)
-    }
-
-    private func chooseTools() {
-        let panel = NSOpenPanel()
-        panel.title = "ffmpegとffprobeが入ったフォルダを選択"
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = URL(fileURLWithPath: "/opt/homebrew/bin")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        do {
-            _ = try Toolchain(directory: url)
-            queue.settings.toolsDirectory = url.path
-            message = nil
-        } catch { message = error.localizedDescription }
     }
 
     private func updateLogin(_ enabled: Bool) {

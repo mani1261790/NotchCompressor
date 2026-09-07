@@ -43,9 +43,8 @@ struct QueueView: View {
             if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil {
                 HStack {
                     Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
-                    Text("圧縮ツールの設定が必要です")
+                    Text("圧縮エンジンが不足しています。アプリを再インストールしてください。")
                     Spacer()
-                    Button("設定を開く") { app.settingsPresented = true }.capsuleControl()
                 }.padding()
             }
             if queue.jobs.isEmpty {

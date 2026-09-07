@@ -74,15 +74,23 @@ public struct Toolchain: Equatable, Sendable {
         ffmpeg = directory.appendingPathComponent("ffmpeg")
         ffprobe = directory.appendingPathComponent("ffprobe")
         guard FileManager.default.isExecutableFile(atPath: ffmpeg.path), FileManager.default.isExecutableFile(atPath: ffprobe.path) else {
-            throw CompressionError.message("ffmpegとffprobeが必要です。設定で両方が入ったフォルダを選択してください。")
+            throw CompressionError.message("圧縮エンジンが見つかりません。アプリを再インストールしてください。")
         }
     }
     public static func discover(directory: String? = nil) throws -> Toolchain {
+        // Packaged apps always use their own tools, including after migrating old settings.
+        if Bundle.main.bundleURL.pathExtension == "app" {
+            return try Toolchain(directory: Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS"))
+        }
+        // Development / integration tests only; no PATH discovery in the distributed app.
         if let directory, !directory.isEmpty { return try Toolchain(directory: URL(fileURLWithPath: directory)) }
+        if let path = ProcessInfo.processInfo.environment["NOTCH_FFMPEG_DIR"] {
+            return try Toolchain(directory: URL(fileURLWithPath: path))
+        }
         for path in ["/opt/homebrew/bin", "/usr/local/bin"] {
             if let tools = try? Toolchain(directory: URL(fileURLWithPath: path)) { return tools }
         }
-        throw CompressionError.message("ffmpegとffprobeが見つかりません。設定で保存場所を指定してください。")
+        throw CompressionError.message("圧縮エンジンが見つかりません。ビルド手順を確認してください。")
     }
 }
 

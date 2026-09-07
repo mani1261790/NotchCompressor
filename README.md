@@ -11,19 +11,13 @@
 
 **圧縮が成功すると元ファイルを置き換えます。** 一時ファイルへ変換して全体のデコード検証を行い、問題がなければ同じ名前・場所に保存します。MOV／MP4／M4Vの拡張子に合ったコンテナを維持します。失敗・キャンセル・元ファイルの変更を検出した場合は置き換えません。置き換え後は圧縮前の動画を残しません。削減率は実測値で、動画によっては容量が増える場合もあります。
 
-## 必要なもの
+## 動作環境
 
-- macOS 14以上
-- 同じMacにインストールした `ffmpeg` と `ffprobe`
-- 映像を変換する場合はHEVC VideoToolboxエンコーダを利用できるFFmpegとMac
+- macOS 14以上。初回の配布対象はApple Siliconです。
+- FFmpeg / ffprobeをアプリに同梱します。Homebrewなどの追加インストールは不要です。
+- 映像の圧縮にはMacのHEVC VideoToolboxエンコーダを使います。
 
-Apple Siliconの `/opt/homebrew/bin` とIntel Macの `/usr/local/bin` を自動探索します。別の場所はアプリの設定から選択できます。FFmpegをアプリへ同梱していません。Homebrewを利用している場合の導入コマンドは次のとおりです。
-
-```sh
-brew install ffmpeg
-```
-
-不足している場合、アプリの設定画面に必要なツールとフォルダ選択ボタンを表示します。
+Developer IDの発行待ちのため、署名・公証済みの一般配布版はまだありません。試験版はアドホック署名で、ダウンロード後のGatekeeper検証は未完了です。
 
 ## 対応範囲
 
@@ -46,7 +40,7 @@ bash scripts/build-app.sh
 open dist/NotchCompressor.app
 ```
 
-生成物はビルドしたMacのアーキテクチャ向けです。ローカル実行用のアドホック署名を付けています。Developer ID署名・公証・第三者バイナリ同梱・自動更新は未対応です。
+生成物はビルドしたMacのアーキテクチャ向けです。ローカル実行用のアドホック署名を付けています。FFmpeg 9.0.1を固定したソースからビルドし同梱します。初回ビルドにはダウンロードとコンパイルの時間がかかります。Developer ID署名・公証と自動更新は未対応です。
 
 アプリはメニューバーに常駐します。終了はメニューの「NotchCompressorを終了」。処理が残っていれば確認し、キャンセル完了を待って終了します。ログイン時起動は設定から切り替えられます。
 
@@ -57,7 +51,7 @@ open dist/NotchCompressor.app
 bash scripts/test.sh
 
 # 実FFmpeg / VideoToolboxを使う統合テストも実行
-NOTCH_MEDIA_TESTS=1 bash scripts/test.sh
+NOTCH_FFMPEG_DIR="$PWD/.build/vendor/install-$(uname -m)/bin" NOTCH_MEDIA_TESTS=1 bash scripts/test.sh
 ```
 
 XCTestにはフルXcodeを使います。ビルド・テストスクリプトは既定SDKが古い場合、インストール済みの対応Xcodeをコマンド内だけで選びます。システムの `xcode-select` は変更しません。明示した `DEVELOPER_DIR` が優先です。
@@ -75,3 +69,9 @@ XCTestにはフルXcodeを使います。ビルド・テストスクリプトは
 通常時はノッチに重なる黒い小さな領域を表示します。ファイルを上端中央にドラッグすると3領域に広がり、離すと元のサイズに戻ります。ノッチのない画面では180×28ptの小さな領域を表示します。
 
 ビルドにはXcode 26以降（Liquid Glass対応SDK）が必要です。CIではXcode 26.3を明示的に選択します。生成したアプリの最低動作環境はmacOS 14のままで、macOS 26未満では代替の丸いコントロールを使います。
+
+## ライセンスと配布物
+
+アプリ本体は [Apache License 2.0](LICENSE)。同梱するFFmpegはLGPL 2.1以降で、[第三者ライセンス](THIRD_PARTY_NOTICES.md)を別途適用します。設定画面からライセンスを開けます。
+
+`bash scripts/package-release.sh` でアプリZIP、FFmpegの対応ソース、ビルド情報、SHA-256を生成します。配布するときはこれらを同じReleaseへ添付してください。

@@ -133,3 +133,13 @@ build-app.sh/test.sh共通のselect-xcode.shを追加。明示したDEVELOPER_DI
 NotchTests 7件成功、releaseビルドと修正版起動成功。Mission Controlが同じ操作で再発しないことは未検証で、完了を断言しない。提供動画自体は読み取りのみ。展開の証拠と干渉解消の証拠を区別する。
 
 参照: https://developer.apple.com/documentation/appkit/nswindow/collectionbehavior-swift.struct
+
+## 2026-09-07 FFmpeg同梱と配布準備
+
+公式FFmpeg 9.0.1 tar.xzを上流PGP鍵（FCF986EA15E6E293A5644F10B4322F04D67658D8）で検証。チェックサム固定、ソース無改変、GPL/nonfree/network/autodetect無効でarm64ビルド。FFmpeg自身の-L表示はLGPL 2.1以降。otoolではmacOSシステムライブラリ・フレームワークのみ。通常アプリは同梱ツール専用、外部設定UIは撤去。
+
+同梱した実行ファイルを指定し27テスト成功、スキップ0。アドホック署名のdeep/strict検証成功。ネイティブ起動と設定画面のバージョン・Apache/LGPL表示を確認。ユーザーの既存収録にはテスト実行していない。
+
+Git全履歴114 blobに典型的な秘密鍵/認証トークンのパターンなし。追跡されたユーザー動画・画像なし。Issuesと13コメントを点検、ユーザー添付録画のアップロードなし。これは包括的な秘密情報不存在の保証ではない。
+
+Developer IDはユーザー指示で保留。Mission Control修正後のFinderドラッグ、追加実機、代表収録品質、ダウンロード後のGatekeeperは引き続き未確認。Releaseは公開前の下書きとして準備する。
