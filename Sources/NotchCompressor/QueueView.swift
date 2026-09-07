@@ -51,15 +51,8 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel("実行方式：\(queue.execution.title)")
                     Spacer()
-                    Text(queue.isPaused ? "待機を一時停止" : "実行中は先頭に固定")
+                    Text("実行中は先頭に固定")
                         .font(.caption).foregroundStyle(.secondary)
-                    IconControl(title: queue.isPaused ? "待機中の処理を再開" : "新しい処理を一時停止",
-                                symbol: queue.isPaused ? "play.fill" : "pause.fill") { queue.togglePause() }
-                    IconControl(title: "すべての圧縮を一時停止", symbol: "pause.circle") { queue.pauseAll() }
-                        .disabled(queue.runningCount == 0)
-                    if !queue.pausedIDs.isEmpty {
-                        IconControl(title: "すべて途中から再開", symbol: "play.circle") { queue.resumeAll() }
-                    }
                 }
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
                 .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")

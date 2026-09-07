@@ -186,3 +186,6 @@ releaseビルド成功。実アプリで180秒の合成動画Stop-Test.movを追
 途中から再開できるのはアプリを開いたままの間。アプリ終了・Mac再起動後をまたぐ永続チェックポイントではない。UIとREADMEと終了ダイアログに明記。同じ元ファイルの排他と最大2workerの枠は一時停止中も保持する。
 
 API根拠: [Apple Process.suspend](https://developer.apple.com/documentation/foundation/process/suspend()) / [resume](https://developer.apple.com/documentation/foundation/process/resume())。suspend/resumeを一対にし、除外時は再開してから終了シグナルを送る。
+
+## 全体停止操作の撤去（#15）
+全体一時停止/全体再開/新規開始だけの一時停止をキュー上部から撤去。個別カードの一時停止/途中再開/除外は変更なし。45テスト成功（同梱FFmpeg、スキップ0）、releaseビルドとパッケージ検証成功。新版を起動し、キュー上部に実行方式だけが残り全体停止系の操作がないことを実アプリのAXで確認。
