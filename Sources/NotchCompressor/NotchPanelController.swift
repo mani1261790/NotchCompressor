@@ -1,69 +1,106 @@
 import AppKit
 import SwiftUI
+import NotchCompressorCore
 
-/// File-drag detection is polled without a global input monitor or Accessibility permission.
-/// The panel is absent during normal pointer movement, keeping menu items available.
+@MainActor
+final class DropPresentation: ObservableObject {
+    @Published var mode: CompressionMode?
+    @Published var topInset: CGFloat = 0
+    @Published var visible = false
+}
+
+@MainActor
+private final class DropHostingView: NSHostingView<DropPanel> {
+    var geometry: NotchGeometry?
+    let presentation: DropPresentation
+    var onEnd: (() -> Void)?
+    required init(rootView: DropPanel) {
+        self.presentation = rootView.presentation
+        super.init(rootView: rootView)
+        registerForDraggedTypes([.fileURL])
+    }
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { update(sender) }
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { update(sender) }
+    override func draggingExited(_ sender: NSDraggingInfo?) { presentation.mode = nil }
+    override func draggingEnded(_ sender: NSDraggingInfo) { presentation.mode = nil; onEnd?() }
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { update(sender) == .copy }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let mode = selectedMode(sender), let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty else { return false }
+        AppState.shared.queue.enqueue(urls, mode: mode)
+        if (try? Toolchain.discover(directory: AppState.shared.queue.settings.toolsDirectory)) == nil {
+            AppState.shared.presentQueue(settings: true)
+        }
+        onEnd?()
+        return true
+    }
+    private func selectedMode(_ sender: NSDraggingInfo) -> CompressionMode? {
+        let point = convert(sender.draggingLocation, from: nil)
+        // NSHostingView is flipped; the geometry contract uses a bottom-left origin.
+        let local = CGPoint(x: point.x, y: isFlipped ? bounds.height - point.y : point.y)
+        return geometry?.mode(at: local)
+    }
+    private func update(_ sender: NSDraggingInfo) -> NSDragOperation {
+        guard sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) else {
+            presentation.mode = nil
+            return []
+        }
+        presentation.mode = selectedMode(sender)
+        return presentation.mode == nil ? [] : .copy
+    }
+}
+
 @MainActor
 final class NotchPanelController {
     private let panel: NSPanel
+    private let presentation = DropPresentation()
+    private let host: DropHostingView
     private var timer: Timer?
-    private var dragChangeCount = NSPasteboard(name: .drag).changeCount
-    private var fileDragActive = false
+    private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
     init() {
-        panel = NSPanel(
-            contentRect: .zero,
-            styleMask: [.borderless, .nonactivatingPanel],
-            backing: .buffered,
-            defer: false
-        )
+        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        host = DropHostingView(rootView: DropPanel(presentation: presentation))
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
-        panel.contentView = NSHostingView(rootView: DropPanel())
-        timer = Timer.scheduledTimer(withTimeInterval: 0.08, repeats: true) { [weak self] _ in
+        panel.contentView = host
+        host.onEnd = { [weak self] in self?.drag.end(); self?.hide() }
+        timer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.update() }
         }
         if let timer { RunLoop.main.add(timer, forMode: .common) }
     }
-
     deinit { timer?.invalidate() }
+
+    private func hide() {
+        guard panel.isVisible else { return }
+        presentation.visible = false
+        presentation.mode = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, !self.presentation.visible else { return }
+            self.panel.orderOut(nil)
+        }
+    }
 
     private func update() {
         let pointer = NSEvent.mouseLocation
-        let isDragging = NSEvent.pressedMouseButtons & 1 != 0
         let pasteboard = NSPasteboard(name: .drag)
-        if pasteboard.changeCount != dragChangeCount {
-            dragChangeCount = pasteboard.changeCount
-            fileDragActive = isDragging && pasteboard.canReadObject(
-                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]
-            )
-        }
-        if !isDragging { fileDragActive = false }
-        guard fileDragActive,
-              let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else {
-            // Let SwiftUI finish dispatching an in-flight drop before hiding.
-            if panel.isVisible {
-                DispatchQueue.main.async { [weak self] in self?.panel.orderOut(nil) }
-            }
-            return
-        }
-
-        let frame = screen.frame
-        let trigger = NSRect(x: frame.midX - 170, y: frame.maxY - max(64, screen.safeAreaInsets.top + 24), width: 340, height: max(64, screen.safeAreaInsets.top + 24))
-        let insidePanel = panel.isVisible && panel.frame.insetBy(dx: -20, dy: -20).contains(pointer)
-        guard trigger.contains(pointer) || insidePanel else {
-            panel.orderOut(nil)
-            return
-        }
-
-        // Place controls below the camera housing; the housing itself is not a display surface.
-        let topInset = screen.safeAreaInsets.top
-        let rect = NSRect(x: frame.midX - 240, y: frame.maxY - topInset - 136, width: 480, height: 136)
-        panel.setFrame(rect, display: true)
+        drag.update(changeCount: pasteboard.changeCount, leftButtonDown: NSEvent.pressedMouseButtons & 1 != 0,
+                    hasFiles: pasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]))
+        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { hide(); return }
+        let geometry = NotchGeometry(screen: screen.frame, topInset: screen.safeAreaInsets.top)
+        let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
+        guard geometry.trigger.contains(pointer) || insidePanel else { hide(); return }
+        host.geometry = geometry
+        presentation.topInset = geometry.topInset
+        if panel.frame != geometry.panel { panel.setFrame(geometry.panel, display: true) }
         if !panel.isVisible { panel.orderFrontRegardless() }
+        presentation.visible = true
     }
 }

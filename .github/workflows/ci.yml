@@ -1,0 +1,19 @@
+name: macOS checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unit tests
+        run: swift test
+      - name: Release app
+        run: bash scripts/build-app.sh
+      - name: Verify local signature
+        run: codesign --verify --deep --strict dist/NotchCompressor.app

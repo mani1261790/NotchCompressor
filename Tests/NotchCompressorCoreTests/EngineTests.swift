@@ -81,10 +81,24 @@ final class EngineTests: XCTestCase {
         let occupied = folder.appendingPathComponent("screen-compressed-video.mov")
         try FileManager.default.createSymbolicLink(at: occupied, withDestinationURL: source)
         let first = try CompressionEngine.publish(staged, beside: source, mode: .video)
+        try Data("second output".utf8).write(to: staged)
         let second = try CompressionEngine.publish(staged, beside: source, mode: .video)
         XCTAssertNotEqual(first, second)
         XCTAssertEqual(try String(contentsOf: source), "source")
         XCTAssertEqual(try String(contentsOf: first), "output")
+    }
+
+    func testLongUnicodeNameCanBePublished() throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent(String(repeating: "🎬", count: 60) + ".mov")
+        let staged = folder.appendingPathComponent("staged.mov")
+        try Data("original".utf8).write(to: source)
+        try Data("output".utf8).write(to: staged)
+        let result = try CompressionEngine.publish(staged, beside: source, mode: .both)
+        XCTAssertLessThan(result.lastPathComponent.utf8.count, 255)
+        XCTAssertEqual(try String(contentsOf: result), "output")
+        XCTAssertEqual(try String(contentsOf: source), "original")
     }
 
     func testRealFFmpegCancellationStopsPromptly() async throws {

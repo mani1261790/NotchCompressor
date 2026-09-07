@@ -1,36 +1,40 @@
 # 開発引き継ぎ
 
-作業場所はユーザー指定の `/Users/mani/Developer/NotchCompressor`。旧Documents配下から移動済み。SwiftUIでmacOSアプリを開発する。
+作業実体: `/Users/mani/Developer/NotchCompressor`。旧 `/Users/mani/Documents/ChatGPT/NotchCompressor` はCodex互換のシンボリックリンク。GitHubは `mani1261790/NotchCompressor`、非公開、main。
 
-## 現在
+## ユーザーの指示
 
-- Swift Packageの実行可能アプリ。SwiftUIのメニューバーUIとドロップ領域、AppKitのNSPanelを実装。
-- 3モードのファイル受け取りを確認するための操作プロトタイプ。
-- 圧縮、削除、置き換えは未実装。
-- `bash scripts/build-app.sh` でローカル用 `.app` を生成。
+SwiftUIで実装。念入りな計画をGitHub Issuesへ分割し、IssueごとにCodex Goalを設定して順番に実装する。勝手な元動画の削除や兄のMacへの配備はしない。
 
-## 次の作業
+## 進捗
 
-1. Finderの実際のドラッグで表示・非表示と3領域へのドロップを検証する。ビルド成功を操作検証の代用にしない。
-2. 添付参考画像に合わせ、ノッチから連続して広がる形状とアニメーションを仕上げる。
-3. 動画解析と3種類の圧縮処理を接続する。詳細は `PLAN.md`。
+- 計画Goalを完了、PLAN.mdとIssue #1〜#5を作成。
+- #1 完了: 入力解析、依存検出、圧縮ポリシー。8単体テスト成功。
+- #2 完了: ProcessRunner、変換・検証・保存・キャンセル。3モードの実変換、copy側パケットSHA256一致、元データ不変を確認。
+- #3 完了: 永続化された直列キュー、設定・結果SwiftUI、依存設定への導線、終了確認。キュー4テスト成功。
+- #4 実装済み・実ドラッグ確認待ち: ノッチ上端から展開する形状、ネイティブNSDraggingDestination、3領域、終了・離脱、画面座標テスト。現在のGoal。Finder→ノッチの実経路はまだ合格にしていない。
+- #5 検証準備: CI、test.sh、README、VALIDATION.mdを用意。#4の確認待ちの間に独立した回帰作業を進めている。Goalはまだ切り替えていない。
 
-圧縮の数値、対応形式、出力検証の方式は未確定。公開範囲は指定されていないためGitHubは非公開を初期値とする。
+## 最新の確認
 
-## Issue #1 完了
+`NOTCH_MEDIA_TESTS=1 bash scripts/test.sh` で22テスト成功。実FFmpeg 7.1.1、VideoToolboxを使用。出力名の長いUnicodeと競合も確認。保存確定は同一ボリュームの `renamex_np(..., RENAME_EXCL)`。既存ファイル／リンクを上書きしない。
 
-CoreにMediaInfo/InputFile/Toolchain/CompressionPlanを分離。3モード・音声なし・HDR・追加トラック・JSON異常・ツール欠落等の8テスト成功。テストは `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer xcrun swift test`（既定CLTではXCTestを解決できないため、このコマンドだけXcodeを指定）。
+ネイティブでキュー画面、設定シート、ffmpeg検出表示、完了ボタンを確認。Finderは新規ウインドウを開けたが、その後ScreenCaptureKit -3811で状態取得が失敗。ユーザーへ通常デスクトップのドラッグ結果を非同期質問済み。未回答なら成功を推定しない。
 
-## Issue #2 完了
+`docs/VALIDATION.md` が確認範囲の記録。テスト成功・画面表示・実ドラッグ・配布署名は別の証拠。
 
-ProcessRunnerとCompressionEngineを追加。非同期進捗・キャンセル・容量事前確認・一時出力・全体デコード・元の変更検知・衝突しない保存を実装。NOTCH_MEDIA_TESTS=1付きswift testで14件成功（実FFmpeg 7.1.1 / VideoToolbox）。3モードのcopy側全パケットSHA256一致、元ファイルSHA256不変、無音声、破損、衝突、キャンセルを確認。
+## 実行
 
-ProcessはisRunningがfalseになるまで待つ。async中にスレッドをまたいでwaitUntilExitを重ねるとFoundationで停止したため、二重待機を除去して回帰確認した。
+- `bash scripts/test.sh`: 単体。既定がCLTのときだけインストール済みXcodeをコマンド内で選ぶ。
+- `NOTCH_MEDIA_TESTS=1 bash scripts/test.sh`: 実メディア統合を含む。
+- `DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer bash scripts/build-app.sh`: release .app。
+- アプリは `dist/NotchCompressor.app`。ローカルアドホック署名。FFmpegは外部導入。
+- 合成した手動確認用動画: `.build/manual-fixtures/Notch-Test.mov`。
+- 設定と履歴: `~/Library/Application Support/com.mani.NotchCompressor/queue.json`。
 
-Codexのタスクが旧作業場所を参照していたため、旧DocumentsパスにはDeveloper実体への互換シンボリックリンクを設置。ソースとビルドの実体はDeveloper配下。
+## 注意点
 
-## Issue #3 完了
-
-JobQueueを追加し、直列実行・キャンセル・再試行・受付時設定・JSON永続化・中断復元を実装。破損した履歴は上書きしない。SwiftUIのキュー／設定画面、元と出力のFinder表示、サイズ増減、依存不足の直接導線、SMAppServiceのログイン起動設定、終了確認とプロセス停止待機を接続。
-
-単体テスト14件成功（全18件のうち実メディア4件は明示的に無効）。新規キューテスト4件で順序、最大同時数1、失敗後継続、設定固定、重複、停止、復元、破損履歴保持を確認。ネイティブ操作はIssue #4/#5で行う。
+- Processが停止した後にasyncの別スレッドからwaitUntilExitを重ねるとFoundationが待ち続けた。isRunningの終了確認だけにして再テスト済み。
+- 異常終了したジョブは中断復元、自動再実行なし。破損した履歴は上書きしない。
+- 通常起動／再オープン時はキューを表示。ログイン起動イベントなら表示を抑制する（再ログイン実機検証は未実施）。
+- Goal #1/#3は開始できたが、完了更新時にサーバーが「このタスクにGoalがない」と返した。Issueの完了と検証は記録済み。#2のGoal完了はツール成功、#4は開始済み。欠落したGoalを完了したと偽らない。

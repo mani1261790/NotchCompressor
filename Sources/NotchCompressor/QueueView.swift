@@ -14,6 +14,11 @@ struct QueueView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Menu("動画を選ぶ…") {
+                    ForEach(CompressionMode.allCases) { mode in
+                        Button(mode.title) { app.chooseVideos(mode: mode) }
+                    }
+                }.fixedSize()
                 Button { app.settingsPresented = true } label: { Image(systemName: "gearshape") }
                     .help("設定").accessibilityLabel("設定")
             }

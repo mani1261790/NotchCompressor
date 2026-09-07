@@ -103,14 +103,16 @@ public struct CompressionEngine: Sendable {
         }
     }
 
-    /// A hard link on the same volume publishes atomically and cannot overwrite an existing name.
+    /// Exclusive rename on the same volume publishes atomically without replacing an existing name.
     static func publish(_ staged: URL, beside input: URL, mode: CompressionMode) throws -> URL {
         let folder = input.deletingLastPathComponent()
-        let stem = String(input.deletingPathExtension().lastPathComponent.prefix(70)) + "-compressed-" + mode.rawValue
+        var sourceStem = input.deletingPathExtension().lastPathComponent
+        while sourceStem.utf8.count > 180 { sourceStem.removeLast() }
+        let stem = sourceStem + "-compressed-" + mode.rawValue
         for number in 0..<10_000 {
             let suffix = number == 0 ? "" : "-\(number)"
             let target = folder.appendingPathComponent(stem + suffix + ".mov")
-            let result = staged.path.withCString { source in target.path.withCString { destination in link(source, destination) } }
+            let result = staged.path.withCString { source in target.path.withCString { destination in renamex_np(source, destination, UInt32(RENAME_EXCL)) } }
             if result == 0 { return target }
             if errno != EEXIST { throw CompressionError.message("出力を保存できませんでした: \(String(cString: strerror(errno)))") }
         }

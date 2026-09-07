@@ -1,4 +1,5 @@
 import AppKit
+import CoreServices
 import SwiftUI
 import UniformTypeIdentifiers
 import NotchCompressorCore
@@ -34,31 +35,18 @@ final class AppState: ObservableObject {
         settingsPresented = settings
     }
 
-    func receive(_ providers: [NSItemProvider], mode: CompressionMode) -> Bool {
-        let providers = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
-        guard !providers.isEmpty else { return false }
-        Task {
-            var urls: [URL] = []
-            var failed = 0
-            // Preserve the source order; each provider is resolved independently.
-            for provider in providers {
-                let url: URL? = await withCheckedContinuation { continuation in
-                    provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                        let url: URL?
-                        if let data = item as? Data { url = URL(dataRepresentation: data, relativeTo: nil) }
-                        else { url = item as? URL }
-                        continuation.resume(returning: url?.isFileURL == true ? url : nil)
-                    }
-                }
-                if let url { urls.append(url) } else { failed += 1 }
-            }
-            if failed > 0 { dropError = "\(failed)件のファイルを読み取れませんでした。Finderから再度ドロップしてください。" }
-            queue.enqueue(urls, mode: mode)
-            if failed > 0 { presentQueue() }
-            if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil { presentQueue(settings: true) }
-        }
-        return true
+    func chooseVideos(mode: CompressionMode) {
+        let panel = NSOpenPanel()
+        panel.title = "圧縮する動画を選択 — \(mode.title)"
+        panel.allowedContentTypes = [.movie]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK else { return }
+        queue.enqueue(panel.urls, mode: mode)
+        if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil { settingsPresented = true }
     }
+
+
 }
 
 @main
@@ -92,10 +80,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         controller = NotchPanelController()
-        if !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
-            AppState.shared.presentQueue()
-            UserDefaults.standard.set(true, forKey: "hasShownWelcome")
-        }
+        let launch = NSAppleEventManager.shared().currentAppleEvent
+        let loginLaunch = launch?.eventID == kAEOpenApplication &&
+            launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        if !loginLaunch { AppState.shared.presentQueue() }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        AppState.shared.presentQueue()
+        return true
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -118,35 +111,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 struct DropPanel: View {
+    @ObservedObject var presentation: DropPresentation
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                ForEach(CompressionMode.allCases) { mode in DropZone(mode: mode) }
-            }
-            Text("ドロップして圧縮・元ファイルは残ります")
-                .font(.caption2).foregroundStyle(.white.opacity(0.65))
+        VStack(spacing: 0) {
+            Color.clear.frame(height: presentation.topInset)
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    ForEach(CompressionMode.allCases) { mode in
+                        DropZone(mode: mode, targeted: presentation.mode == mode)
+                    }
+                }
+                Text("ドロップして圧縮・元ファイルは残ります")
+                    .font(.caption2).foregroundStyle(.white.opacity(0.65))
+            }.padding(14).frame(height: 148)
         }
-        .padding(14)
-        .background(.black.opacity(0.96), in: UnevenRoundedRectangle(bottomLeadingRadius: 24, bottomTrailingRadius: 24))
+        .background(.black.opacity(0.97), in: UnevenRoundedRectangle(bottomLeadingRadius: 26, bottomTrailingRadius: 26))
+        .scaleEffect(x: presentation.visible || reduceMotion ? 1 : 0.6, y: presentation.visible || reduceMotion ? 1 : 0.02, anchor: .top)
+        .opacity(presentation.visible ? 1 : 0)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: presentation.visible)
         .environment(\.colorScheme, .dark)
     }
 }
 
 struct DropZone: View {
     let mode: CompressionMode
-    @State private var targeted = false
+    let targeted: Bool
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 7) {
             Image(systemName: mode.symbol).font(.title2)
             Text(mode.title).font(.callout.weight(.semibold))
+            Text(mode == .video ? "音声はそのまま" : mode == .audio ? "映像はそのまま" : "映像と音声を圧縮")
+                .font(.system(size: 10))
         }
         .foregroundStyle(targeted ? .black : .white)
-        .frame(maxWidth: .infinity).frame(height: 82)
+        .frame(maxWidth: .infinity).frame(height: 88)
         .background(targeted ? Color.mint : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-        .animation(.easeOut(duration: 0.12), value: targeted)
+        .animation(.easeOut(duration: 0.1), value: targeted)
         .accessibilityLabel("\(mode.title)のドロップ領域")
-        .onDrop(of: [UTType.fileURL.identifier], isTargeted: $targeted) { providers in
-            AppState.shared.receive(providers, mode: mode)
-        }
     }
 }
