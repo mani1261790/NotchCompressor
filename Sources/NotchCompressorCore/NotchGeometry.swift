@@ -20,6 +20,24 @@ public struct FileDragState {
     public mutating func end() { active = false; pendingDrag = false }
 }
 
+/// Keeps the destination stable while AppKit delivers the mouse-up/drop callbacks.
+public struct NativeDropSession {
+    private var inside = false
+    private var releasedAt: TimeInterval?
+    public init() {}
+    public mutating func entered() { inside = true; releasedAt = nil }
+    public mutating func ended() { inside = false; releasedAt = nil }
+    public mutating func holdsPanelOpen(leftButtonDown: Bool, now: TimeInterval) -> Bool {
+        guard inside else { return false }
+        if leftButtonDown { releasedAt = nil; return true }
+        if releasedAt == nil { releasedAt = now }
+        // A missing callback (e.g. cancellation) must not leave the panel expanded.
+        if now - (releasedAt ?? now) < 0.35 { return true }
+        ended()
+        return false
+    }
+}
+
 public struct NotchGeometry {
     public let collapsed: CGRect
     public let panel: CGRect

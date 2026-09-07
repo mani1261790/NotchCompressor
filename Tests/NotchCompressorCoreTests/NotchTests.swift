@@ -39,6 +39,21 @@ final class NotchTests: XCTestCase {
         state.update(changeCount: 3, leftButtonDown: true, hasFiles: true)
         XCTAssertFalse(state.active)
     }
+    func testNativeDropSurvivesMouseUpUntilDeliveryButExpiresOnCancellation() {
+        var session = NativeDropSession()
+        XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: true, now: 0))
+        session.entered()
+        XCTAssertTrue(session.holdsPanelOpen(leftButtonDown: true, now: 1))
+        XCTAssertTrue(session.holdsPanelOpen(leftButtonDown: false, now: 2))
+        XCTAssertTrue(session.holdsPanelOpen(leftButtonDown: false, now: 2.1))
+        session.ended()
+        XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: false, now: 2.2))
+        session.entered()
+        XCTAssertTrue(session.holdsPanelOpen(leftButtonDown: false, now: 3))
+        XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: false, now: 3.5))
+        XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: true, now: 4))
+    }
+
     func testCollapsedFrameFitsNotchAndRemainsAtScreenTop() {
         let screen = CGRect(x: -1512, y: 200, width: 1512, height: 982)
         let geometry = NotchGeometry(screen: screen, topInset: 32, notchWidth: 210)

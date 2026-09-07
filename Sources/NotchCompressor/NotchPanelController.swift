@@ -16,6 +16,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
     let presentation: DropPresentation
     var onEnd: (() -> Void)?
     var onFileEntered: (() -> Void)?
+    var onFileExited: (() -> Void)?
     required init(rootView: DropPanel) {
         self.presentation = rootView.presentation
         super.init(rootView: rootView)
@@ -26,7 +27,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { update(sender) }
     override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation { update(sender) }
-    override func draggingExited(_ sender: NSDraggingInfo?) { presentation.mode = nil }
+    override func draggingExited(_ sender: NSDraggingInfo?) { presentation.mode = nil; onFileExited?() }
     override func draggingEnded(_ sender: NSDraggingInfo) { presentation.mode = nil; onEnd?() }
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { update(sender) == .copy }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
@@ -58,11 +59,13 @@ private final class DropHostingView: NSHostingView<DropPanel> {
 @MainActor
 final class NotchPanelController {
     private let log = Logger(subsystem: "com.mani.NotchCompressor", category: "Drag")
+    private var lastPhase = ""
     private var lastLoggedPasteboard = NSPasteboard(name: .drag).changeCount
     private let panel: NSPanel
     private let presentation = DropPresentation()
     private let host: DropHostingView
     private var timer: Timer?
+    private var nativeDrop = NativeDropSession()
     private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
     init() {
@@ -75,9 +78,11 @@ final class NotchPanelController {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isReleasedWhenClosed = false
         panel.contentView = host
-        host.onEnd = { [weak self] in self?.drag.end(); self?.collapse() }
+        host.onEnd = { [weak self] in self?.nativeDrop.ended(); self?.drag.end(); self?.collapse() }
+        host.onFileExited = { [weak self] in self?.nativeDrop.ended() }
         host.onFileEntered = { [weak self] in
             guard let self, let screen = self.panel.screen else { return }
+            self.nativeDrop.entered()
             self.expand(on: screen)
         }
         collapse()
@@ -98,6 +103,12 @@ final class NotchPanelController {
         guard panel.frame != frame else { return }
         let animate = panel.isVisible && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         panel.setFrame(frame, display: true, animate: animate)
+    }
+
+    private func trace(_ phase: String) {
+        guard lastPhase != phase else { return }
+        lastPhase = phase
+        log.notice("Panel state: \(phase, privacy: .public)")
     }
 
     private func collapse() {
@@ -130,10 +141,13 @@ final class NotchPanelController {
             log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
         }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
-        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { collapse(); return }
+        // Do not resize away the drop target between mouse-up and performDragOperation.
+        if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) { trace("native destination"); return }
+        guard drag.active, let screen = NSScreen.screens.first(where: { $0.frame.contains(pointer) }) else { trace("compact: no active file drag"); collapse(); return }
         let geometry = geometry(on: screen)
         let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
-        guard geometry.trigger.contains(pointer) || insidePanel else { collapse(); return }
+        guard geometry.trigger.contains(pointer) || insidePanel else { trace("compact: file outside trigger"); collapse(); return }
+        trace("expanded: file inside trigger")
         expand(on: screen)
     }
 }
