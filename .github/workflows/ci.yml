@@ -17,7 +17,5 @@ jobs:
         run: xcodebuild -version
       - name: Unit tests
         run: swift test
-      - name: Release app
-        run: bash scripts/build-app.sh
-      - name: Verify local signature
-        run: codesign --verify --deep --strict dist/NotchCompressor.app
+      - name: Rehearse distribution (no Apple credentials)
+        run: bash scripts/distribute.sh rehearse

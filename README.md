@@ -73,7 +73,7 @@ Mission Control対策後のFinderドロップ、追加ディスプレイ・フ�
 - FFmpeg / ffprobeをアプリに同梱します。Homebrewなどの追加インストールは不要です。
 - 映像の圧縮にはMacのHEVC VideoToolboxエンコーダを使います。
 
-Developer IDの発行待ちのため、署名・公証済みの一般配布版はまだありません。試験版はアドホック署名で、ダウンロード後のGatekeeper検証は未完了です。
+公開済みのalpha.1はDeveloper ID署名・公証前の配布物です。[次の署名版の配布計画](docs/DEVELOPER_ID_RELEASE.md)を進めています。試験版はアドホック署名で、ダウンロード後のGatekeeper検証は未完了です。
 
 ## 対応範囲
 
@@ -96,7 +96,7 @@ bash scripts/build-app.sh
 open dist/NotchCompressor.app
 ```
 
-生成物はビルドしたMacのアーキテクチャ向けです。ローカル実行用のアドホック署名を付けています。FFmpeg 9.0.1を固定したソースからビルドし同梱します。初回ビルドにはダウンロードとコンパイルの時間がかかります。Developer ID署名・公証と自動更新は未対応です。
+生成物はビルドしたMacのアーキテクチャ向けです。ローカル実行用のアドホック署名を付けています。FFmpeg 9.0.1を固定したソースからビルドし同梱します。初回ビルドにはダウンロードとコンパイルの時間がかかります。Developer ID配布用の手順は[配布ガイド](docs/DEVELOPER_ID_RELEASE.md)を参照してください。自動更新は未対応です。
 
 アプリはメニューバーに常駐します。終了はメニューの「NotchCompressorを終了」。処理が残っていれば確認し、キャンセル完了を待って終了します。ログイン時起動は設定から切り替えられます。
 

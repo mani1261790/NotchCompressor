@@ -10,7 +10,7 @@ SwiftUI / AppKitのmacOS動画圧縮アプリ。リポジトリはmani1261790/No
 - キューは既定で自動（最大2件、映像変換は1件まで、省電力/発熱時は1件）。手動で直列/最大2件、待機カードのドラッグ並べ替え/一時停止を操作できる。同じ入力はinode+volumeとパスで排他。復元時の中断ジョブは自動再実行しない。破損履歴は上書きしない。
 - macOS 26でLiquid Glass、旧OSは代替の丸いコントロール。アイコンのみは円形、テキスト付きはカプセル。
 - FFmpeg 9.0.1を公式ソースからGPL/nonfree無効でビルドし同梱。配布アプリは外部パスや古いツール設定を使わない。開発・テスト時だけNOTCH_FFMPEG_DIRで明示できる。
-- Apache 2.0採用。FFmpegは別途LGPL 2.1以降。Developer IDは申請Pendingのためユーザー指示で保留。2026-09-08にPublic化し、アドホック署名のv0.1.0-alpha.1を試験版として公開済み。
+- Apache 2.0採用。FFmpegは別途LGPL 2.1以降。Developer Program加入済み。Developer ID Application秘密鍵と公証プロファイルは別途必要（docs/DEVELOPER_ID_RELEASE.md）。2026-09-08にPublic化し、アドホック署名のv0.1.0-alpha.1を試験版として公開済み。
 
 ## 実行
 
