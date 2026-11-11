@@ -3,8 +3,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/select-xcode.sh
 bash scripts/build-ffmpeg.sh
-xcrun swift build -c release
-bin_dir="$(xcrun swift build -c release --show-bin-path)"
+# Use the Xcode resource accessor, which resolves package bundles in Contents/Resources.
+# Native SwiftPM on Swift 6.2 searches the app root or the build machine path instead.
+xcrun swift build --build-system xcode -c release
+bin_dir="$(xcrun swift build --build-system xcode -c release --show-bin-path)"
 app_dir="$PWD/dist/NotchCompressor.app"
 mkdir -p "$app_dir/Contents/MacOS" "$app_dir/Contents/Resources/Licenses"
 cp ".build/vendor/install-$(uname -m)/bin/ffmpeg" ".build/vendor/install-$(uname -m)/bin/ffprobe" "$app_dir/Contents/MacOS/"

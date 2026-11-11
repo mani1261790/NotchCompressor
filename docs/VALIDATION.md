@@ -223,3 +223,5 @@ API根拠: [Apple Process.suspend](https://developer.apple.com/documentation/fou
 CUAのアプリ取得はtimeoutReached。実キー入力による設定・解除・他アプリからの呼び出し・再起動保持、メニューバー／完了表示の実描画、診断情報のコピー、Finder上のDMG表示とドラッグ導入は未確認。#22〜#25は実機確認が終わるまで閉じない。公証認証はユーザーが後日登録予定で、新版の公開は行っていない。
 
 ローカル証拠は `.local-work/ux/` の `final-tests.log`、`final-rehearse.log`、`format.log`。最終リハーサル資産は `dist/.candidate.cpY9mF/assets/`。これは未公証の検証用で、公開配布用ではない。
+
+配布ビルドは `--build-system xcode` を明示する。Swift 6.2のnative方式では依存のBundle.moduleがappルートまたは開発機のビルド先を探索するため、Contents/Resourcesの同梱資源を使えるXcode方式へ統一。明示後のローカルreleaseビルド・署名検証成功。
