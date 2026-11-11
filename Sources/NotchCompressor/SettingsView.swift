@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var loginEnabled = SMAppService.mainApp.status == .enabled
     @State private var message: String?
+    @State private var showingDiagnostics = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -119,6 +120,13 @@ struct SettingsView: View {
                     if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
                 } header: { Label("アップデート", systemImage: "arrow.down.circle") }
                 Section {
+                    Button { showingDiagnostics = true } label: {
+                        Label("診断情報を確認…", systemImage: "stethoscope")
+                    }.capsuleControl()
+                    Text("不具合の報告に使う情報を確認してコピーできます。自動送信はしません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: { Text("サポート") }
+                Section {
                     LabeledContent("バージョン", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "開発版")
                     Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later\nSparkle 2.10.1 · MIT")
                         .font(.caption).foregroundStyle(.secondary)
@@ -130,6 +138,7 @@ struct SettingsView: View {
                 } header: { Text("このアプリについて") }
             }.formStyle(.grouped)
         }.frame(width: 560, height: 620)
+        .sheet(isPresented: $showingDiagnostics) { DiagnosticsView(queue: queue) }
     }
 
     private func updateLogin(_ enabled: Bool) {
