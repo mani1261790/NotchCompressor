@@ -32,3 +32,7 @@ swift-formatの導入は上記の機能実装と分離する。公証用認証�
 - `Sources/NotchCompressorCore/JobQueue.swift`: JSONによる設定・ジョブ保存と投入時設定。
 - `Sources/NotchCompressorCore/CompressionPolicy.swift` / `CompressionControl.swift`: VideoToolbox、stream copy、プロセスの一時停止／再開。
 - `scripts/create-dmg.sh`: Applicationsリンク付きDMGの作成とマウント検証。
+
+## 実施時の更新
+
+DMGはcreate-dmg 8.1.0を評価後、dmgbuild 1.6.7を採用。create-dmgのimage-size依存にGHSA-w3rx-r6r6-pgprが残り、古いネイティブ拡張のビルドも必要だったため。dmgbuildと推移依存はバージョン・SHA-256を固定。Finderを操作せず配置を保存し、日本語案内を同梱する。
