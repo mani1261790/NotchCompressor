@@ -45,6 +45,27 @@ public final class JobQueue: ObservableObject {
     @Published public var settings: CompressionSettings = .init() { didSet { persist() } }
     @Published public private(set) var persistenceError: String?
     @Published public private(set) var cancelling = Set<UUID>()
+    @Published public private(set) var completionNotice: CompletionNotice?
+    private var completionExpiry: Task<Void, Never>?
+    private let feedbackDuration: Duration
+    public var status: QueueStatus { QueueStatus(jobs: jobs, running: runningIDs, paused: pausedIDs) }
+
+    public func dismissCompletion() {
+        completionExpiry?.cancel()
+        completionNotice = nil
+    }
+
+    private func recordCompletion(_ result: CompressionResult) {
+        var notice = completionNotice ?? CompletionNotice()
+        notice.include(result)
+        completionNotice = notice
+        completionExpiry?.cancel()
+        completionExpiry = Task { [weak self, feedbackDuration] in
+            do { try await Task.sleep(for: feedbackDuration) } catch { return }
+            self?.completionNotice = nil
+        }
+    }
+
     private let storage: URL?
     private let operation: Operation
     @Published public var execution: QueueExecution = .automatic { didSet { persist(); startNext() } }
@@ -96,10 +117,12 @@ public final class JobQueue: ObservableObject {
     }
 
     public init(storage: URL? = nil,
+                feedbackDuration: Duration = .seconds(8),
                 environment: @escaping () -> SchedulingEnvironment = { .current },
                 operation: @escaping Operation = { url, mode, settings, update in
         try await CompressionEngine().compress(input: url, mode: mode, settings: settings, update: update)
     }) {
+        self.feedbackDuration = feedbackDuration
         self.storage = storage
         self.operation = operation
         self.readEnvironment = environment
@@ -304,6 +327,7 @@ public final class JobQueue: ObservableObject {
                     jobs[index].progress = 1
                     jobs[index].result = result
                     jobs[index].message = result.note
+                    recordCompletion(result)
                 }
             } catch {
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {

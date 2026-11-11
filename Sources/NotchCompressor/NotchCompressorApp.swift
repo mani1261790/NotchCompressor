@@ -58,6 +58,9 @@ struct NotchCompressorApp: App {
 
     var body: some Scene {
         MenuBarExtra {
+            Text(queue.status.title)
+            if let notice = queue.completionNotice { Text(notice.text) }
+            Divider()
             Button("圧縮キューを開く\(queue.pendingCount > 0 ? "（\(queue.pendingCount)件）" : "")") { AppState.shared.presentQueue() }
             Button("設定…") { AppState.shared.presentQueue(settings: true) }
                 .keyboardShortcut(",")
@@ -70,8 +73,9 @@ struct NotchCompressorApp: App {
             Button("NotchCompressorを終了") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
-            Image(systemName: "arrow.down.right.and.arrow.up.left")
-            if queue.pendingCount > 0 { Text("\(queue.pendingCount)") }
+            Image(systemName: queue.completionNotice != nil && !queue.isBusy && queue.status.count == 0 ? "checkmark.circle" : queue.status.symbol)
+                .accessibilityLabel(queue.status.title)
+            if queue.status.count > 0 { Text("\(queue.status.count)") }
         }
     }
 }

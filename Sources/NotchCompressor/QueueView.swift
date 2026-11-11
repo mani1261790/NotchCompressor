@@ -58,6 +58,14 @@ struct QueueView: View {
                 .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")
             }.padding(.horizontal, 24).padding(.bottom, 14)
             Divider()
+            if let notice = queue.completionNotice {
+                HStack {
+                    Label(notice.text, systemImage: "checkmark.circle")
+                        .font(.callout).accessibilityLabel(notice.text)
+                    Spacer()
+                    IconControl(title: "完了表示を閉じる", symbol: "xmark") { queue.dismissCompletion() }
+                }.padding(.horizontal, 24).padding(.vertical, 12)
+            }
             if let error = app.dropError {
                 HStack { Text(error).font(.callout); Spacer(); IconControl(title: "閉じる", symbol: "xmark") { app.dropError = nil } }.padding()
             }
