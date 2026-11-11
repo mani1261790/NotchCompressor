@@ -1,3 +1,4 @@
+import KeyboardShortcuts
 import AppKit
 import CoreServices
 import SwiftUI
@@ -84,6 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         controller = NotchPanelController()
         UpdateController.shared.start()
+        KeyboardShortcuts.onKeyUp(for: .showCompressionQueue) {
+            AppState.shared.presentQueue()
+        }
         let launch = NSAppleEventManager.shared().currentAppleEvent
         let loginLaunch = launch?.eventID == kAEOpenApplication &&
             launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem

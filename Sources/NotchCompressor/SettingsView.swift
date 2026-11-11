@@ -1,3 +1,4 @@
+import KeyboardShortcuts
 import AppKit
 import SwiftUI
 import ServiceManagement
@@ -87,6 +88,11 @@ struct SettingsView: View {
                     Text("ファイル名・場所・MOV／MP4／M4Vの拡張子は維持します。容量は内容によって変わり、圧縮前より増える場合もあります。")
                         .font(.caption).foregroundStyle(.secondary)
                 } header: { Label("どの方式で変換するか", systemImage: "arrow.triangle.2.circlepath") }
+                Section {
+                    KeyboardShortcuts.Recorder("圧縮キューを開く", name: .showCompressionQueue)
+                    Text("他のアプリを使っているときもキューを開けます。動画の追加や圧縮は開始しません。右端の×で解除できます。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: { Label("ショートカット", systemImage: "keyboard") }
                 Section {
                     Toggle("ログイン時に起動", isOn: Binding(get: { loginEnabled }, set: updateLogin))
                         .toggleStyle(.switch)

@@ -5,3 +5,5 @@ dist/
 xcuserdata/
 .swiftpm/
 
+
+.local-work/

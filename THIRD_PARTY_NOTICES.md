@@ -21,3 +21,7 @@ For future updates, change the version and checksum together after verifying the
 The application embeds the Sparkle framework for signed software updates. Sparkle is distributed under the MIT license, with additional notices for bundled components. The complete upstream license and notices are included as `Resources/Licenses/Sparkle-LICENSE.txt`.
 
 Upstream source and license: https://github.com/sparkle-project/Sparkle/tree/2.10.1
+
+## KeyboardShortcuts 3.1.0
+
+Copyright Sindre Sorhus. Distributed under the MIT license. The complete license is included as `Resources/Licenses/KeyboardShortcuts-LICENSE.txt`. Source: https://github.com/sindresorhus/KeyboardShortcuts/tree/3.1.0
