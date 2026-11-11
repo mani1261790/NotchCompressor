@@ -209,3 +209,17 @@ API根拠: [Apple Process.suspend](https://developer.apple.com/documentation/fou
 - Developer IDは利用可能。`NotchCompressor` 公証プロファイルは未登録で、既存Keychainのnotary名のメタデータにも該当なし。公証、Gatekeeperの許可、ブラウザ取得後の初回起動、Sparkle実更新、alpha.2公開は未完了。
 
 証拠ログはローカル `.build/sparkle-work/` の `tests.log`、`rehearse.log`、`developer-id.log`、`feed-generation.log`、`tamper-check.log`。リハーサルDMGと未公証の署名候補は `dist/` の隠し作業ディレクトリに保持し、公開Releaseには添付していない。
+
+
+## 2026-11-11 UX改善（#22〜#26）
+
+- KeyboardShortcuts 3.1.0を固定導入し、初期値未設定のキュー呼び出しを実装。Recorderの設定・解除と保存、onKeyUpの呼び出しを使用。日本語を含むリソースbundleとMITライセンスを配布アプリへ同梱。初回のコピーでライセンスが読み取り専用になり再ビルドが失敗する問題は、install -m 644へ変更して修正。
+- create-dmg 8.1.0はimage-sizeの既知問題と古いネイティブ依存を確認し採用見送り。dmgbuild 1.6.7、ds_store 1.3.3、mac_alias 2.2.3をバージョン・SHA-256固定で採用。日本語背景を確認し、DMGのアプリ・Applicationsリンク・背景・DS_Storeの左右配置をマウント後に検証。これはFinder実表示の確認とは区別する。
+- 状態表示・直近8秒間の完了集計を追加。成功カードは残さず、容量増加も正しく表示。新規テストで混在状態・期限・失敗の除外・履歴復元時に通知しないことを確認。
+- 診断情報は許可した項目だけから生成し、画面を開いた時点の情報をプレビューしてコピーする。ファイル名・パス・UUID・生エラー・結果noteに含まれる秘密値が出力されないテスト成功。外部送信なし。
+- swift-format（ローカル6.4.4）で設定を固定して整形し、機能変更とは別コミット化。ローカルlint成功。CIでもXcode同梱のformatterで検査する。
+- 同梱FFmpegでの最終回帰は53テスト、失敗0、スキップ0。releaseビルド、署名、更新ZIP、DMGとチェックサムを含む `distribute.sh rehearse` 成功。
+
+CUAのアプリ取得はtimeoutReached。実キー入力による設定・解除・他アプリからの呼び出し・再起動保持、メニューバー／完了表示の実描画、診断情報のコピー、Finder上のDMG表示とドラッグ導入は未確認。#22〜#25は実機確認が終わるまで閉じない。公証認証はユーザーが後日登録予定で、新版の公開は行っていない。
+
+ローカル証拠は `.local-work/ux/` の `final-tests.log`、`final-rehearse.log`、`format.log`。最終リハーサル資産は `dist/.candidate.cpY9mF/assets/`。これは未公証の検証用で、公開配布用ではない。
