@@ -5,9 +5,11 @@ let package = Package(
     name: "NotchCompressor",
     platforms: [.macOS(.v14)],
     products: [.executable(name: "NotchCompressor", targets: ["NotchCompressor"])],
+    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.1")],
     targets: [
         .target(name: "NotchCompressorCore"),
-        .executableTarget(name: "NotchCompressor", dependencies: ["NotchCompressorCore"]),
+        .executableTarget(name: "NotchCompressor", dependencies: ["NotchCompressorCore", .product(name: "Sparkle", package: "Sparkle")],
+                          linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         .testTarget(name: "NotchCompressorCoreTests", dependencies: ["NotchCompressorCore"])
     ]
 )

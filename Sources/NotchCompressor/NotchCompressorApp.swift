@@ -53,12 +53,15 @@ final class AppState: ObservableObject {
 struct NotchCompressorApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @ObservedObject private var queue = AppState.shared.queue
+    @ObservedObject private var updates = UpdateController.shared
 
     var body: some Scene {
         MenuBarExtra {
             Button("圧縮キューを開く\(queue.pendingCount > 0 ? "（\(queue.pendingCount)件）" : "")") { AppState.shared.presentQueue() }
             Button("設定…") { AppState.shared.presentQueue(settings: true) }
                 .keyboardShortcut(",")
+            Button("アップデートを確認…") { updates.check() }
+                .disabled(!updates.canCheck || queue.isBusy)
             Divider()
             Text("左：画質　中央：両方　右：音質")
             Text("検証後に元動画を置き換えます")
@@ -80,6 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         controller = NotchPanelController()
+        UpdateController.shared.start()
         let launch = NSAppleEventManager.shared().currentAppleEvent
         let loginLaunch = launch?.eventID == kAEOpenApplication &&
             launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
@@ -94,6 +98,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let queue = AppState.shared.queue
         guard queue.isBusy else { return .terminateNow }
+        // An updater must never turn a running or paused compression into cancellation.
+        if UpdateController.shared.installing { return .terminateCancel }
         guard !terminating else { return .terminateLater }
         let alert = NSAlert()
         alert.messageText = "圧縮を中止して終了しますか？"

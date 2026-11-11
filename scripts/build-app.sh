@@ -14,6 +14,9 @@ cp .build/vendor/ffmpeg-9.0.1/LICENSE.md "$app_dir/Contents/Resources/Licenses/F
 xcrun swift scripts/make-icon.swift .build/AppIcon.iconset
 iconutil -c icns .build/AppIcon.iconset -o "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$bin_dir/NotchCompressor" "$app_dir/Contents/MacOS/NotchCompressor"
+mkdir -p "$app_dir/Contents/Frameworks"
+ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$app_dir/Contents/Frameworks/Sparkle.framework"
+cp .build/artifacts/sparkle/Sparkle/LICENSE "$app_dir/Contents/Resources/Licenses/Sparkle-LICENSE.txt"
 cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -29,13 +32,18 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>NotchCompressor</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleVersion</key><string>2</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>SUFeedURL</key><string>https://raw.githubusercontent.com/mani1261790/NotchCompressor/main/updates/appcast.xml</string>
+<key>SUEnableAutomaticChecks</key><false/>
+<key>SUAllowsAutomaticUpdates</key><false/>
+<key>SUSendProfileInfo</key><false/>
+<key>SUVerifyUpdateBeforeExtraction</key><true/>
+<key>SURequireSignedFeed</key><true/>
 </dict></plist>
 PLIST
-codesign --force --sign - "$app_dir/Contents/MacOS/ffmpeg"
-codesign --force --sign - "$app_dir/Contents/MacOS/ffprobe"
-codesign --force --sign - "$app_dir"
+/usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $(cat config/sparkle-public-key.txt)" "$app_dir/Contents/Info.plist"
+bash scripts/sign-app.sh "$app_dir"
 printf 'Built %s\n' "$app_dir"

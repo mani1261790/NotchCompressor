@@ -5,6 +5,7 @@ import NotchCompressorCore
 
 struct SettingsView: View {
     @ObservedObject var queue: JobQueue
+    @ObservedObject private var updates = UpdateController.shared
     @Environment(\.dismiss) private var dismiss
     @State private var loginEnabled = SMAppService.mainApp.status == .enabled
     @State private var message: String?
@@ -102,8 +103,18 @@ struct SettingsView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 } header: { Text("保存") }
                 Section {
+                    Toggle("アップデートを自動で確認", isOn: Binding(get: { updates.automaticallyChecks }, set: { updates.automaticallyChecks = $0 }))
+                        .toggleStyle(.switch)
+                    Button("アップデートを確認…") { updates.check() }
+                        .capsuleControl()
+                        .disabled(!updates.canCheck || queue.isBusy)
+                    Text("インストール前に確認します。圧縮・待機・一時停止中は、キューが空になるまで更新を待ちます。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
+                } header: { Label("アップデート", systemImage: "arrow.down.circle") }
+                Section {
                     LabeledContent("バージョン", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "開発版")
-                    Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later")
+                    Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later\nSparkle 2.10.1 · MIT")
                         .font(.caption).foregroundStyle(.secondary)
                     Button {
                         if let url = Bundle.main.resourceURL?.appendingPathComponent("Licenses") {

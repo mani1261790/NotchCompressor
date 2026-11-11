@@ -195,3 +195,17 @@ API根拠: [Apple Process.suspend](https://developer.apple.com/documentation/fou
 
 ## 品質設定と変換方式の説明（#17）
 文言と表示のみ更新。既存の圧縮アルゴリズムや保存rawValueは変更していない。releaseビルド・パッケージ署名検証成功。実アプリで標準→品質優先の切り替えによって映像65%/音声96 kbpsから85%/128 kbpsの説明に変わること、スクロールして圧縮対象の3通りとHEVC/AAC・解像度/fps・copyの説明が読めることをAXとスクリーンショットで確認。元の標準に戻した。テスト追加・回帰テスト再実行は文言変更のみのため行っていない。
+
+
+## 2026-11-11 DMG / Sparkle（#20 / #21）
+
+- 同梱FFmpegの実メディア検証を含む49テスト成功、スキップ0。
+- Sparkle 2.10.1を固定してreleaseビルド成功。ライセンスをアプリ内へ収録。
+- `distribute.sh rehearse` 成功。DMGをマウントし、Applicationsリンク・アプリのdeep/strict署名・全配布物のSHA-256を検証。
+- 別のローカルコピーにDeveloper IDで実署名成功。SparkleのXPC/Updater/Autoupdate/framework、ffmpeg/ffprobe、アプリ本体のHardened Runtime、secure timestamp、Developer IDのAuthorityとdeep署名を確認。
+- 公式ツールでEdDSA鍵をログインキーチェーンへ生成。秘密鍵は出力・Git登録せず、公開鍵のみ管理。初期空フィードの署名検証成功、改ざんしたコピーは拒否された。
+- ローカル検証用ZIPからappcastを生成し署名検証成功。build 2、macOS 14、arm64、更新ZIPのURLと署名を確認。この候補は未公証であり公開しない。配布用フィード生成スクリプトにはその後、公証チケットとGatekeeper検査を追加した。
+- メニューと設定の更新確認、キューが空になるまでの再起動延期を実装。ただし今回CUAのアプリ取得がタイムアウトし、新UIの操作と実際の新旧アプリの置換・再起動は未検証。
+- Developer IDは利用可能。`NotchCompressor` 公証プロファイルは未登録で、既存Keychainのnotary名のメタデータにも該当なし。公証、Gatekeeperの許可、ブラウザ取得後の初回起動、Sparkle実更新、alpha.2公開は未完了。
+
+証拠ログはローカル `.build/sparkle-work/` の `tests.log`、`rehearse.log`、`developer-id.log`、`feed-generation.log`、`tamper-check.log`。リハーサルDMGと未公証の署名候補は `dist/` の隠し作業ディレクトリに保持し、公開Releaseには添付していない。
