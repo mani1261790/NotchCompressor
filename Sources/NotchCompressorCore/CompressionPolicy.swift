@@ -4,10 +4,18 @@ public enum CompressionMode: String, CaseIterable, Identifiable, Codable, Sendab
     case video, both, audio
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .video: "画質のみ"; case .both: "画質＋音質"; case .audio: "音質のみ" }
+        switch self {
+        case .video: "画質のみ";
+        case .both: "画質＋音質";
+        case .audio: "音質のみ"
+        }
     }
     public var symbol: String {
-        switch self { case .video: "video"; case .both: "arrow.down.right.and.arrow.up.left"; case .audio: "waveform" }
+        switch self {
+        case .video: "video";
+        case .both: "arrow.down.right.and.arrow.up.left";
+        case .audio: "waveform"
+        }
     }
     public var changesVideo: Bool { self != .audio }
     public var changesAudio: Bool { self != .video }
@@ -17,7 +25,12 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
     case gentle, balanced, compact, custom
     public var id: String { rawValue }
     public var title: String {
-        switch self { case .gentle: "品質優先"; case .balanced: "標準"; case .compact: "容量優先"; case .custom: "カスタム" }
+        switch self {
+        case .gentle: "品質優先";
+        case .balanced: "標準";
+        case .compact: "容量優先";
+        case .custom: "カスタム"
+        }
     }
     public var explanation: String {
         switch self {
@@ -36,13 +49,25 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
         }
     }
     public var audioBitrate: Int {
-        switch self { case .gentle: 128_000; case .balanced, .custom: 96_000; case .compact: 64_000 }
+        switch self {
+        case .gentle: 128_000;
+        case .balanced, .custom: 96_000;
+        case .compact: 64_000
+        }
     }
     var bitsPerPixel: Double {
-        switch self { case .gentle: 0.09; case .balanced, .custom: 0.06; case .compact: 0.035 }
+        switch self {
+        case .gentle: 0.09;
+        case .balanced, .custom: 0.06;
+        case .compact: 0.035
+        }
     }
     var sourceRatio: Double {
-        switch self { case .gentle: 0.85; case .balanced, .custom: 0.65; case .compact: 0.45 }
+        switch self {
+        case .gentle: 0.85;
+        case .balanced, .custom: 0.65;
+        case .compact: 0.45
+        }
     }
 }
 
@@ -55,10 +80,15 @@ public struct CompressionSettings: Codable, Equatable, Sendable {
     public var effectiveAudioKbps: Int { min(256, max(32, audioKbps ?? 96)) }
     public func summary(for mode: CompressionMode) -> String {
         guard quality == .custom else { return quality.title }
-        return [mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
-                mode.changesAudio ? "音声\(effectiveAudioKbps) kbps" : nil].compactMap { $0 }.joined(separator: "・")
+        return [
+            mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
+            mode.changesAudio ? "音声\(effectiveAudioKbps) kbps" : nil,
+        ].compactMap { $0 }.joined(separator: "・")
     }
-    public init(quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil, audioKbps: Int? = nil) {
+    public init(
+        quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil,
+        audioKbps: Int? = nil
+    ) {
         self.quality = quality
         self.toolsDirectory = toolsDirectory
         self.videoPercent = videoPercent
@@ -103,9 +133,11 @@ public struct CompressionPlan: Sendable {
         let target = pixelRate * quality.bitsPerPixel
         let sourceCap = media.video.bitRate.map { Double($0) * quality.sourceRatio } ?? 12_000_000
         if quality == .custom {
-            let estimatedVideoRate = max(32_000, Double(media.size) * 8 / media.duration - Double(media.audio?.bitRate ?? 0))
+            let estimatedVideoRate = max(
+                32_000, Double(media.size) * 8 / media.duration - Double(media.audio?.bitRate ?? 0))
             let sourceRate = media.video.bitRate.map(Double.init) ?? estimatedVideoRate
-            self.videoBitrate = Int(max(32_000, min(100_000_000, sourceRate * Double(settings.effectiveVideoPercent) / 100)))
+            self.videoBitrate = Int(
+                max(32_000, min(100_000_000, sourceRate * Double(settings.effectiveVideoPercent) / 100)))
         } else {
             self.videoBitrate = Int(max(150_000, min(target, sourceCap, 12_000_000)))
         }
@@ -114,12 +146,17 @@ public struct CompressionPlan: Sendable {
     }
 
     public func arguments(input: URL, output: URL) -> [String] {
-        var args = ["-nostdin", "-hide_banner", "-loglevel", "error", "-xerror", "-n",
-                    "-progress", "pipe:1", "-nostats", "-protocol_whitelist", "file,pipe",
-                    "-noautorotate", "-i", input.path, "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0", "-map_chapters", "0"]
+        var args = [
+            "-nostdin", "-hide_banner", "-loglevel", "error", "-xerror", "-n",
+            "-progress", "pipe:1", "-nostats", "-protocol_whitelist", "file,pipe",
+            "-noautorotate", "-i", input.path, "-map", "0:v:0", "-map", "0:a?", "-map_metadata", "0", "-map_chapters",
+            "0",
+        ]
         if mode.changesVideo {
-            args += ["-c:v", "hevc_videotoolbox", "-allow_sw", "0", "-tag:v", "hvc1",
-                     "-pix_fmt", "yuv420p", "-b:v", String(videoBitrate)]
+            args += [
+                "-c:v", "hevc_videotoolbox", "-allow_sw", "0", "-tag:v", "hvc1",
+                "-pix_fmt", "yuv420p", "-b:v", String(videoBitrate),
+            ]
             if media.video.fps > 30.1 { args += ["-vf", "fps=30"] }
         } else {
             args += ["-c:v", "copy"]

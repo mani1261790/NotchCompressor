@@ -11,16 +11,20 @@ private final class CancellationFlag: @unchecked Sendable {
 public struct ProcessRunner: Sendable {
     public init() {}
 
-    public func run(executable: URL, arguments: [String], timeout: TimeInterval = 86_400,
-                    progress: @escaping @Sendable (String) -> Void = { _ in }) async throws -> Data {
+    public func run(
+        executable: URL, arguments: [String], timeout: TimeInterval = 86_400,
+        progress: @escaping @Sendable (String) -> Void = { _ in }
+    ) async throws -> Data {
         let cancellation = CancellationFlag()
         let control = CompressionControl.current
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await Task.detached(priority: .utility) {
                 let fm = FileManager.default
-                let folder = fm.temporaryDirectory.appendingPathComponent("NotchCompressor-process-" + UUID().uuidString)
-                try fm.createDirectory(at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+                let folder = fm.temporaryDirectory.appendingPathComponent(
+                    "NotchCompressor-process-" + UUID().uuidString)
+                try fm.createDirectory(
+                    at: folder, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
                 defer { try? fm.removeItem(at: folder) }
                 let stdout = folder.appendingPathComponent("stdout")
                 let stderr = folder.appendingPathComponent("stderr")
@@ -56,14 +60,20 @@ public struct ProcessRunner: Sendable {
                             kill(process.processIdentifier, SIGKILL)
                         }
                     }
-                    if control?.isPaused != true, let tail = try? Self.tail(stdout, limit: 8192), let text = String(data: tail, encoding: .utf8) { progress(text) }
+                    if control?.isPaused != true, let tail = try? Self.tail(stdout, limit: 8192),
+                        let text = String(data: tail, encoding: .utf8)
+                    {
+                        progress(text)
+                    }
                     try? await Task.sleep(for: .milliseconds(100))
                 }
                 if cancellation.cancelled { throw CancellationError() }
                 if timedOut { throw CompressionError.message("処理が制限時間を超えました。ファイルとツールを確認してください。") }
                 guard process.terminationStatus == 0 else {
                     let message = String(data: (try? Self.tail(stderr, limit: 4096)) ?? Data(), encoding: .utf8) ?? ""
-                    throw CompressionError.message("変換ツールが失敗しました（\(process.terminationStatus)）。\n\(message.trimmingCharacters(in: .whitespacesAndNewlines))")
+                    throw CompressionError.message(
+                        "変換ツールが失敗しました（\(process.terminationStatus)）。\n\(message.trimmingCharacters(in: .whitespacesAndNewlines))"
+                    )
                 }
                 let data = try Self.tail(stdout, limit: 4 * 1024 * 1024)
                 if let text = String(data: data, encoding: .utf8) { progress(text) }

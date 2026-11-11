@@ -4,8 +4,15 @@ public enum JobPhase: String, Codable, Sendable {
     case waiting, probing, encoding, validating, paused, completed, failed, cancelled, interrupted
     public var title: String {
         switch self {
-        case .paused: "一時停止中"; case .waiting: "待機中"; case .probing: "動画を確認中"; case .encoding: "圧縮中"; case .validating: "出力を検証中"
-        case .completed: "完了"; case .failed: "失敗"; case .cancelled: "キャンセル済み"; case .interrupted: "前回の処理が中断"
+        case .paused: "一時停止中";
+        case .waiting: "待機中";
+        case .probing: "動画を確認中";
+        case .encoding: "圧縮中";
+        case .validating: "出力を検証中"
+        case .completed: "完了";
+        case .failed: "失敗";
+        case .cancelled: "キャンセル済み";
+        case .interrupted: "前回の処理が中断"
         }
     }
     public var isFinished: Bool { [.completed, .failed, .cancelled, .interrupted].contains(self) }
@@ -37,13 +44,19 @@ public struct CompressionEngine: Sendable {
 
     public func probe(_ input: URL, tools: Toolchain) async throws -> MediaInfo {
         let size = try InputFile.validate(input)
-        let data = try await runner.run(executable: tools.ffprobe,
-            arguments: ["-v", "error", "-protocol_whitelist", "file,pipe", "-show_streams", "-show_format", "-of", "json", input.path], timeout: 30)
+        let data = try await runner.run(
+            executable: tools.ffprobe,
+            arguments: [
+                "-v", "error", "-protocol_whitelist", "file,pipe", "-show_streams", "-show_format", "-of", "json",
+                input.path,
+            ], timeout: 30)
         return try MediaInfo.decode(data, fileSize: size)
     }
 
-    public func compress(input: URL, mode: CompressionMode, settings: CompressionSettings,
-                         update: @escaping @Sendable (JobPhase, Double, String?) -> Void = { _, _, _ in }) async throws -> CompressionResult {
+    public func compress(
+        input: URL, mode: CompressionMode, settings: CompressionSettings,
+        update: @escaping @Sendable (JobPhase, Double, String?) -> Void = { _, _, _ in }
+    ) async throws -> CompressionResult {
         try await CompressionControl.current?.checkpoint()
         try Task.checkCancellation()
         update(.probing, 0, nil)
@@ -58,19 +71,26 @@ public struct CompressionEngine: Sendable {
         guard FileManager.default.isWritableFile(atPath: folder.path) else {
             throw CompressionError.message("元ファイルのフォルダに書き込めません。書き込み可能なフォルダに動画を置いてください。")
         }
-        let capacity = try folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]).volumeAvailableCapacityForImportantUsage
-        let estimated = max(Double(media.size), media.duration * Double(plan.videoBitrate + 256_000) / 8) * 1.2 + 64 * 1024 * 1024
+        let capacity = try folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+            .volumeAvailableCapacityForImportantUsage
+        let estimated =
+            max(Double(media.size), media.duration * Double(plan.videoBitrate + 256_000) / 8) * 1.2 + 64 * 1024 * 1024
         if let capacity, Double(capacity) < estimated {
             throw CompressionError.message("出力用の空き容量が不足しています。元ファイルを残したまま保存できる空きを確保してください。")
         }
         let staging = folder.appendingPathComponent(".notchcompressor-" + UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        try FileManager.default.createDirectory(
+            at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: staging) }
         let output = staging.appendingPathComponent("output." + source.pathExtension.lowercased())
         update(.encoding, 0, plan.note)
-        _ = try await runner.run(executable: tools.ffmpeg, arguments: plan.arguments(input: source, output: output)) { text in
-            if let value = text.split(separator: "\n").last(where: { $0.hasPrefix("out_time_us=") })?.split(separator: "=").last,
-               let microseconds = Double(value), microseconds.isFinite {
+        _ = try await runner.run(executable: tools.ffmpeg, arguments: plan.arguments(input: source, output: output)) {
+            text in
+            if let value = text.split(separator: "\n").last(where: { $0.hasPrefix("out_time_us=") })?.split(
+                separator: "="
+            ).last,
+                let microseconds = Double(value), microseconds.isFinite
+            {
                 update(.encoding, min(0.99, max(0, microseconds / 1_000_000 / media.duration)), plan.note)
             }
         }
@@ -79,9 +99,12 @@ public struct CompressionEngine: Sendable {
         update(.validating, 0, plan.note)
         let resultMedia = try await probe(output, tools: tools)
         try Self.validateOutput(original: media, output: resultMedia, mode: mode)
-        _ = try await runner.run(executable: tools.ffmpeg,
-            arguments: ["-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe",
-                        "-i", output.path, "-map", "0:v:0", "-map", "0:a?", "-f", "null", "-"],
+        _ = try await runner.run(
+            executable: tools.ffmpeg,
+            arguments: [
+                "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe",
+                "-i", output.path, "-map", "0:v:0", "-map", "0:a?", "-f", "null", "-",
+            ],
             timeout: max(300, min(86_400, media.duration * 10)))
         try Task.checkCancellation()
         guard try Fingerprint(source) == fingerprint else {
@@ -91,7 +114,9 @@ public struct CompressionEngine: Sendable {
         if let control = CompressionControl.current {
             while true {
                 try await control.checkpoint()
-                if let committed = try control.commit({ try Self.replaceOriginal(output, original: source, expected: fingerprint) }) {
+                if let committed = try control.commit({
+                    try Self.replaceOriginal(output, original: source, expected: fingerprint)
+                }) {
                     destination = committed
                     break
                 }
@@ -99,13 +124,15 @@ public struct CompressionEngine: Sendable {
         } else {
             destination = try Self.replaceOriginal(output, original: source, expected: fingerprint)
         }
-        return CompressionResult(output: destination, originalBytes: media.size, outputBytes: resultMedia.size, note: plan.note)
+        return CompressionResult(
+            output: destination, originalBytes: media.size, outputBytes: resultMedia.size, note: plan.note)
     }
 
     static func validateOutput(original: MediaInfo, output: MediaInfo, mode: CompressionMode) throws {
         guard abs(original.duration - output.duration) <= max(0.25, 2 / min(original.video.fps, 30)),
-              (original.audio == nil) == (output.audio == nil),
-              original.video.width == output.video.width, original.video.height == output.video.height else {
+            (original.audio == nil) == (output.audio == nil),
+            original.video.width == output.video.width, original.video.height == output.video.height
+        else {
             throw CompressionError.message("出力の長さ・映像サイズ・音声の検証に失敗しました。元ファイルは保持しています。")
         }
         if !mode.changesVideo && original.video.codecName != output.video.codecName {

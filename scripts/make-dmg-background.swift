@@ -8,10 +8,12 @@ NSRect(origin: .zero, size: size).fill()
 func text(_ value: String, y: CGFloat, size fontSize: CGFloat, color: NSColor) {
     let style = NSMutableParagraphStyle()
     style.alignment = .center
-    (value as NSString).draw(in: NSRect(x: 30, y: y, width: 600, height: 38), withAttributes: [
-        .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
-        .foregroundColor: color, .paragraphStyle: style
-    ])
+    (value as NSString).draw(
+        in: NSRect(x: 30, y: y, width: 600, height: 38),
+        withAttributes: [
+            .font: NSFont.systemFont(ofSize: fontSize, weight: .medium),
+            .foregroundColor: color, .paragraphStyle: style,
+        ])
 }
 text("NotchCompressor", y: 330, size: 25, color: .black)
 text("→", y: 190, size: 36, color: .darkGray)

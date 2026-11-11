@@ -40,7 +40,9 @@ public struct QueueSnapshot: Codable {
 
 @MainActor
 public final class JobQueue: ObservableObject {
-    public typealias Operation = @Sendable (URL, CompressionMode, CompressionSettings, @escaping @Sendable (JobPhase, Double, String?) -> Void) async throws -> CompressionResult
+    public typealias Operation =
+        @Sendable (URL, CompressionMode, CompressionSettings, @escaping @Sendable (JobPhase, Double, String?) -> Void)
+        async throws -> CompressionResult
     @Published public private(set) var jobs: [CompressionJob] = []
     @Published public var settings: CompressionSettings = .init() { didSet { persist() } }
     @Published public private(set) var persistenceError: String?
@@ -90,7 +92,8 @@ public final class JobQueue: ObservableObject {
     public var waitingJobs: [CompressionJob] { jobs.filter { $0.phase == .waiting } }
     public func canReorder(_ id: UUID) -> Bool {
         guard !cancelling.contains(id),
-              let job = jobs.first(where: { $0.id == id }) else { return false }
+            let job = jobs.first(where: { $0.id == id })
+        else { return false }
         if pausedIDs.contains(id) { return true }
         guard workers[id] == nil, !runningIDs.contains(id) else { return false }
         return job.phase == .waiting || (job.phase.isFinished && job.phase != .completed)
@@ -99,7 +102,9 @@ public final class JobQueue: ObservableObject {
     public var queuedJobs: [CompressionJob] { jobs.filter { canReorder($0.id) } }
     public var displayedJobs: [CompressionJob] {
         // Running cards retain start order; completed results remain only in bounded storage.
-        activeOrder.compactMap { id in jobs.first { $0.id == id && $0.phase != .completed && (!pausedIDs.contains(id) || cancelling.contains(id)) } } + queuedJobs
+        activeOrder.compactMap { id in
+            jobs.first { $0.id == id && $0.phase != .completed && (!pausedIDs.contains(id) || cancelling.contains(id)) }
+        } + queuedJobs
     }
     public var schedulingDescription: String {
         if isPaused {
@@ -116,12 +121,14 @@ public final class JobQueue: ObservableObject {
         }
     }
 
-    public init(storage: URL? = nil,
-                feedbackDuration: Duration = .seconds(8),
-                environment: @escaping () -> SchedulingEnvironment = { .current },
-                operation: @escaping Operation = { url, mode, settings, update in
-        try await CompressionEngine().compress(input: url, mode: mode, settings: settings, update: update)
-    }) {
+    public init(
+        storage: URL? = nil,
+        feedbackDuration: Duration = .seconds(8),
+        environment: @escaping () -> SchedulingEnvironment = { .current },
+        operation: @escaping Operation = { url, mode, settings, update in
+            try await CompressionEngine().compress(input: url, mode: mode, settings: settings, update: update)
+        }
+    ) {
         self.feedbackDuration = feedbackDuration
         self.storage = storage
         self.operation = operation
@@ -159,8 +166,9 @@ public final class JobQueue: ObservableObject {
     @discardableResult
     public func moveQueued(_ id: UUID, to destination: UUID) -> Bool {
         guard id != destination, canReorder(id), canReorder(destination),
-              let source = jobs.firstIndex(where: { $0.id == id }),
-              let target = jobs.firstIndex(where: { $0.id == destination }) else { return false }
+            let source = jobs.firstIndex(where: { $0.id == id }),
+            let target = jobs.firstIndex(where: { $0.id == destination })
+        else { return false }
         let job = jobs.remove(at: source)
         jobs.insert(job, at: target)
         persist()
@@ -174,7 +182,9 @@ public final class JobQueue: ObservableObject {
         var added = 0
         for url in urls {
             let source = url.standardizedFileURL.resolvingSymlinksInPath()
-            guard !jobs.contains(where: { $0.input == source && $0.mode == mode && !$0.phase.isFinished }) else { continue }
+            guard !jobs.contains(where: { $0.input == source && $0.mode == mode && !$0.phase.isFinished }) else {
+                continue
+            }
             jobs.append(CompressionJob(input: source, mode: mode, settings: settings))
             added += 1
         }
@@ -186,8 +196,9 @@ public final class JobQueue: ObservableObject {
 
     public func pause(_ id: UUID) {
         guard !cancelling.contains(id), !pausedIDs.contains(id),
-              let index = jobs.firstIndex(where: { $0.id == id }),
-              !jobs[index].phase.isFinished, let control = controls[id], control.pause() else { return }
+            let index = jobs.firstIndex(where: { $0.id == id }),
+            !jobs[index].phase.isFinished, let control = controls[id], control.pause()
+        else { return }
         resumedPhases[id] = jobs[index].phase
         jobs[index].phase = .paused
         pausedIDs.insert(id)
@@ -198,7 +209,8 @@ public final class JobQueue: ObservableObject {
 
     public func resume(_ id: UUID) {
         guard pausedIDs.contains(id), !cancelling.contains(id),
-              let index = jobs.firstIndex(where: { $0.id == id }), controls[id]?.resume() == true else { return }
+            let index = jobs.firstIndex(where: { $0.id == id }), controls[id]?.resume() == true
+        else { return }
         jobs[index].phase = resumedPhases.removeValue(forKey: id) ?? .encoding
         pausedIDs.remove(id)
         persist()
@@ -255,7 +267,8 @@ public final class JobQueue: ObservableObject {
     }
 
     public func clearFinished() {
-        let removable = Set(jobs.filter { $0.phase.isFinished && workers[$0.id] == nil && !runningIDs.contains($0.id) }.map(\.id))
+        let removable = Set(
+            jobs.filter { $0.phase.isFinished && workers[$0.id] == nil && !runningIDs.contains($0.id) }.map(\.id))
         jobs.removeAll { removable.contains($0.id) }
         persist()
     }
@@ -273,8 +286,9 @@ public final class JobQueue: ObservableObject {
     // Inode + volume also catches hard links; re-read at dispatch after earlier replacements.
     private func resourceKey(_ url: URL) -> String {
         if let values = try? FileManager.default.attributesOfItem(atPath: url.path),
-           let inode = values[.systemFileNumber] as? NSNumber,
-           let volume = values[.systemNumber] as? NSNumber {
+            let inode = values[.systemFileNumber] as? NSNumber,
+            let volume = values[.systemNumber] as? NSNumber
+        {
             return "\(volume):\(inode)"
         }
         return url.resolvingSymlinksInPath().standardizedFileURL.path
@@ -287,11 +301,13 @@ public final class JobQueue: ObservableObject {
         while workers.count < limit {
             let activePaths = Set(jobs.filter { runningIDs.contains($0.id) }.map { $0.input.path })
             let videoActive = jobs.contains { runningIDs.contains($0.id) && $0.mode != .audio }
-            guard let job = waitingJobs.first(where: {
-                !activePaths.contains($0.input.path)
-                && !activeResources.values.contains(resourceKey($0.input))
-                && !(execution == .automatic && videoActive && $0.mode != .audio)
-            }) else { break }
+            guard
+                let job = waitingJobs.first(where: {
+                    !activePaths.contains($0.input.path)
+                        && !activeResources.values.contains(resourceKey($0.input))
+                        && !(execution == .automatic && videoActive && $0.mode != .audio)
+                })
+            else { break }
             launch(job)
         }
     }
@@ -312,7 +328,9 @@ public final class JobQueue: ObservableObject {
                     try await self.operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
                         Task { @MainActor in
                             guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
-                                  let index = self.jobs.firstIndex(where: { $0.id == job.id }), !self.jobs[index].phase.isFinished else { return }
+                                let index = self.jobs.firstIndex(where: { $0.id == job.id }),
+                                !self.jobs[index].phase.isFinished
+                            else { return }
                             let changedPhase = self.jobs[index].phase != phase
                             self.jobs[index].phase = phase
                             self.jobs[index].progress = progress
@@ -332,7 +350,8 @@ public final class JobQueue: ObservableObject {
             } catch {
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
-                    jobs[index].message = error is CancellationError ? "処理を停止しました。元ファイルは保持しています。" : error.localizedDescription
+                    jobs[index].message =
+                        error is CancellationError ? "処理を停止しました。元ファイルは保持しています。" : error.localizedDescription
                     if error is CancellationError {
                         // Keep the stopped card visible above inactive cards instead of
                         // returning it to its old enqueue position below the viewport.
@@ -366,7 +385,9 @@ public final class JobQueue: ObservableObject {
     private func persist() {
         guard let storage, mayPersist else { return }
         do {
-            try FileManager.default.createDirectory(at: storage.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            try FileManager.default.createDirectory(
+                at: storage.deletingLastPathComponent(), withIntermediateDirectories: true,
+                attributes: [.posixPermissions: 0o700])
             let data = try JSONEncoder().encode(QueueSnapshot(settings: settings, jobs: jobs, execution: execution))
             try data.write(to: storage, options: .atomic)
             persistenceError = nil

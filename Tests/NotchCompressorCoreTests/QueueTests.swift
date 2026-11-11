@@ -79,7 +79,8 @@ final class QueueTests: XCTestCase {
         let pending = CompressionJob(input: URL(fileURLWithPath: "/tmp/video.mov"), mode: .video, settings: .init())
         var done = CompressionJob(input: URL(fileURLWithPath: "/tmp/done.mov"), mode: .video, settings: .init())
         done.phase = .completed
-        try JSONEncoder().encode(QueueSnapshot(settings: .init(quality: .compact), jobs: [pending, done])).write(to: url)
+        try JSONEncoder().encode(QueueSnapshot(settings: .init(quality: .compact), jobs: [pending, done])).write(
+            to: url)
         let queue = JobQueue(storage: url)
         XCTAssertEqual(queue.jobs.map(\.phase), [.interrupted, .completed])
         XCTAssertFalse(queue.isBusy)

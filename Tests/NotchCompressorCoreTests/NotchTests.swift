@@ -78,7 +78,9 @@ final class NotchTests: XCTestCase {
     }
 
     func testNotchAndExternalScreenCoordinates() {
-        for screen in [CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080)] {
+        for screen in [
+            CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080),
+        ] {
             for inset: CGFloat in [0, 32] {
                 let geometry = NotchGeometry(screen: screen, topInset: inset)
                 XCTAssertEqual(geometry.panel.maxY, screen.maxY)

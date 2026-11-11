@@ -35,7 +35,13 @@ public struct QueueStatus: Equatable, Sendable {
         if waitingCount > 0 { parts.append("待機 \(waitingCount)件") }
         if failedCount > 0 { parts.append("要確認 \(failedCount)件") }
         title = parts.isEmpty ? "キューは空です" : parts.joined(separator: " · ")
-        symbol = activeCount > 0 ? "arrow.triangle.2.circlepath" : pausedCount > 0 ? "pause.circle" : waitingCount > 0 ? "clock" : failedCount > 0 ? "exclamationmark.circle" : "arrow.down.right.and.arrow.up.left"
+        symbol =
+            activeCount > 0
+            ? "arrow.triangle.2.circlepath"
+            : pausedCount > 0
+                ? "pause.circle"
+                : waitingCount > 0
+                    ? "clock" : failedCount > 0 ? "exclamationmark.circle" : "arrow.down.right.and.arrow.up.left"
         count = activeCount + pausedCount + waitingCount + failedCount
     }
 }

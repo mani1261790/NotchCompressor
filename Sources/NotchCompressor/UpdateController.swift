@@ -15,15 +15,16 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     override private init() {
         super.init()
-        controller = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
-        observation = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) { [weak self] updater, _ in
+        controller = SPUStandardUpdaterController(
+            startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
+        observation = controller.updater.observe(\.canCheckForUpdates, options: [.initial, .new]) {
+            [weak self] updater, _ in
             Task { @MainActor in self?.canCheck = updater.canCheckForUpdates }
         }
     }
 
     func start() {
-        do { try controller.updater.start() }
-        catch { status = "更新を確認できません: \(error.localizedDescription)" }
+        do { try controller.updater.start() } catch { status = "更新を確認できません: \(error.localizedDescription)" }
     }
     var automaticallyChecks: Bool {
         get { controller.updater.automaticallyChecksForUpdates }
@@ -36,19 +37,21 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
 
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         guard !AppState.shared.queue.isBusy else {
-            throw NSError(domain: "NotchCompressor.Updates", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "キューが空になってから更新を確認してください。一時停止中の動画は再開するか、キューから外してください。"])
+            throw NSError(
+                domain: "NotchCompressor.Updates", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "キューが空になってから更新を確認してください。一時停止中の動画は再開するか、キューから外してください。"])
         }
     }
-    func updater(_ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
-                 untilInvokingBlock installHandler: @escaping () -> Void) -> Bool {
+    func updater(
+        _ updater: SPUUpdater, shouldPostponeRelaunchForUpdate item: SUAppcastItem,
+        untilInvokingBlock installHandler: @escaping () -> Void
+    ) -> Bool {
         installing = true
         guard AppState.shared.queue.isBusy else { return false }
         status = "圧縮キューが空になるまで更新の再起動を待っています。"
         deferredInstall = Task { @MainActor [weak self] in
             while AppState.shared.queue.isBusy {
-                do { try await Task.sleep(for: .milliseconds(500)) }
-                catch { return }
+                do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             }
             guard !Task.isCancelled else { return }
             self?.status = nil

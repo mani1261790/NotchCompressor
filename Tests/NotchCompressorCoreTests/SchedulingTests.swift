@@ -36,7 +36,9 @@ final class SchedulingTests: XCTestCase {
     @MainActor
     func testAutomaticBackfillsAudioAndAcceptsRepeatedBatches() async throws {
         let gate = WorkGate()
-        let queue = JobQueue(environment: { .init(conservesResources: false) }) { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(environment: { .init(conservesResources: false) }) { url, _, _, _ in
+            try await gate.run(url)
+        }
         XCTAssertEqual(queue.enqueue([input("v1"), input("v2")], mode: .both), 2)
         XCTAssertEqual(queue.enqueue([input("a1"), input("a2")], mode: .audio), 2)
         try await waitFor { await gate.started.count == 2 }
@@ -62,7 +64,8 @@ final class SchedulingTests: XCTestCase {
         let third = queue.jobs[2].id, second = queue.jobs[1].id, first = queue.jobs[0].id
         XCTAssertTrue(queue.moveQueued(third, to: first))
         XCTAssertTrue(queue.moveQueued(second, to: third))
-        XCTAssertEqual(queue.waitingJobs.map(\.input), [input("second"), input("third"), input("first"), input("fourth")])
+        XCTAssertEqual(
+            queue.waitingJobs.map(\.input), [input("second"), input("third"), input("first"), input("fourth")])
         XCTAssertEqual(queue.runningCount, 0)
         await gate.finishAll()
         queue.togglePause()
@@ -75,7 +78,9 @@ final class SchedulingTests: XCTestCase {
     func testResourceChangesDrainExistingWorkersBeforeReducingConcurrency() async throws {
         let gate = WorkGate()
         var constrained = false
-        let queue = JobQueue(environment: { .init(conservesResources: constrained) }) { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(environment: { .init(conservesResources: constrained) }) { url, _, _, _ in
+            try await gate.run(url)
+        }
         queue.enqueue([input("a"), input("b"), input("c"), input("d")], mode: .audio)
         try await waitFor { await gate.started.count == 2 }
         constrained = true
@@ -208,7 +213,9 @@ final class SchedulingTests: XCTestCase {
     @MainActor
     func testRunningAndStoppingStayPinnedUntilWorkerReturns() async throws {
         let gate = WorkGate()
-        let queue = JobQueue(environment: { .init(conservesResources: false) }) { url, _, _, _ in try await gate.run(url) }
+        let queue = JobQueue(environment: { .init(conservesResources: false) }) { url, _, _, _ in
+            try await gate.run(url)
+        }
         queue.enqueue([input("v1"), input("v2")], mode: .video)
         queue.enqueue([input("audio")], mode: .audio)
         try await waitFor { await gate.started.count == 2 }
@@ -224,7 +231,8 @@ final class SchedulingTests: XCTestCase {
         XCTAssertFalse(queue.cancelling.contains(audio), "Individual stop must not cancel another worker")
         await gate.release(input("v1").lastPathComponent)
         try await waitFor { await gate.started.count == 3 }
-        XCTAssertEqual(queue.displayedJobs.map(\.id), [audio, v2, v1], "Backfilled work must follow the already running card")
+        XCTAssertEqual(
+            queue.displayedJobs.map(\.id), [audio, v2, v1], "Backfilled work must follow the already running card")
         XCTAssertTrue(queue.remove(v1))
         XCTAssertFalse(queue.remove(audio))
         await gate.finishAll(); await queue.waitUntilIdle()
@@ -356,7 +364,8 @@ final class SchedulingTests: XCTestCase {
         XCTAssertEqual(restored[0].phase, .interrupted)
         XCTAssertTrue(queue.remove(id))
         XCTAssertTrue(queue.cancelling.contains(id))
-        XCTAssertTrue(queue.displayedJobs.contains { $0.id == id }, "Keep the removing card visible until its worker exits")
+        XCTAssertTrue(
+            queue.displayedJobs.contains { $0.id == id }, "Keep the removing card visible until its worker exits")
         XCTAssertFalse(queue.canRemove(id))
         XCTAssertEqual(queue.runningIDs.count, 1)
         await gate.finishAll(); await queue.waitUntilIdle()

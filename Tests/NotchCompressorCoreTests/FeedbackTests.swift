@@ -21,7 +21,8 @@ final class FeedbackTests: XCTestCase {
         paused.phase = .paused
         var failed = CompressionJob(input: URL(fileURLWithPath: "/tmp/c.mov"), mode: .both, settings: .init())
         failed.phase = .failed
-        let status = QueueStatus(jobs: [running, paused, failed], running: [running.id, paused.id], paused: [paused.id])
+        let status = QueueStatus(
+            jobs: [running, paused, failed], running: [running.id, paused.id], paused: [paused.id])
         XCTAssertEqual(status.count, 3)
         XCTAssertEqual(status.title, "実行中 1件 · 一時停止 1件 · 要確認 1件")
         XCTAssertEqual(QueueStatus(jobs: [paused], running: [paused.id], paused: [paused.id]).symbol, "pause.circle")
@@ -34,10 +35,12 @@ final class FeedbackTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: folder) }
         let storage = folder.appendingPathComponent("queue.json")
-        let queue = JobQueue(storage: storage, feedbackDuration: .milliseconds(200), operation: { url, _, _, _ in
-            if url.lastPathComponent == "bad.mov" { throw CompressionError.message("failed") }
-            return .init(output: url, originalBytes: 1000, outputBytes: 600, note: nil)
-        })
+        let queue = JobQueue(
+            storage: storage, feedbackDuration: .milliseconds(200),
+            operation: { url, _, _, _ in
+                if url.lastPathComponent == "bad.mov" { throw CompressionError.message("failed") }
+                return .init(output: url, originalBytes: 1000, outputBytes: 600, note: nil)
+            })
         queue.enqueue(["a.mov", "b.mov", "bad.mov"].map { folder.appendingPathComponent($0) }, mode: .both)
         await queue.waitUntilIdle()
         XCTAssertEqual(queue.completionNotice?.count, 2)

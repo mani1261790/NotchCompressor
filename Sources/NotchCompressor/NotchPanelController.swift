@@ -31,7 +31,10 @@ private final class DropHostingView: NSHostingView<DropPanel> {
     override func draggingEnded(_ sender: NSDraggingInfo) { presentation.mode = nil; onEnd?() }
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { update(sender) == .copy }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
-        guard let mode = selectedMode(sender), let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty else { return false }
+        guard let mode = selectedMode(sender),
+            let urls = sender.draggingPasteboard.readObjects(
+                forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty
+        else { return false }
         AppState.shared.queue.enqueue(urls, mode: mode)
         if (try? Toolchain.discover(directory: AppState.shared.queue.settings.toolsDirectory)) == nil {
             AppState.shared.presentQueue(settings: true)
@@ -46,7 +49,9 @@ private final class DropHostingView: NSHostingView<DropPanel> {
         return geometry?.mode(at: local)
     }
     private func update(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) else {
+        guard
+            sender.draggingPasteboard.canReadObject(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true])
+        else {
             presentation.mode = nil
             return []
         }
@@ -69,18 +74,23 @@ final class NotchPanelController {
     private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
     init() {
-        panel = NSPanel(contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        panel = NSPanel(
+            contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         host = DropHostingView(rootView: DropPanel(presentation: presentation))
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
         panel.level = .statusBar
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .canJoinAllApplications]
+        panel.collectionBehavior = [
+            .canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle, .canJoinAllApplications,
+        ]
         panel.isMovable = false
         panel.isMovableByWindowBackground = false
         panel.isReleasedWhenClosed = false
         panel.contentView = host
-        host.onEnd = { [weak self] in self?.nativeDrop.ended(); self?.drag.end(); self?.collapse() }
+        host.onEnd = { [weak self] in
+            self?.nativeDrop.ended(); self?.drag.end(); self?.collapse()
+        }
         host.onFileExited = { [weak self] in self?.nativeDrop.ended() }
         host.onFileEntered = { [weak self] in
             guard let self, let screen = self.panel.screen else { return }
@@ -97,8 +107,9 @@ final class NotchPanelController {
 
     private func geometry(on screen: NSScreen) -> NotchGeometry {
         let notchWidth = (screen.auxiliaryTopRightArea?.minX ?? 0) - (screen.auxiliaryTopLeftArea?.maxX ?? 0)
-        return NotchGeometry(screen: screen.frame, topInset: screen.safeAreaInsets.top,
-                             notchWidth: notchWidth > 0 ? notchWidth : 180)
+        return NotchGeometry(
+            screen: screen.frame, topInset: screen.safeAreaInsets.top,
+            notchWidth: notchWidth > 0 ? notchWidth : 180)
     }
 
     private func setFrame(_ frame: CGRect) {
@@ -115,7 +126,9 @@ final class NotchPanelController {
     }
 
     private func collapse() {
-        guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens.first else { return }
+        guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens.first else {
+            return
+        }
         let geometry = geometry(on: screen)
         presentation.visible = false
         presentation.mode = nil
@@ -145,13 +158,21 @@ final class NotchPanelController {
         }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
         // Do not resize away the drop target between mouse-up and performDragOperation.
-        if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) { trace("native destination"); return }
+        if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) {
+            trace("native destination"); return
+        }
         let screens = NSScreen.screens
-        guard drag.active, let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame)) else { trace("compact: no active file drag"); collapse(); return }
+        guard drag.active,
+            let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame))
+        else { trace("compact: no active file drag"); collapse(); return }
         let screen = screens[screenIndex]
         let geometry = geometry(on: screen)
-        let insidePanel = presentation.visible && panel.frame == geometry.panel && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
-        guard geometry.isInTrigger(pointer) || insidePanel else { trace("compact: file outside trigger"); collapse(); return }
+        let insidePanel =
+            presentation.visible && panel.frame == geometry.panel
+            && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
+        guard geometry.isInTrigger(pointer) || insidePanel else {
+            trace("compact: file outside trigger"); collapse(); return
+        }
         trace("expanded: file inside trigger")
         expand(on: screen)
     }

@@ -2,9 +2,10 @@ import XCTest
 @testable import NotchCompressorCore
 
 func fixture(audio: Bool = true, pixel: String = "yuv420p", transfer: String = "bt709", extra: String = "") -> Data {
-    Data("""
-    {"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,"height":1080,"pix_fmt":"\(pixel)","color_transfer":"\(transfer)","avg_frame_rate":"60/1","bit_rate":"8000000"}\(audio ? ",{\"index\":1,\"codec_type\":\"audio\",\"codec_name\":\"aac\",\"channels\":2,\"bit_rate\":\"192000\"}" : "")\(extra)],"format":{"duration":"10.0","format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}
-    """.utf8)
+    Data(
+        """
+        {"streams":[{"index":0,"codec_type":"video","codec_name":"h264","width":1920,"height":1080,"pix_fmt":"\(pixel)","color_transfer":"\(transfer)","avg_frame_rate":"60/1","bit_rate":"8000000"}\(audio ? ",{\"index\":1,\"codec_type\":\"audio\",\"codec_name\":\"aac\",\"channels\":2,\"bit_rate\":\"192000\"}" : "")\(extra)],"format":{"duration":"10.0","format_name":"mov,mp4,m4a,3gp,3g2,mj2"}}
+        """.utf8)
 }
 
 final class PolicyTests: XCTestCase {
@@ -12,7 +13,9 @@ final class PolicyTests: XCTestCase {
         let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
         for mode in CompressionMode.allCases {
             let plan = try CompressionPlan(media: media, mode: mode, quality: .balanced)
-            let args = plan.arguments(input: URL(fileURLWithPath: "/tmp/a ; $(touch hacked).mov"), output: URL(fileURLWithPath: "/tmp/out.mov"))
+            let args = plan.arguments(
+                input: URL(fileURLWithPath: "/tmp/a ; $(touch hacked).mov"),
+                output: URL(fileURLWithPath: "/tmp/out.mov"))
             XCTAssertEqual(args[args.firstIndex(of: "-c:v")! + 1], mode == .audio ? "copy" : "hevc_videotoolbox")
             XCTAssertEqual(args[args.firstIndex(of: "-c:a")! + 1], mode == .video ? "copy" : "aac")
             XCTAssertTrue(args.contains("/tmp/a ; $(touch hacked).mov"))
@@ -35,7 +38,8 @@ final class PolicyTests: XCTestCase {
     }
 
     func testRejectsSubtitleRatherThanDroppingIt() {
-        XCTAssertThrowsError(try MediaInfo.decode(fixture(extra: ",{\"index\":2,\"codec_type\":\"subtitle\"}"), fileSize: 1000))
+        XCTAssertThrowsError(
+            try MediaInfo.decode(fixture(extra: ",{\"index\":2,\"codec_type\":\"subtitle\"}"), fileSize: 1000))
     }
 
     func testRejectsInvalidDurationAndMalformedJSON() {
@@ -46,7 +50,9 @@ final class PolicyTests: XCTestCase {
 
     func testQualityOrdersVideoAndAudioBudgets() throws {
         let media = try MediaInfo.decode(fixture(), fileSize: 1000)
-        let budgets = try CompressionQuality.allCases.map { try CompressionPlan(media: media, mode: .both, quality: $0).videoBitrate }
+        let budgets = try CompressionQuality.allCases.map {
+            try CompressionPlan(media: media, mode: .both, quality: $0).videoBitrate
+        }
         XCTAssertGreaterThan(budgets[0], budgets[1])
         XCTAssertGreaterThan(budgets[1], budgets[2])
     }
@@ -58,7 +64,8 @@ final class PolicyTests: XCTestCase {
             let plan = try CompressionPlan(media: media, mode: mode, settings: settings)
             XCTAssertEqual(plan.videoBitrate, 4_000_000)
             XCTAssertEqual(plan.audioBitrate, 80_000)
-            let args = plan.arguments(input: URL(fileURLWithPath: "/tmp/input.mov"), output: URL(fileURLWithPath: "/tmp/output.mov"))
+            let args = plan.arguments(
+                input: URL(fileURLWithPath: "/tmp/input.mov"), output: URL(fileURLWithPath: "/tmp/output.mov"))
             XCTAssertEqual(args.contains("-b:v"), mode.changesVideo)
             XCTAssertEqual(args.contains("-b:a"), mode.changesAudio)
             if mode.changesVideo { XCTAssertEqual(args[args.firstIndex(of: "-b:v")! + 1], "4000000") }
@@ -72,16 +79,21 @@ final class PolicyTests: XCTestCase {
         let plan = try CompressionPlan(media: media, mode: .both, settings: bounded)
         XCTAssertEqual(plan.videoBitrate, 800_000)
         XCTAssertEqual(plan.audioBitrate, 192_000, "Do not exceed source audio rate")
-        XCTAssertEqual(CompressionSettings(quality: .custom, videoPercent: 999, audioKbps: -10).effectiveVideoPercent, 100)
+        XCTAssertEqual(
+            CompressionSettings(quality: .custom, videoPercent: 999, audioKbps: -10).effectiveVideoPercent, 100)
         XCTAssertEqual(CompressionSettings(quality: .custom, audioKbps: -10).effectiveAudioKbps, 32)
-        let data = String(decoding: fixture(), as: UTF8.self).replacingOccurrences(of: "\"bit_rate\":\"8000000\"", with: "\"bit_rate\":\"N/A\"")
+        let data = String(decoding: fixture(), as: UTF8.self).replacingOccurrences(
+            of: "\"bit_rate\":\"8000000\"", with: "\"bit_rate\":\"N/A\"")
         let estimated = try MediaInfo.decode(Data(data.utf8), fileSize: 10_000_000)
-        XCTAssertEqual(try CompressionPlan(media: estimated, mode: .both, settings: .init(quality: .custom, videoPercent: 50)).videoBitrate, 3_904_000)
+        XCTAssertEqual(
+            try CompressionPlan(media: estimated, mode: .both, settings: .init(quality: .custom, videoPercent: 50))
+                .videoBitrate, 3_904_000)
         let legacy = try JSONDecoder().decode(CompressionSettings.self, from: Data("{\"quality\":\"balanced\"}".utf8))
         XCTAssertNil(legacy.videoPercent)
         XCTAssertNil(legacy.audioKbps)
-        XCTAssertEqual(try CompressionPlan(media: media, mode: .both, settings: legacy).videoBitrate,
-                       try CompressionPlan(media: media, mode: .both, quality: .balanced).videoBitrate)
+        XCTAssertEqual(
+            try CompressionPlan(media: media, mode: .both, settings: legacy).videoBitrate,
+            try CompressionPlan(media: media, mode: .both, quality: .balanced).videoBitrate)
     }
 
     func testMissingExplicitToolsDoesNotSilentlyFallback() {

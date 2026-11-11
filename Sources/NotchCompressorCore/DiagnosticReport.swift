@@ -2,8 +2,10 @@ import Foundation
 
 public enum DiagnosticReport {
     /// Build from an allowlist. Never serialize a job, URL, result note, or error message.
-    public static func make(version: String, build: String, os: OperatingSystemVersion,
-                            jobs: [CompressionJob], persistenceFailed: Bool, engineAvailable: Bool) -> String {
+    public static func make(
+        version: String, build: String, os: OperatingSystemVersion,
+        jobs: [CompressionJob], persistenceFailed: Bool, engineAvailable: Bool
+    ) -> String {
         var lines = [
             "NotchCompressor 診断情報 v1",
             "アプリ: \(version) (\(build))",
@@ -11,9 +13,11 @@ public enum DiagnosticReport {
             "圧縮エンジン: \(engineAvailable ? "利用可能" : "検出できません")",
             "履歴保存: \(persistenceFailed ? "エラーあり" : "エラーなし")",
             "",
-            "キューの状態（保持中の履歴を含む）"
+            "キューの状態（保持中の履歴を含む）",
         ]
-        for phase in [JobPhase.waiting, .probing, .encoding, .validating, .paused, .completed, .failed, .cancelled, .interrupted] {
+        for phase in [
+            JobPhase.waiting, .probing, .encoding, .validating, .paused, .completed, .failed, .cancelled, .interrupted,
+        ] {
             lines.append("\(phase.title): \(jobs.filter { $0.phase == phase }.count)件")
         }
         let failed = jobs.filter { $0.phase == .failed }

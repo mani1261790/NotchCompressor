@@ -28,12 +28,20 @@ struct VideoThumbnail: View {
             image = nil
             for url in urls {
                 guard !Task.isCancelled else { return }
-                guard let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]), values.isRegularFile == true else { continue }
+                guard
+                    let values = try? url.resourceValues(forKeys: [
+                        .isRegularFileKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey,
+                    ]), values.isRegularFile == true
+                else { continue }
                 // Merely viewing history must not initiate an iCloud download.
                 if values.isUbiquitousItem == true,
-                   values.ubiquitousItemDownloadingStatus != .current,
-                   values.ubiquitousItemDownloadingStatus != .downloaded { continue }
-                let request = QLThumbnailGenerator.Request(fileAt: url,
+                    values.ubiquitousItemDownloadingStatus != .current,
+                    values.ubiquitousItemDownloadingStatus != .downloaded
+                {
+                    continue
+                }
+                let request = QLThumbnailGenerator.Request(
+                    fileAt: url,
                     size: CGSize(width: 88, height: 56), scale: scale,
                     representationTypes: .thumbnail)
                 let thumbnail = try? await withTaskCancellationHandler {

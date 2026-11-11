@@ -21,7 +21,8 @@ final class PauseTests: XCTestCase {
         let control = CompressionControl(), output = ProgressCapture()
         let task = Task {
             try await CompressionControl.$current.withValue(control) {
-                try await ProcessRunner().run(executable: URL(fileURLWithPath: "/bin/sh"),
+                try await ProcessRunner().run(
+                    executable: URL(fileURLWithPath: "/bin/sh"),
                     arguments: ["-c", "echo $$; i=0; while [ $i -lt 15 ]; do echo $i; i=$((i+1)); sleep 0.1; done"],
                     timeout: 3, progress: { output.update($0) })
             }
@@ -37,22 +38,26 @@ final class PauseTests: XCTestCase {
         let data = try await task.value
         let lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
         XCTAssertEqual(lines.first, held.split(separator: "\n").first.map(String.init))
-        XCTAssertEqual(Array(lines.dropFirst()), (0..<15).map(String.init), "Continue the same process without restarting or skipping output")
+        XCTAssertEqual(
+            Array(lines.dropFirst()), (0..<15).map(String.init),
+            "Continue the same process without restarting or skipping output")
     }
 
     func testCancelSuspendedProcessExitsAndCommitCannotBePaused() async throws {
         let control = CompressionControl(), output = ProgressCapture()
         let task = Task {
             try await CompressionControl.$current.withValue(control) {
-                try await ProcessRunner().run(executable: URL(fileURLWithPath: "/bin/sh"),
+                try await ProcessRunner().run(
+                    executable: URL(fileURLWithPath: "/bin/sh"),
                     arguments: ["-c", "echo ready; exec /bin/sleep 60"], progress: { output.update($0) })
             }
         }
         try await waitFor { output.value.contains("ready") }
         XCTAssertTrue(control.pause())
         task.cancel()
-        do { _ = try await task.value; XCTFail("Expected cancellation") }
-        catch { XCTAssertTrue(error is CancellationError) }
+        do { _ = try await task.value; XCTFail("Expected cancellation") } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
         let commit = CompressionControl()
         XCTAssertTrue(commit.pause())
         XCTAssertNil(commit.commit { 42 })

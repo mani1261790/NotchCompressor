@@ -14,8 +14,7 @@ public struct FileDragState {
             pendingDrag = leftButtonDown
             active = false
         }
-        if !leftButtonDown { end() }
-        else if pendingDrag && hasFiles { active = true }
+        if !leftButtonDown { end() } else if pendingDrag && hasFiles { active = true }
     }
     public mutating func end() { active = false; pendingDrag = false }
 }
@@ -47,8 +46,9 @@ public struct NotchGeometry {
         self.topInset = max(0, topInset)
         let compactWidth = min(max(1, notchWidth), screen.width)
         let compactHeight = self.topInset > 0 ? self.topInset : 28
-        collapsed = CGRect(x: screen.midX - compactWidth / 2, y: screen.maxY - compactHeight,
-                           width: compactWidth, height: compactHeight)
+        collapsed = CGRect(
+            x: screen.midX - compactWidth / 2, y: screen.maxY - compactHeight,
+            width: compactWidth, height: compactHeight)
         let width = min(480, screen.width)
         let height = self.topInset + 148
         panel = CGRect(x: screen.midX - width / 2, y: screen.maxY - height, width: width, height: height)
@@ -62,18 +62,18 @@ public struct NotchGeometry {
     public static func screenIndex(containing point: CGPoint, frames: [CGRect]) -> Int? {
         // Prefer normal containment on shared edges, then include the outermost
         // maxX/maxY pixels where CGRect.contains otherwise excludes the cursor.
-        frames.firstIndex(where: { $0.contains(point) }) ??
-            frames.firstIndex(where: { containsIncludingEdges($0, point: point) })
+        frames.firstIndex(where: { $0.contains(point) })
+            ?? frames.firstIndex(where: { containsIncludingEdges($0, point: point) })
     }
 
     private static func containsIncludingEdges(_ rect: CGRect, point: CGPoint) -> Bool {
-        point.x >= rect.minX && point.x <= rect.maxX &&
-        point.y >= rect.minY && point.y <= rect.maxY
+        point.x >= rect.minX && point.x <= rect.maxX && point.y >= rect.minY && point.y <= rect.maxY
     }
 
     public func mode(at local: CGPoint) -> CompressionMode? {
         guard local.y >= 28, local.y <= panel.height - topInset,
-              local.x >= 0, local.x <= panel.width else { return nil }
+            local.x >= 0, local.x <= panel.width
+        else { return nil }
         if local.x < panel.width / 3 { return .video }
         if local.x < panel.width * 2 / 3 { return .both }
         return .audio

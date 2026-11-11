@@ -8,12 +8,13 @@ struct DiagnosticsView: View {
     @State private var copied = false
 
     init(queue: JobQueue) {
-        _report = State(initialValue: DiagnosticReport.make(
-            version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "開発版",
-            build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "不明",
-            os: ProcessInfo.processInfo.operatingSystemVersion,
-            jobs: queue.jobs, persistenceFailed: queue.persistenceError != nil,
-            engineAvailable: (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) != nil))
+        _report = State(
+            initialValue: DiagnosticReport.make(
+                version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "開発版",
+                build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "不明",
+                os: ProcessInfo.processInfo.operatingSystemVersion,
+                jobs: queue.jobs, persistenceFailed: queue.persistenceError != nil,
+                engineAvailable: (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) != nil))
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -35,8 +36,10 @@ struct DiagnosticsView: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     copied = NSPasteboard.general.setString(report, forType: .string)
-                } label: { Label(copied ? "コピーしました" : "診断情報をコピー", systemImage: copied ? "checkmark" : "doc.on.doc") }
-                    .capsuleControl()
+                } label: {
+                    Label(copied ? "コピーしました" : "診断情報をコピー", systemImage: copied ? "checkmark" : "doc.on.doc")
+                }
+                .capsuleControl()
             }
         }.padding(24).frame(width: 560, height: 520)
     }
