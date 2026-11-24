@@ -388,3 +388,9 @@ GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commit�
 実画面とAXで `Completed: 1 · 39 kB → 39 kB (No size change) · Originals kept without size reduction: 1` を確認し、失敗扱いにならずカードが除外され、通常の説明は英語で統一されていた。結果JSONは `.local-work/next/native-acceptance/keep-original-result.json`、事前ハッシュは同ディレクトリの `keep-original-before.sha256`。通知バナー・日本語画面は別途未確認。ユーザーの動画や設定は変更していない。
 
 ビルド5対象コミットebcacf0のCI run45434010086はcompleted／success。単体テスト、書式、翻訳、配布rehearseの全工程を通過。CI成功は未実施の日本語実画面・実スリープ・実更新の代替にはしない。
+
+## 2026-11-25 複数待機と個別除外の実操作
+
+公証済みビルド5へ合成動画コピー3本（first/second/third.mov）を同時追加し、1実行・2待機、実行中の先頭固定と除外ボタンなしを確認。third、secondを個別除外してもfirstは処理継続。firstを53%で一時停止するとResumeと原本保持の除外操作が現れ、除外後はStopping表示を経てキューが空になった。永続キューから検証3件が消え、FFmpeg子プロセス・一時出力フォルダーも消えた。3本とも事前SHA-256に一致。検証素材は `.local-work/next/native-acceptance/reorder/`、事前ハッシュは `reorder-before.sha256`。
+
+待機中thirdをsecondへドラッグする操作は2回試したが順序変更は観測できなかった。QueueReorderログにはdrag began、drop entered accepted=trueが1回記録され、drop committedは記録されなかった。操作ツール由来かアプリ由来かは未判定で、並べ替えの実機合格とは扱わない。実機でドロップ確定まで再検証する必要がある。
