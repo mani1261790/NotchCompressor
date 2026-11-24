@@ -14,7 +14,7 @@ public final class QueueActivity {
     public init(
         queue: JobQueue,
         begin: @escaping () -> NSObjectProtocol = {
-            ProcessInfo.processInfo.beginActivity(options: QueueActivity.options, reason: "動画の圧縮と出力検証を完了するため")
+            ProcessInfo.processInfo.beginActivity(options: QueueActivity.options, reason: L10n.text("activity.reason"))
         },
         finish: @escaping (NSObjectProtocol) -> Void = { ProcessInfo.processInfo.endActivity($0) }
     ) {

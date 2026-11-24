@@ -83,7 +83,14 @@ struct QueueView: View {
                     IconControl(title: "閉じる", symbol: "xmark") { app.dropError = nil }
                 }.padding()
             }
-            if let error = queue.persistenceError { Text(error).font(.caption).foregroundStyle(.orange).padding() }
+            if let error = queue.persistenceError {
+                Text(error).font(.caption).foregroundStyle(.orange).padding()
+                if let details = queue.persistenceDetails {
+                    DisclosureGroup(L10n.text("details.technical")) {
+                        Text(details).font(.caption).textSelection(.enabled)
+                    }.padding(.horizontal)
+                }
+            }
             if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil {
                 HStack {
                     Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
@@ -196,7 +203,12 @@ private struct JobRow: View {
                     Label("保存先フォルダを開く", systemImage: "externaldrive")
                 }.capsuleControl()
             }
-            if let message = job.message {
+            if let details = job.displayDetails, !details.isEmpty {
+                DisclosureGroup(L10n.text("details.technical")) {
+                    Text(details).font(.caption).textSelection(.enabled)
+                }
+            }
+            if let message = job.displayMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             HStack {

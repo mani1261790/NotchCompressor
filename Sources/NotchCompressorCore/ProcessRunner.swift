@@ -68,15 +68,15 @@ public struct ProcessRunner: Sendable {
                     try? await Task.sleep(for: .milliseconds(100))
                 }
                 if cancellation.cancelled { throw CancellationError() }
-                if timedOut { throw CompressionError.message("処理が制限時間を超えました。ファイルとツールを確認してください。") }
+                if timedOut { throw CompressionError.localized(.init("error.timeout")) }
                 guard process.terminationStatus == 0 else {
                     let message = String(data: (try? Self.tail(stderr, limit: 4096)) ?? Data(), encoding: .utf8) ?? ""
                     if message.localizedCaseInsensitiveContains("No space left on device") {
                         throw DiskSpaceIssue()
                     }
-                    throw CompressionError.message(
-                        "変換ツールが失敗しました（\(process.terminationStatus)）。\n\(message.trimmingCharacters(in: .whitespacesAndNewlines))"
-                    )
+                    throw CompressionError.localized(
+                        .init("error.process", String(process.terminationStatus)),
+                        details: message.trimmingCharacters(in: .whitespacesAndNewlines))
                 }
                 let data = try Self.tail(stdout, limit: 4 * 1024 * 1024)
                 if let text = String(data: data, encoding: .utf8) { progress(text) }

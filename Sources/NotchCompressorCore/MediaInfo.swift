@@ -51,12 +51,12 @@ public struct MediaInfo: Sendable {
         }
         let report: Report
         do { report = try JSONDecoder().decode(Report.self, from: data) } catch {
-            throw CompressionError.message("動画情報を読み取れませんでした。ファイルが破損していないか確認してください。")
+            throw CompressionError.localized(.init("error.probe"))
         }
         guard let duration = report.format.duration.flatMap(Double.init), duration.isFinite, duration > 0,
             fileSize > 0, (report.format.format_name ?? "").split(separator: ",").contains("mov")
         else {
-            throw CompressionError.message("有効なMOV／MP4動画として読み取れませんでした。")
+            throw CompressionError.localized(.init("error.invalidMovie"))
         }
         let videos = report.streams.filter { $0.codecType == "video" }
         let audios = report.streams.filter { $0.codecType == "audio" }
@@ -64,12 +64,12 @@ public struct MediaInfo: Sendable {
             !report.streams.contains(where: { !["video", "audio"].contains($0.codecType) }),
             let video = videos.first, video.disposition?["attached_pic"] != 1
         else {
-            throw CompressionError.message("動画1トラック・音声0〜1トラックに対応しています。字幕や追加トラックを含む動画は処理できません。")
+            throw CompressionError.localized(.init("error.tracks"))
         }
         guard let width = video.width, let height = video.height, width > 0, height > 0,
             width <= 32_768, height <= 32_768
         else {
-            throw CompressionError.message("映像サイズを正しく読み取れませんでした。")
+            throw CompressionError.localized(.init("error.dimensions"))
         }
         return MediaInfo(video: video, audio: audios.first, duration: duration, size: fileSize)
     }
@@ -84,7 +84,7 @@ public struct Toolchain: Equatable, Sendable {
         guard FileManager.default.isExecutableFile(atPath: ffmpeg.path),
             FileManager.default.isExecutableFile(atPath: ffprobe.path)
         else {
-            throw CompressionError.message("圧縮エンジンが見つかりません。アプリを再インストールしてください。")
+            throw CompressionError.localized(.init("error.engineInstall"))
         }
     }
     public static func discover(directory: String? = nil) throws -> Toolchain {
@@ -100,24 +100,24 @@ public struct Toolchain: Equatable, Sendable {
         for path in ["/opt/homebrew/bin", "/usr/local/bin"] {
             if let tools = try? Toolchain(directory: URL(fileURLWithPath: path)) { return tools }
         }
-        throw CompressionError.message("圧縮エンジンが見つかりません。ビルド手順を確認してください。")
+        throw CompressionError.localized(.init("error.engineBuild"))
     }
 }
 
 public enum InputFile {
     public static func validate(_ url: URL) throws -> Int64 {
         guard url.isFileURL, ["mov", "mp4", "m4v"].contains(url.pathExtension.lowercased()) else {
-            throw CompressionError.message("MOV／MP4／M4Vファイルを選択してください。")
+            throw CompressionError.localized(.init("error.extension"))
         }
         let values = try url.resourceValues(forKeys: [
             .isRegularFileKey, .fileSizeKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey,
         ])
-        guard values.isRegularFile == true else { throw CompressionError.message("通常の動画ファイルを選択してください。フォルダには対応していません。") }
+        guard values.isRegularFile == true else { throw CompressionError.localized(.init("error.regularFile")) }
         if values.isUbiquitousItem == true && values.ubiquitousItemDownloadingStatus != .current {
-            throw CompressionError.message("iCloud上の動画です。Finderで「今すぐダウンロード」してから再度ドロップしてください。")
+            throw CompressionError.localized(.init("error.cloud"))
         }
         guard FileManager.default.isReadableFile(atPath: url.path), let size = values.fileSize, size > 0 else {
-            throw CompressionError.message("動画を読み取れません。権限とダウンロード状態を確認してください。")
+            throw CompressionError.localized(.init("error.read"))
         }
         return Int64(size)
     }

@@ -27,20 +27,23 @@ public struct CompressionResult: Codable, Sendable {
     public let originalBytes: Int64
     public let outputBytes: Int64
     public let note: String?
+    public let noteMessage: LocalizedMessage?
     public let outcome: CompressionOutcome?
     public let candidateBytes: Int64?
     public var effectiveOutcome: CompressionOutcome { outcome ?? .replaced }
     public var completionMessage: String? {
-        effectiveOutcome == .originalKept ? L10n.text("result.originalKept") : note
+        effectiveOutcome == .originalKept
+            ? L10n.text("result.originalKept") : noteMessage?.text ?? (note == nil ? nil : L10n.text("history.legacy"))
     }
     public init(
         output: URL, originalBytes: Int64, outputBytes: Int64, note: String?,
-        outcome: CompressionOutcome? = nil, candidateBytes: Int64? = nil
+        outcome: CompressionOutcome? = nil, candidateBytes: Int64? = nil, noteMessage: LocalizedMessage? = nil
     ) {
         self.output = output
         self.originalBytes = originalBytes
         self.outputBytes = outputBytes
-        self.note = note
+        self.note = noteMessage == nil ? note : nil
+        self.noteMessage = noteMessage
         self.outcome = outcome
         self.candidateBytes = candidateBytes
     }
@@ -90,7 +93,7 @@ public struct CompressionEngine: Sendable {
         let plan = try CompressionPlan(media: media, mode: mode, settings: settings)
         let folder = source.deletingLastPathComponent()
         guard FileManager.default.isWritableFile(atPath: folder.path) else {
-            throw CompressionError.message("元ファイルのフォルダに書き込めません。書き込み可能なフォルダに動画を置いてください。")
+            throw CompressionError.localized(.init("error.folder"))
         }
         let capacity = try folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
             .volumeAvailableCapacityForImportantUsage
@@ -131,29 +134,31 @@ public struct CompressionEngine: Sendable {
             timeout: max(300, min(86_400, media.duration * 10)))
         try Task.checkCancellation()
         guard try Fingerprint(source) == fingerprint else {
-            throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。もう一度お試しください。")
+            throw CompressionError.localized(.init("error.changedRetry"))
         }
         if let control = CompressionControl.current {
             while true {
                 try await control.checkpoint()
                 if let result = try control.commit({
-                    try Self.finalizeVerifiedOutput(output, original: source, expected: fingerprint, note: plan.note)
+                    try Self.finalizeVerifiedOutput(
+                        output, original: source, expected: fingerprint, note: plan.note, noteMessage: plan.noteMessage)
                 }) {
                     return result
                 }
             }
         }
-        return try Self.finalizeVerifiedOutput(output, original: source, expected: fingerprint, note: plan.note)
+        return try Self.finalizeVerifiedOutput(
+            output, original: source, expected: fingerprint, note: plan.note, noteMessage: plan.noteMessage)
     }
 
     /// Both outcomes pass the same cancellation and source-change checks under the commit lock.
     static func finalizeVerifiedOutput(
         _ staged: URL, original: URL, expected: Fingerprint,
-        note: String?
+        note: String?, noteMessage: LocalizedMessage? = nil
     ) throws -> CompressionResult {
         try Task.checkCancellation()
         guard try Fingerprint(original) == expected else {
-            throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。")
+            throw CompressionError.localized(.init("error.changed"))
         }
         let candidate = Int64(clamping: try Fingerprint(staged).size)
         let originalBytes = Int64(clamping: expected.size)
@@ -162,7 +167,7 @@ public struct CompressionEngine: Sendable {
         return CompressionResult(
             output: original, originalBytes: originalBytes,
             outputBytes: keep ? originalBytes : candidate, note: note,
-            outcome: keep ? .originalKept : .replaced, candidateBytes: candidate)
+            outcome: keep ? .originalKept : .replaced, candidateBytes: candidate, noteMessage: noteMessage)
     }
 
     static func validateOutput(original: MediaInfo, output: MediaInfo, mode: CompressionMode) throws {
@@ -170,13 +175,13 @@ public struct CompressionEngine: Sendable {
             (original.audio == nil) == (output.audio == nil),
             original.video.width == output.video.width, original.video.height == output.video.height
         else {
-            throw CompressionError.message("出力の長さ・映像サイズ・音声の検証に失敗しました。元ファイルは保持しています。")
+            throw CompressionError.localized(.init("error.validation"))
         }
         if !mode.changesVideo && original.video.codecName != output.video.codecName {
-            throw CompressionError.message("映像を保持できていないため、出力を確定しませんでした。")
+            throw CompressionError.localized(.init("error.videoCopy"))
         }
         if !mode.changesAudio && original.audio?.codecName != output.audio?.codecName {
-            throw CompressionError.message("音声を保持できていないため、出力を確定しませんでした。")
+            throw CompressionError.localized(.init("error.audioCopy"))
         }
     }
 
@@ -185,12 +190,12 @@ public struct CompressionEngine: Sendable {
     static func replaceOriginal(_ staged: URL, original: URL, expected: Fingerprint) throws -> URL {
         try Task.checkCancellation()
         guard try Fingerprint(original) == expected else {
-            throw CompressionError.message("処理中に元ファイルが変更されたため、置き換えませんでした。")
+            throw CompressionError.localized(.init("error.changedReplace"))
         }
         do {
             _ = try FileManager.default.replaceItemAt(original, withItemAt: staged)
         } catch {
-            throw CompressionError.message("圧縮した動画に置き換えられませんでした: \(error.localizedDescription)")
+            throw CompressionError.localized(.init("error.replace"), details: error.localizedDescription)
         }
         return original
     }

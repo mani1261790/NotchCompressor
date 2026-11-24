@@ -166,9 +166,9 @@ final class EngineTests: XCTestCase {
         do {
             _ = try await CompressionEngine().compress(input: source, mode: .audio, settings: .init());
             XCTFail("Silent audio-only must fail")
-        } catch { XCTAssertTrue(error.localizedDescription.contains("音声のない")) }
+        } catch { XCTAssertEqual(error.localizedDescription, L10n.text("error.noAudio")) }
         let result = try await CompressionEngine().compress(input: source, mode: .both, settings: .init())
-        XCTAssertNotNil(result.note)
+        XCTAssertNotNil(result.noteMessage)
         let broken = folder.appendingPathComponent("broken.mov")
         let contents = Data("not a video".utf8)
         try contents.write(to: broken)

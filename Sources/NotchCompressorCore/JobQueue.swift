@@ -10,6 +10,16 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public var phase: JobPhase
     public var progress: Double
     public var message: String?
+    public var localizedMessage: LocalizedMessage?
+    public var technicalDetails: String?
+    public var displayMessage: String? {
+        if let diskSpaceIssue { return diskSpaceIssue.errorDescription }
+        if let localizedMessage { return localizedMessage.text }
+        if let result { return result.completionMessage }
+        return message == nil ? nil : L10n.text("history.legacy")
+    }
+    public var displayDetails: String? { technicalDetails ?? (localizedMessage == nil ? message ?? result?.note : nil) }
+
     public var result: CompressionResult?
     public var diskSpaceIssue: DiskSpaceIssue?
     public init(input: URL, mode: CompressionMode, settings: CompressionSettings) {
@@ -31,7 +41,9 @@ public struct QueueSnapshot: Codable {
             var job = original
             if !job.phase.isFinished {
                 job.phase = .interrupted
-                job.message = "前回の処理は完了していません。元ファイルは保持されています。必要なら再試行してください。一時出力が元のフォルダに残っている場合があります。"
+                job.technicalDetails = job.technicalDetails ?? job.message
+                job.message = nil
+                job.localizedMessage = .init("history.interrupted")
                 job.progress = 0
             }
             return job
@@ -47,6 +59,7 @@ public final class JobQueue: ObservableObject {
     @Published public private(set) var jobs: [CompressionJob] = []
     @Published public var settings: CompressionSettings = .init() { didSet { persist() } }
     @Published public private(set) var persistenceError: String?
+    @Published public private(set) var persistenceDetails: String?
     @Published public private(set) var cancelling = Set<UUID>()
     @Published public private(set) var completionNotice: CompletionNotice?
     public let completionEvents = PassthroughSubject<CompressionResult, Never>()
@@ -86,7 +99,7 @@ public final class JobQueue: ObservableObject {
     private var systemPausedIDs = Set<UUID>()
     private var userPausedIDs = Set<UUID>()
     private var recoveryChecks = Set<UUID>()
-    private var recoveryFailures: [UUID: String] = [:]
+    private var recoveryFailures: [UUID: LocalizedMessage] = [:]
     private var removalRequests = Set<UUID>()
     @Published public private(set) var pausedIDs = Set<UUID>()
     private var activeResources: [UUID: String] = [:]
@@ -116,18 +129,18 @@ public final class JobQueue: ObservableObject {
         } + queuedJobs
     }
     public var schedulingDescription: String {
-        if systemSleeping { return "Macのスリープからの復帰を待っています" }
+        if systemSleeping { return L10n.text("schedule.sleep") }
         if isPaused {
-            if !pausedIDs.isEmpty { return "一時停止中・アプリを開いたままなら途中から再開できます" }
-            if !cancelling.isEmpty { return "圧縮を停止しています。次の処理は開始しません" }
-            return runningCount > 0 ? "新しい処理を一時停止中・実行中の動画は続行します" : "待機中の動画は再開すると処理を開始します"
+            if !pausedIDs.isEmpty { return L10n.text("schedule.pausedSession") }
+            if !cancelling.isEmpty { return L10n.text("schedule.stopping") }
+            return runningCount > 0 ? L10n.text("schedule.newPaused") : L10n.text("schedule.waitResume")
         }
-        if !pausedIDs.isEmpty { return "一時停止中は途中データと実行枠を保持します。▶で続きから再開できます" }
+        if !pausedIDs.isEmpty { return L10n.text("schedule.hold") }
         switch execution {
-        case .serial: return "キューの上から1件ずつ処理"
-        case .parallel: return "最大2件を並列処理・同じ元動画は順番に処理"
+        case .serial: return L10n.text("schedule.serialDetail")
+        case .parallel: return L10n.text("schedule.parallelDetail")
         case .automatic:
-            return environment.conservesResources ? "省電力・発熱・構成に合わせ、新しい処理は1件まで" : "最大2件・映像圧縮は1件まで、音質のみは併走可能"
+            return environment.conservesResources ? L10n.text("schedule.conserve") : L10n.text("schedule.autoDetail")
         }
     }
 
@@ -147,13 +160,14 @@ public final class JobQueue: ObservableObject {
         if let storage, FileManager.default.fileExists(atPath: storage.path) {
             do {
                 let snapshot = try JSONDecoder().decode(QueueSnapshot.self, from: Data(contentsOf: storage))
-                guard snapshot.version == 1 else { throw CompressionError.message("未対応の履歴形式です。") }
+                guard snapshot.version == 1 else { throw CompressionError.localized(.init("error.historyVersion")) }
                 settings = snapshot.settings
                 execution = snapshot.execution ?? .automatic
                 jobs = snapshot.recovered()
             } catch {
                 mayPersist = false
-                persistenceError = "履歴を読み込めませんでした。既存の履歴ファイルは保持しています。この起動中の変更は保存されません。\n\(error.localizedDescription)"
+                persistenceError = L10n.text("history.loadError")
+                persistenceDetails = error.localizedDescription
             }
         }
         resourceMonitor = Timer.publish(every: 5, on: .main, in: .common).autoconnect().sink { [weak self] _ in
@@ -222,7 +236,7 @@ public final class JobQueue: ObservableObject {
         guard userPausedIDs.contains(id), !cancelling.contains(id) else { return }
         if !systemSleeping, !checkRecovery(id) { return }
         guard controls[id]?.resume() == true else {
-            failRecovery(id, message: "圧縮プロセスを再開できませんでした。元動画を確認して再試行してください。")
+            failRecovery(id, message: .init("error.resume"))
             return
         }
         userPausedIDs.remove(id)
@@ -247,7 +261,7 @@ public final class JobQueue: ObservableObject {
             else { continue }
             guard control.pause(.systemSleep) else {
                 if !control.hasCommitted {
-                    failRecovery(id, message: "スリープ前に処理を一時停止できませんでした。元動画を確認して再試行してください。")
+                    failRecovery(id, message: .init("error.sleepPause"))
                 }
                 continue
             }
@@ -266,7 +280,7 @@ public final class JobQueue: ObservableObject {
         for id in Array(systemPausedIDs) where !cancelling.contains(id) {
             if !userPausedIDs.contains(id), !checkRecovery(id) { continue }
             guard controls[id]?.resume(.systemSleep) == true else {
-                failRecovery(id, message: "スリープ後に圧縮プロセスを再開できませんでした。元動画を確認して再試行してください。")
+                failRecovery(id, message: .init("error.wakeResume"))
                 continue
             }
             systemPausedIDs.remove(id)
@@ -283,14 +297,14 @@ public final class JobQueue: ObservableObject {
         guard fm.isReadableFile(atPath: job.input.path),
             fm.isWritableFile(atPath: job.input.deletingLastPathComponent().path)
         else {
-            failRecovery(id, message: "スリープ後に元動画または保存先へアクセスできません。外付けディスクの接続とアクセス権を確認して再試行してください。")
+            failRecovery(id, message: .init("error.wakeStorage"))
             return false
         }
         recoveryChecks.remove(id)
         return true
     }
 
-    private func failRecovery(_ id: UUID, message: String) {
+    private func failRecovery(_ id: UUID, message: LocalizedMessage) {
         recoveryFailures[id] = message
         cancel(id)
     }
@@ -313,7 +327,7 @@ public final class JobQueue: ObservableObject {
             worker.cancel()
         } else {
             jobs[index].phase = .cancelled
-            jobs[index].message = "待機中にキャンセルしました。"
+            jobs[index].localizedMessage = .init("queue.cancelledWaiting")
         }
         persist()
         startNext()
@@ -414,7 +428,9 @@ public final class JobQueue: ObservableObject {
                             let changedPhase = self.jobs[index].phase != phase
                             self.jobs[index].phase = phase
                             self.jobs[index].progress = progress
-                            self.jobs[index].message = note
+                            self.jobs[index].localizedMessage =
+                                note == L10n.text("note.silent") ? .init("note.silent") : nil
+                            self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
                             if changedPhase { self.persist() }
                         }
                     }
@@ -424,18 +440,26 @@ public final class JobQueue: ObservableObject {
                     jobs[index].phase = .completed
                     jobs[index].progress = 1
                     jobs[index].result = result
-                    jobs[index].message = result.completionMessage
+                    jobs[index].localizedMessage =
+                        result.effectiveOutcome == .originalKept ? .init("result.originalKept") : result.noteMessage
+                    jobs[index].message = nil
                     recordCompletion(result)
                 }
             } catch {
-                let error: Error = recoveryFailures[job.id].map { CompressionError.message($0) } ?? error
+                let error: Error = recoveryFailures[job.id].map { CompressionError.localized($0) } ?? error
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
                     jobs[index].diskSpaceIssue = DiskSpaceIssue.classify(error)
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
-                    jobs[index].message =
+                    jobs[index].localizedMessage =
                         error is CancellationError
-                        ? "処理を停止しました。元ファイルは保持しています。"
-                        : (jobs[index].diskSpaceIssue?.localizedDescription ?? error.localizedDescription)
+                        ? .init("queue.cancelled")
+                        : (error as? CompressionError)?.localizedMessage ?? .init("error.generic")
+                    jobs[index].technicalDetails =
+                        error is CancellationError
+                        ? nil
+                        : (error as? CompressionError)?.technicalDetails
+                            ?? (error is CompressionError || error is DiskSpaceIssue ? nil : error.localizedDescription)
+                    jobs[index].message = nil
                     if !(error is CancellationError) {
                         failureEvents.send(FailureNotice(diskSpaceIssue: jobs[index].diskSpaceIssue))
                     }
@@ -482,8 +506,10 @@ public final class JobQueue: ObservableObject {
             let data = try JSONEncoder().encode(QueueSnapshot(settings: settings, jobs: jobs, execution: execution))
             try data.write(to: storage, options: .atomic)
             persistenceError = nil
+            persistenceDetails = nil
         } catch {
-            persistenceError = "履歴を保存できませんでした。\n\(error.localizedDescription)"
+            persistenceError = L10n.text("history.saveError")
+            persistenceDetails = error.localizedDescription
         }
     }
 }

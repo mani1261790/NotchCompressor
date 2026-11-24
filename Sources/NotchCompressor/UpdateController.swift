@@ -9,6 +9,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     @Published private(set) var canCheck = false
     @Published private(set) var installing = false
     @Published private(set) var status: String?
+    @Published private(set) var technicalDetails: String?
     private var controller: SPUStandardUpdaterController!
     private var observation: NSKeyValueObservation?
     private var deferredInstall: Task<Void, Never>?
@@ -24,7 +25,9 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     }
 
     func start() {
-        do { try controller.updater.start() } catch { status = "更新を確認できません: \(error.localizedDescription)" }
+        do { try controller.updater.start() } catch {
+            status = L10n.text("update.error"); technicalDetails = error.localizedDescription
+        }
     }
     var automaticallyChecks: Bool {
         get { controller.updater.automaticallyChecksForUpdates }
@@ -33,13 +36,17 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
             objectWillChange.send()
         }
     }
-    func check() { controller.checkForUpdates(nil) }
+    func check() {
+        technicalDetails = nil
+        status = nil
+        controller.checkForUpdates(nil)
+    }
 
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
         guard !AppState.shared.queue.isBusy else {
             throw NSError(
                 domain: "NotchCompressor.Updates", code: 1,
-                userInfo: [NSLocalizedDescriptionKey: "キューが空になってから更新を確認してください。一時停止中の動画は再開するか、キューから外してください。"])
+                userInfo: [NSLocalizedDescriptionKey: L10n.text("update.busy")])
         }
     }
     func updater(
@@ -48,7 +55,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     ) -> Bool {
         installing = true
         guard AppState.shared.queue.isBusy else { return false }
-        status = "圧縮キューが空になるまで更新の再起動を待っています。"
+        status = L10n.text("update.waiting")
         deferredInstall = Task { @MainActor [weak self] in
             while AppState.shared.queue.isBusy {
                 do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
@@ -63,7 +70,8 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         deferredInstall?.cancel()
         installing = false
-        status = error.localizedDescription
+        status = L10n.text("update.error")
+        technicalDetails = error.localizedDescription
     }
     func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
         if error != nil { deferredInstall?.cancel() }

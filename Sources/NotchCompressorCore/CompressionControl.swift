@@ -60,7 +60,7 @@ public final class CompressionControl: @unchecked Sendable {
             if !reasons.isEmpty, process.isRunning {
                 guard process.suspend() else {
                     process.terminate()
-                    throw CompressionError.message("圧縮を一時停止できませんでした。")
+                    throw CompressionError.localized(.init("error.pause"))
                 }
                 suspended = true
             }

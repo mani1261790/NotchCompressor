@@ -33,6 +33,37 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testQueueHistoryRendersInCurrentLanguageWithoutMixingLegacyText() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = folder.appendingPathComponent("queue.json")
+        await L10n.$languageOverride.withValue("ja") {
+            let queue = JobQueue(
+                storage: storage,
+                operation: { _, _, _, _ in
+                    throw CompressionError.localized(.init("error.process", "7"), details: "original diagnostic")
+                })
+            queue.enqueue([folder.appendingPathComponent("source.mov")], mode: .both)
+            await queue.waitUntilIdle()
+            XCTAssertTrue(queue.jobs[0].displayMessage?.contains("変換ツール") == true)
+            XCTAssertNil(queue.jobs[0].message)
+        }
+        L10n.$languageOverride.withValue("en") {
+            let job = JobQueue(storage: storage).jobs[0]
+            XCTAssertEqual(job.displayMessage, "The compression engine failed (exit code: 7). Check the details.")
+            XCTAssertEqual(job.displayDetails, "original diagnostic")
+            var old = CompressionJob(input: folder.appendingPathComponent("legacy.mov"), mode: .both, settings: .init())
+            old.phase = .failed
+            old.message = "以前の日本語エラー"
+            XCTAssertEqual(
+                old.displayMessage, "This message was recorded by an earlier version. Open the details if needed.")
+            XCTAssertEqual(old.displayDetails, "以前の日本語エラー")
+            XCTAssertFalse(CompressionError.message("日本語の生エラー").localizedDescription.contains("日本語"))
+        }
+    }
+
     func testCatalogsHaveMatchingKeysAndPlaceholders() throws {
         func catalog(_ language: String) throws -> [String: String] {
             let url = try XCTUnwrap(L10n.bundle(language).url(forResource: "Localizable", withExtension: "strings"))

@@ -83,7 +83,7 @@ final class SleepTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(25))
         }
         XCTAssertEqual(queue.jobs.first { $0.id == missing }?.phase, .failed)
-        XCTAssertTrue(queue.jobs.first { $0.id == missing }?.message?.contains("外付けディスク") == true)
+        XCTAssertTrue(queue.jobs.first { $0.id == missing }?.displayMessage == L10n.text("error.wakeStorage"))
         XCTAssertTrue(queue.pausedIDs.contains(kept))
         queue.cancel(kept)
         await queue.waitUntilIdle()

@@ -201,6 +201,11 @@ struct SettingsView: View {
                     Text("インストール前に確認します。圧縮・待機・一時停止中は、キューが空になるまで更新を待ちます。")
                         .font(.caption).foregroundStyle(.secondary)
                     if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
+                    if let details = updates.technicalDetails {
+                        DisclosureGroup(L10n.text("details.technical")) {
+                            Text(details).font(.caption).textSelection(.enabled)
+                        }
+                    }
                 } header: {
                     Label("アップデート", systemImage: "arrow.down.circle")
                 }

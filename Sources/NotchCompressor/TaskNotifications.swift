@@ -18,7 +18,7 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
         queue.completionEvents.sink { [weak self] result in
             var notice = CompletionNotice()
             notice.include(result)
-            Task { await self?.send(title: "圧縮が完了しました", body: notice.text) }
+            Task { await self?.send(title: L10n.text("notify.complete"), body: notice.text) }
         }.store(in: &subscriptions)
         queue.failureEvents.sink { [weak self] notice in
             Task { await self?.send(title: notice.title, body: notice.body) }
@@ -41,18 +41,18 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
             UserDefaults.standard.set(enabled, forKey: "taskNotificationsEnabled")
             await refresh()
         } catch {
-            status = "通知を設定できませんでした。システム設定の「通知」でNotchCompressorを確認してください。"
+            status = L10n.text("notify.setupError")
         }
     }
 
     func refresh() async {
         let settings = await center.notificationSettings()
         if settings.authorizationStatus == .denied {
-            status = "macOSで通知が許可されていません。システム設定 → 通知 → NotchCompressorで許可してください。"
+            status = L10n.text("notify.denied")
         } else if enabled {
-            status = "完了時は圧縮前後のサイズ、失敗時は対処方法を通知します。集中モードなどで表示されない場合があります。"
+            status = L10n.text("notify.enabled")
         } else {
-            status = "オンにするとmacOSに通知の許可を求めます。動画名やパスは通知に表示しません。"
+            status = L10n.text("notify.disabled")
         }
     }
 
@@ -68,7 +68,7 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
         do {
             try await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         } catch {
-            status = "通知を送れませんでした。処理結果は圧縮キューで確認できます。"
+            status = L10n.text("notify.sendError")
         }
     }
 

@@ -120,7 +120,19 @@ public struct CompressionSettings: Codable, Equatable, Sendable {
 
 public enum CompressionError: LocalizedError, Equatable {
     case message(String)
-    public var errorDescription: String? { if case .message(let text) = self { return text }; return nil }
+    case localized(LocalizedMessage, details: String? = nil)
+    public var localizedMessage: LocalizedMessage {
+        if case .localized(let message, _) = self { return message }
+        return .init("error.generic")
+    }
+    public var technicalDetails: String? {
+        switch self {
+        case .message(let text): return text
+        case .localized(_, let details): return details
+        }
+    }
+    public var errorDescription: String? { localizedMessage.text }
+
 }
 
 public struct CompressionPlan: Sendable {
@@ -132,8 +144,11 @@ public struct CompressionPlan: Sendable {
     public let videoEncodingSpeed: VideoEncodingSpeed
     public let videoFrameRate: VideoFrameRate
     private let legacyFrameRate: Bool
+    public var noteMessage: LocalizedMessage? {
+        mode == .both && media.audio == nil ? .init("note.silent") : nil
+    }
     public var note: String? {
-        mode == .both && media.audio == nil ? "音声がないため、映像のみ圧縮します。" : nil
+        noteMessage?.text
     }
 
     public init(media: MediaInfo, mode: CompressionMode, quality: CompressionQuality) throws {
@@ -143,13 +158,13 @@ public struct CompressionPlan: Sendable {
     public init(media: MediaInfo, mode: CompressionMode, settings: CompressionSettings) throws {
         let quality = settings.quality
         if mode == .audio && media.audio == nil {
-            throw CompressionError.message("音声のない動画です。「画質のみ」を選んでください。")
+            throw CompressionError.localized(.init("error.noAudio"))
         }
         if mode.changesVideo && !media.video.isSupportedSDR {
-            throw CompressionError.message("この映像の色・ビット深度・透過には未対応です。映像を保持する「音質のみ」は利用できます。")
+            throw CompressionError.localized(.init("error.unsupportedColor"))
         }
         if mode.changesAudio, let audio = media.audio, !(1...2).contains(audio.channels ?? 0) {
-            throw CompressionError.message("音声の圧縮はモノラル／ステレオに対応しています。「画質のみ」では元の音声を保持できます。")
+            throw CompressionError.localized(.init("error.channels"))
         }
         self.media = media
         self.mode = mode
