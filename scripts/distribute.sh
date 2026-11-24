@@ -1,8 +1,9 @@
 #!/bin/bash
-# Release candidate 2. No Apple credentials are needed for a local rehearsal.
+# Prepare the release configured in config/release.env. No Apple credentials are needed for a local rehearsal.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/select-xcode.sh
+source config/release.env
 mode="${1:-}"
 case "$mode" in check|rehearse|notarize) ;; *) echo "Usage: bash scripts/distribute.sh check|rehearse|notarize" >&2; exit 2;; esac
 profile="${NOTCH_NOTARY_PROFILE:-NotchCompressor}"
@@ -29,7 +30,7 @@ if [[ "$mode" != rehearse ]]; then preflight; fi
 if [[ "$mode" == check ]]; then echo "Signing identity and notary profile ready."; exit 0; fi
 arch="$(uname -m)"
 [[ "$arch" == arm64 ]] || { echo 'This release targets arm64.' >&2; exit 1; }
-version=0.1.0-alpha.2
+version="$NOTCH_RELEASE_VERSION"
 name="NotchCompressor-$version-$arch"
 dest="$PWD/dist/$version"
 if [[ "$mode" == notarize ]]; then
@@ -43,7 +44,7 @@ work="$(mktemp -d "$PWD/dist/.candidate.XXXXXX")"
 echo "Private staging and diagnostics: $work"
 app="$work/NotchCompressor.app"
 ditto dist/NotchCompressor.app "$app"
-/usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 2' "$app/Contents/Info.plist"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" == "$NOTCH_BUILD_NUMBER" ]]
 if [[ "$mode" == notarize ]]; then
     bash scripts/sign-app.sh "$app" "$identity"
 else
@@ -96,7 +97,7 @@ fi
 cp dist/ffmpeg-9.0.1.tar.xz "$assets/"
 ditto dist/build-information "$work/build-information"
 git rev-parse HEAD > "$work/build-information/source-commit.txt"
-cp scripts/distribute.sh scripts/sign-app.sh scripts/create-dmg.sh scripts/make-dmg-background.swift scripts/dmg-settings.py scripts/dmg-requirements.txt scripts/generate-update-feed.sh Package.resolved "$work/build-information/"
+cp scripts/distribute.sh scripts/sign-app.sh scripts/create-dmg.sh scripts/make-dmg-background.swift scripts/dmg-settings.py scripts/dmg-requirements.txt scripts/generate-update-feed.sh config/release.env Package.resolved "$work/build-information/"
 ditto -c -k --keepParent "$work/build-information" "$assets/$name-build-information.zip"
 (cd "$assets"; shasum -a 256 *.zip *.dmg *.tar.xz > SHA256SUMS.txt
  if [[ -f appcast.xml ]]; then shasum -a 256 appcast.xml >> SHA256SUMS.txt; fi; shasum -a 256 -c SHA256SUMS.txt)

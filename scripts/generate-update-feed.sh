@@ -1,15 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+source config/release.env
 archive="${1:?signed notarized ZIP path required}"
 dest="${2:?new feed staging directory required}"
 tag="${3:?GitHub release tag required}"
-[[ "$tag" =~ ^v[0-9][a-zA-Z0-9.-]*$ && ! -e "$dest" ]]
+[[ "$tag" == "v$NOTCH_RELEASE_VERSION" && ! -e "$dest" ]] || { echo "Use the configured release tag and a new feed directory." >&2; exit 1; }
 [[ "$archive" != *REHEARSAL* ]] || { echo 'Never publish a rehearsal.' >&2; exit 1; }
 verification="$(mktemp -d "$PWD/.build/feed-verification.XXXXXX")"
 trap 'rm -rf "$verification"' EXIT
 ditto -x -k "$archive" "$verification"
 app="$verification/NotchCompressor.app"
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Contents/Info.plist")" == "$NOTCH_BUILD_NUMBER" && "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")" == "$NOTCH_MARKETING_VERSION" ]] || { echo 'Archive version does not match config/release.env.' >&2; exit 1; }
 codesign --verify --deep --strict "$app"
 xcrun stapler validate "$app"
 spctl --assess --type execute "$app"

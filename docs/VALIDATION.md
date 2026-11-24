@@ -322,3 +322,9 @@ DMG生成はja/enを指定可能にし、配布スクリプトが同じアプリ
 両DMGを個別生成し、チェックサム・内部アプリ署名・Applicationsリンク・DS_Storeの配置と背景を検証。背景PNGの日英案内を画像として確認し、文字切れなし。不正言語frは終了コード2で生成前に拒否。配布全体のrehearseも成功し、両DMG・更新ZIP・FFmpeg対応ソース・ビルド情報のSHA-256照合が通った。ログは `.local-work/next/dmg-l10n/`、リハーサル成果物は `dist/.candidate.0tDqmp/assets/`。これは未公証のローカル検証であり公開物ではない。公開済みのReleaseと更新フィードは変更していない。
 
 Finder上でのインストール操作や日英アプリの実画面確認を、この背景画像と内部検査で代替したとは扱わない。次版のバージョン／ビルド番号確定・実機確認・署名公証・配布は引き続き必要。
+
+## 2026-11-25 alpha.3の配布番号を統一
+
+アプリ・通常ZIP・配布工程に分散していた番号を `config/release.env` へ集約。alpha.3/build 3の全体rehearseが成功し、両DMG・更新ZIP・対応ソース・ビルド情報のSHA-256を照合。生成Info.plistは表示0.1.0／ビルド3。成果物は `dist/.candidate.rXbWDb/assets/`、ログは `.local-work/next/alpha3-rehearsal.log`。
+
+feed生成に公開済みalpha.2のタグを与えると作成前に拒否。alpha.3のタグとalpha.2の実ZIPを与えた場合もビルド番号不一致で拒否し、どちらもfeedディレクトリを作らないことを確認。署名証明書と登録済みnotarytoolプロファイルのpreflightは成功。これは次版の公証や公開そのものの成功を意味しない。

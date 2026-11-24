@@ -2,10 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/select-xcode.sh
+source config/release.env
 bash scripts/build-app.sh
 app="$PWD/dist/NotchCompressor.app"
 arch="$(uname -m)"
-name="NotchCompressor-0.1.0-alpha.1-$arch"
+name="NotchCompressor-$NOTCH_RELEASE_VERSION-$arch"
 codesign --verify --deep --strict "$app"
 for tool in ffmpeg ffprobe; do
   dependencies="$(otool -L "$app/Contents/MacOS/$tool" | tail -n +2)"

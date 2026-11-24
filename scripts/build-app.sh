@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source scripts/select-xcode.sh
+source config/release.env
 bash scripts/build-ffmpeg.sh
 # Use the Xcode resource accessor, which resolves package bundles in Contents/Resources.
 # Native SwiftPM on Swift 6.2 searches the app root or the build machine path instead.
@@ -39,7 +40,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>NotchCompressor</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>
-<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleVersion</key><string>0</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
@@ -51,6 +52,8 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>SURequireSignedFeed</key><true/>
 </dict></plist>
 PLIST
+/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NOTCH_MARKETING_VERSION" "$app_dir/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NOTCH_BUILD_NUMBER" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $(cat config/sparkle-public-key.txt)" "$app_dir/Contents/Info.plist"
 bash scripts/sign-app.sh "$app_dir"
 printf 'Built %s\n' "$app_dir"

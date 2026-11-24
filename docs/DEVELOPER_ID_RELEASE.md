@@ -69,3 +69,7 @@ Sparkle: [配布ガイド](https://sparkle-project.org/documentation/publishing/
 個別のローカル検証は `bash scripts/create-dmg.sh app-path new-output-path en` または末尾 `ja`。引数省略は従来どおり日本語。不正な言語指定は生成前に拒否する。リリース前に `distribute.sh` とアプリ生成のバージョン・ビルド番号を次版へ揃え、既存のalpha.2ディレクトリを再利用しない。
 
 [英語README](../README.en.md)は公開版の日本語UIと開発中の英語対応を区別する。公開時は両READMEの配布リンクと既知の制限を更新し、リリース説明も日英の文書を分けてリンクする。
+
+## alpha.3候補の番号管理（2026-11-25）
+
+`config/release.env` をバージョン情報の唯一の設定元とし、次版はリリース名 `0.1.0-alpha.3`、アプリ表示 `0.1.0`、Sparkleが比較するビルド番号 `3`。build-app/package-release/distributeが共用する。feed生成はタグとZIP内のビルド番号・表示バージョンの一致を確認し、別版の混入を拒否する。公開済みビルド2は変更しない。新しい公証済み成果物の出力先は `dist/0.1.0-alpha.3/`。
