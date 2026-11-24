@@ -12,10 +12,13 @@ public struct LocalizedMessage: Codable, Equatable, Sendable {
 }
 
 public enum L10n {
+    // Match AppKit and dependency UI for the lifetime of this process. macOS can
+    // change preferredLanguages before relaunch; SwiftUI may retain older labels.
+    private static let processLanguage = resolveLanguage(Bundle.main.preferredLocalizations)
     // Scoped overrides make tests independent without mutable global language state.
     @TaskLocal public static var languageOverride: String?
     public static var language: String {
-        languageOverride ?? resolveLanguage(Locale.preferredLanguages)
+        languageOverride ?? processLanguage
     }
     public static func resolveLanguage(_ preferences: [String]) -> String {
         Bundle.preferredLocalizations(from: ["en", "ja"], forPreferences: preferences).first ?? "en"
