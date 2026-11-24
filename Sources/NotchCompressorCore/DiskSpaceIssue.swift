@@ -13,16 +13,16 @@ public struct DiskSpaceIssue: LocalizedError, Codable, Equatable, Sendable {
         return max(0, requiredBytes - availableBytes)
     }
     public var errorDescription: String? {
-        var lines = [availableBytes == nil ? "保存先またはMacの一時領域の空き容量が不足しました。" : "元動画があるディスクの空き容量が不足しています。"]
+        var lines = [availableBytes == nil ? L10n.text("disk.unknown") : L10n.text("disk.source")]
         if let availableBytes, let requiredBytes, let additionalBytes {
-            let format = { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) }
+            let format = { L10n.bytes($0) }
             lines.append(
-                "空き：\(format(availableBytes)) ／ 必要な空きの目安：\(format(requiredBytes)) ／ あと約\(format(additionalBytes))必要")
+                L10n.text("disk.amounts", format(availableBytes), format(requiredBytes), format(additionalBytes)))
         }
-        lines.append("安全に置き換えるため、元動画を残したまま圧縮後の一時ファイルを同じディスクに作ります。元動画は置き換えていません。")
-        lines.append("① 同じディスクの不要なファイルを別ディスクへ移すか、不要と確認したものを削除し、必要に応じてゴミ箱を空にしてください。その後「再試行」できます。")
-        lines.append("② 空きを作れない場合は、空きのある外付けディスクへ動画を移し、このタスクをキューから外して移動先の動画を追加してください。同じディスク内でフォルダを変えても空きは増えません。")
-        lines.append("必要量は目安です。ほかのアプリや同時処理でも空き容量が変わります。")
+        lines.append(L10n.text("disk.staging"))
+        lines.append(L10n.text("disk.cleanup"))
+        lines.append(L10n.text("disk.move"))
+        lines.append(L10n.text("disk.estimate"))
         return lines.joined(separator: "\n\n")
     }
 

@@ -7,11 +7,11 @@ final class FeedbackTests: XCTestCase {
         let url = URL(fileURLWithPath: "/tmp/unused.mov")
         notice.include(.init(output: url, originalBytes: 1000, outputBytes: 1500, note: nil))
         XCTAssertEqual(notice.savedBytes, -500)
-        XCTAssertTrue(notice.text.contains("増加"))
+        XCTAssertTrue(notice.text.contains(L10n.text("completion.grew", L10n.bytes(500))))
         notice.include(.init(output: url, originalBytes: 2000, outputBytes: 1000, note: nil))
         XCTAssertEqual(notice.count, 2)
         XCTAssertEqual(notice.savedBytes, 500)
-        XCTAssertTrue(notice.text.contains("削減"))
+        XCTAssertTrue(notice.text.contains(L10n.text("completion.saved", L10n.bytes(500))))
     }
 
     @MainActor
@@ -29,7 +29,7 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue(queue.displayedJobs.isEmpty)
         XCTAssertEqual(queue.jobs.first?.phase, .completed)
         XCTAssertEqual(queue.completionNotice?.savedBytes, 0)
-        XCTAssertTrue(queue.completionNotice?.text.contains("元動画を保持") == true)
+        XCTAssertTrue(queue.completionNotice?.text.contains(L10n.text("completion.retained", "1")) == true)
         let restored = JobQueue(storage: storage)
         XCTAssertEqual(restored.jobs.first?.result?.effectiveOutcome, .originalKept)
         XCTAssertEqual(restored.jobs.first?.result?.candidateBytes, 1500)
@@ -57,7 +57,10 @@ final class FeedbackTests: XCTestCase {
         let status = QueueStatus(
             jobs: [running, paused, failed], running: [running.id, paused.id], paused: [paused.id])
         XCTAssertEqual(status.count, 3)
-        XCTAssertEqual(status.title, "実行中 1件 · 一時停止 1件 · 要確認 1件")
+        XCTAssertEqual(
+            status.title,
+            [L10n.text("status.active", "1"), L10n.text("status.paused", "1"), L10n.text("status.failed", "1")].joined(
+                separator: " · "))
         XCTAssertEqual(QueueStatus(jobs: [paused], running: [paused.id], paused: [paused.id]).symbol, "pause.circle")
         XCTAssertEqual(QueueStatus(jobs: [failed], running: [], paused: []).symbol, "exclamationmark.circle")
     }

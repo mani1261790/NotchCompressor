@@ -5,9 +5,9 @@ public enum CompressionMode: String, CaseIterable, Identifiable, Codable, Sendab
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .video: "画質のみ";
-        case .both: "画質＋音質";
-        case .audio: "音質のみ"
+        case .video: L10n.text("mode.video");
+        case .both: L10n.text("mode.both");
+        case .audio: L10n.text("mode.audio")
         }
     }
     public var symbol: String {
@@ -26,26 +26,26 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .gentle: "品質優先";
-        case .balanced: "標準";
-        case .compact: "容量優先";
-        case .custom: "カスタム"
+        case .gentle: L10n.text("quality.gentle");
+        case .balanced: L10n.text("quality.balanced");
+        case .compact: L10n.text("quality.compact");
+        case .custom: L10n.text("quality.custom")
         }
     }
     public var explanation: String {
         switch self {
-        case .gentle: "画質・音質の変化を抑える設定です。容量の削減は控えめになります。"
-        case .balanced: "画質・音質と容量のバランスを取る設定です。"
-        case .compact: "画質・音質より、容量を小さくすることを優先します。"
-        case .custom: "映像の割合と音声のビットレートを、自分で指定します。"
+        case .gentle: L10n.text("quality.gentle.detail")
+        case .balanced: L10n.text("quality.balanced.detail")
+        case .compact: L10n.text("quality.compact.detail")
+        case .custom: L10n.text("quality.custom.detail")
         }
     }
     public var videoBudgetDescription: String {
         switch self {
-        case .gentle: "自動調整・元の85%を上限の目安に"
-        case .balanced: "自動調整・元の65%を上限の目安に"
-        case .compact: "自動調整・元の45%を上限の目安に"
-        case .custom: "指定した割合を目標に"
+        case .gentle: L10n.text("quality.gentle.budget")
+        case .balanced: L10n.text("quality.balanced.budget")
+        case .compact: L10n.text("quality.compact.budget")
+        case .custom: L10n.text("quality.custom.budget")
         }
     }
     public var audioBitrate: Int {
@@ -74,13 +74,13 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
 public enum VideoEncodingSpeed: String, Codable, CaseIterable, Identifiable, Sendable {
     case standard, fast
     public var id: String { rawValue }
-    public var title: String { self == .standard ? "標準" : "速度優先" }
+    public var title: String { self == .standard ? L10n.text("speed.standard") : L10n.text("speed.fast") }
 }
 
 public enum VideoFrameRate: String, Codable, CaseIterable, Identifiable, Sendable {
     case source, limit30
     public var id: String { rawValue }
-    public var title: String { self == .source ? "元のfpsを維持" : "最大30fps" }
+    public var title: String { self == .source ? L10n.text("fps.source") : L10n.text("fps.limit30") }
 }
 
 public struct CompressionSettings: Codable, Equatable, Sendable {
@@ -96,13 +96,14 @@ public struct CompressionSettings: Codable, Equatable, Sendable {
     public var effectiveAudioKbps: Int { min(256, max(32, audioKbps ?? 96)) }
     public func summary(for mode: CompressionMode) -> String {
         let speed =
-            (mode.changesVideo && effectiveVideoEncodingSpeed == .fast ? "・速度優先" : "")
-            + (mode.changesVideo ? "・" + effectiveVideoFrameRate.title : "")
+            (mode.changesVideo && effectiveVideoEncodingSpeed == .fast
+                ? L10n.text("separator") + L10n.text("speed.fast") : "")
+            + (mode.changesVideo ? L10n.text("separator") + effectiveVideoFrameRate.title : "")
         guard quality == .custom else { return quality.title + speed }
         return [
-            mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
-            mode.changesAudio ? "音声\(effectiveAudioKbps) kbps" : nil,
-        ].compactMap { $0 }.joined(separator: "・") + speed
+            mode.changesVideo ? L10n.text("summary.video", L10n.integer(effectiveVideoPercent)) : nil,
+            mode.changesAudio ? L10n.text("summary.audio", L10n.integer(effectiveAudioKbps)) : nil,
+        ].compactMap { $0 }.joined(separator: L10n.text("separator")) + speed
     }
     public init(
         quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil,

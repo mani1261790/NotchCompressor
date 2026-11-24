@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "NotchCompressor",
+    defaultLocalization: "en",
     platforms: [.macOS(.v14)],
     products: [.executable(name: "NotchCompressor", targets: ["NotchCompressor"])],
     dependencies: [
@@ -10,7 +11,7 @@ let package = Package(
         .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", exact: "3.1.0"),
     ],
     targets: [
-        .target(name: "NotchCompressorCore"),
+        .target(name: "NotchCompressorCore", resources: [.process("Resources")]),
         .executableTarget(
             name: "NotchCompressor",
             dependencies: [

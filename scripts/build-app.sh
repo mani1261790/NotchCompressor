@@ -17,6 +17,7 @@ xcrun swift scripts/make-icon.swift .build/AppIcon.iconset
 iconutil -c icns .build/AppIcon.iconset -o "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$bin_dir/NotchCompressor" "$app_dir/Contents/MacOS/NotchCompressor"
 ditto "$bin_dir/KeyboardShortcuts_KeyboardShortcuts.bundle" "$app_dir/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"
+ditto "$bin_dir/NotchCompressor_NotchCompressorCore.bundle" "$app_dir/Contents/Resources/NotchCompressor_NotchCompressorCore.bundle"
 install -m 644 .build/checkouts/KeyboardShortcuts/license "$app_dir/Contents/Resources/Licenses/KeyboardShortcuts-LICENSE.txt"
 mkdir -p "$app_dir/Contents/Frameworks"
 ditto .build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework "$app_dir/Contents/Frameworks/Sparkle.framework"
@@ -33,6 +34,8 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>UTTypeConformsTo</key><array><string>public.data</string></array>
 </dict></array>
 <key>CFBundleIconFile</key><string>AppIcon</string>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array><string>en</string><string>ja</string></array>
 <key>CFBundleName</key><string>NotchCompressor</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.1.0</string>

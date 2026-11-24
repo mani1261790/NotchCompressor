@@ -17,7 +17,7 @@ final class DiagnosticTests: XCTestCase {
             XCTAssertFalse(report.contains(forbidden), forbidden)
         }
         XCTAssertTrue(report.contains("compression_failed"))
-        XCTAssertTrue(report.contains("失敗: 1件"))
+        XCTAssertTrue(report.contains("\(JobPhase.failed.title): 1件"))
         XCTAssertTrue(report.contains("履歴保存: エラーあり"))
         XCTAssertTrue(report.contains("macOS: 26.1.0"))
     }

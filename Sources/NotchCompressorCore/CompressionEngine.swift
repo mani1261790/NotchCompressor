@@ -4,15 +4,15 @@ public enum JobPhase: String, Codable, Sendable {
     case waiting, probing, encoding, validating, paused, completed, failed, cancelled, interrupted
     public var title: String {
         switch self {
-        case .paused: "一時停止中";
-        case .waiting: "待機中";
-        case .probing: "動画を確認中";
-        case .encoding: "圧縮中";
-        case .validating: "出力を検証中"
-        case .completed: "完了";
-        case .failed: "失敗";
-        case .cancelled: "キャンセル済み";
-        case .interrupted: "前回の処理が中断"
+        case .paused: L10n.text("phase.paused");
+        case .waiting: L10n.text("phase.waiting");
+        case .probing: L10n.text("phase.probing");
+        case .encoding: L10n.text("phase.encoding");
+        case .validating: L10n.text("phase.validating")
+        case .completed: L10n.text("phase.completed");
+        case .failed: L10n.text("phase.failed");
+        case .cancelled: L10n.text("phase.cancelled");
+        case .interrupted: L10n.text("phase.interrupted")
         }
     }
     public var isFinished: Bool { [.completed, .failed, .cancelled, .interrupted].contains(self) }
@@ -31,7 +31,7 @@ public struct CompressionResult: Codable, Sendable {
     public let candidateBytes: Int64?
     public var effectiveOutcome: CompressionOutcome { outcome ?? .replaced }
     public var completionMessage: String? {
-        effectiveOutcome == .originalKept ? "容量が減らなかったため元動画を保持しました。" : note
+        effectiveOutcome == .originalKept ? L10n.text("result.originalKept") : note
     }
     public init(
         output: URL, originalBytes: Int64, outputBytes: Int64, note: String?,

@@ -8,8 +8,12 @@ final class UsageFeedbackTests: XCTestCase {
         let issue = DiskSpaceIssue(availableBytes: 1_000_000_000, requiredBytes: 3_000_000_000)
         XCTAssertEqual(issue.additionalBytes, 2_000_000_000)
         let text = issue.localizedDescription
-        for expected in ["空き", "目安", "ゴミ箱", "外付け", "再試行", "同じディスク"] { XCTAssertTrue(text.contains(expected)) }
-        XCTAssertTrue(FailureNotice(diskSpaceIssue: issue).body.contains("あと約"))
+        for expected in [
+            L10n.text("disk.source"), L10n.text("disk.cleanup"), L10n.text("disk.move"), L10n.text("disk.estimate"),
+        ] { XCTAssertTrue(text.contains(expected)) }
+        XCTAssertTrue(
+            FailureNotice(diskSpaceIssue: issue).body.contains(
+                L10n.text("disk.freeMore", L10n.bytes(issue.additionalBytes!))))
         XCTAssertNil(DiskSpaceIssue.classify(CompressionError.message("permission denied")))
         let underlying = NSError(domain: NSPOSIXErrorDomain, code: Int(ENOSPC))
         XCTAssertNotNil(
@@ -22,8 +26,8 @@ final class UsageFeedbackTests: XCTestCase {
             .init(
                 output: URL(fileURLWithPath: "/tmp/private.mov"), originalBytes: 1_000_000_000,
                 outputBytes: 2_000_000_000, note: nil))
-        XCTAssertTrue(notice.text.contains("1 GB → 2 GB"))
-        XCTAssertTrue(notice.text.contains("増加"))
+        XCTAssertTrue(notice.text.contains("\(L10n.bytes(1_000_000_000)) → \(L10n.bytes(2_000_000_000))"))
+        XCTAssertTrue(notice.text.contains(L10n.text("completion.grew", L10n.bytes(1_000_000_000))))
         XCTAssertFalse(notice.text.contains("private"))
     }
 

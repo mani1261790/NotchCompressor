@@ -5,9 +5,9 @@ public enum QueueExecution: String, CaseIterable, Codable, Identifiable, Sendabl
     public var id: String { rawValue }
     public var title: String {
         switch self {
-        case .automatic: "自動";
-        case .serial: "1件ずつ";
-        case .parallel: "最大2件"
+        case .automatic: L10n.text("schedule.automatic");
+        case .serial: L10n.text("schedule.serial");
+        case .parallel: L10n.text("schedule.parallel")
         }
     }
 }

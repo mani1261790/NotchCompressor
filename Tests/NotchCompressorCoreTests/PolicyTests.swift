@@ -135,7 +135,7 @@ final class PolicyTests: XCTestCase {
             let args = accelerated.arguments(
                 input: URL(fileURLWithPath: "/tmp/in.mov"), output: URL(fileURLWithPath: "/tmp/out.mov"))
             XCTAssertEqual(args.contains("-prio_speed"), mode.changesVideo)
-            XCTAssertEqual(fast.summary(for: mode).contains("速度優先"), mode.changesVideo)
+            XCTAssertEqual(fast.summary(for: mode).contains(L10n.text("speed.fast")), mode.changesVideo)
             if mode.changesVideo { XCTAssertEqual(args[args.firstIndex(of: "-allow_sw")! + 1], "0") }
         }
     }
