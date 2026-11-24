@@ -20,7 +20,32 @@ final class PolicyTests: XCTestCase {
             XCTAssertEqual(args[args.firstIndex(of: "-c:a")! + 1], mode == .video ? "copy" : "aac")
             XCTAssertTrue(args.contains("/tmp/a ; $(touch hacked).mov"))
             XCTAssertTrue(args.contains("-n"))
-            XCTAssertEqual(args.contains("fps=30"), mode.changesVideo)
+            XCTAssertEqual(args.contains("passthrough"), mode.changesVideo)
+        }
+    }
+
+    func testFrameRateMigrationAndBitrateBudget() throws {
+        let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
+        let legacy = try JSONDecoder().decode(CompressionSettings.self, from: Data("{\"quality\":\"balanced\"}".utf8))
+        XCTAssertNil(legacy.videoFrameRate)
+        XCTAssertEqual(legacy.effectiveVideoFrameRate, .limit30)
+        XCTAssertEqual(CompressionSettings().effectiveVideoFrameRate, .source)
+        let source = try CompressionPlan(media: media, mode: .video, settings: .init())
+        let limited = try CompressionPlan(media: media, mode: .video, settings: .init(videoFrameRate: .limit30))
+        XCTAssertGreaterThan(source.videoBitrate, limited.videoBitrate)
+        let input = URL(fileURLWithPath: "/tmp/source.mov"), output = URL(fileURLWithPath: "/tmp/output.mov")
+        XCTAssertTrue(
+            try CompressionPlan(media: media, mode: .video, settings: legacy).arguments(input: input, output: output)
+                .contains("fps=30"))
+        XCTAssertTrue(source.arguments(input: input, output: output).contains("demux"))
+        for rate in VideoFrameRate.allCases {
+            let settings = CompressionSettings(videoFrameRate: rate)
+            XCTAssertEqual(
+                try JSONDecoder().decode(CompressionSettings.self, from: JSONEncoder().encode(settings)), settings)
+            let copy = try CompressionPlan(media: media, mode: .audio, settings: settings).arguments(
+                input: input, output: output)
+            XCTAssertFalse(copy.contains("-vf"))
+            XCTAssertFalse(copy.contains("-fps_mode:v"))
         }
     }
 
@@ -93,14 +118,14 @@ final class PolicyTests: XCTestCase {
         XCTAssertNil(legacy.audioKbps)
         XCTAssertEqual(
             try CompressionPlan(media: media, mode: .both, settings: legacy).videoBitrate,
-            try CompressionPlan(media: media, mode: .both, quality: .balanced).videoBitrate)
+            try CompressionPlan(media: media, mode: .both, settings: .init(videoFrameRate: nil)).videoBitrate)
     }
 
     func testSpeedPriorityKeepsBitratesAndIsVideoOnly() throws {
         let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
         let legacy = try JSONDecoder().decode(CompressionSettings.self, from: Data("{\"quality\":\"balanced\"}".utf8))
         XCTAssertEqual(legacy.effectiveVideoEncodingSpeed, .standard)
-        let fast = CompressionSettings(videoEncodingSpeed: .fast)
+        let fast = CompressionSettings(videoEncodingSpeed: .fast, videoFrameRate: nil)
         XCTAssertEqual(try JSONDecoder().decode(CompressionSettings.self, from: JSONEncoder().encode(fast)), fast)
         for mode in CompressionMode.allCases {
             let standard = try CompressionPlan(media: media, mode: mode, settings: legacy)

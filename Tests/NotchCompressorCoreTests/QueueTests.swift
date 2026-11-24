@@ -31,7 +31,7 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(restored.settings.effectiveAudioKbps, 64)
         XCTAssertEqual(restored.jobs.map { $0.settings.effectiveVideoPercent }, [50, 35])
         XCTAssertEqual(restored.jobs.map { $0.settings.effectiveAudioKbps }, [80, 64])
-        XCTAssertEqual(restored.jobs[0].settings.summary(for: .both), "映像50%・音声80 kbps")
+        XCTAssertEqual(restored.jobs[0].settings.summary(for: .both), "映像50%・音声80 kbps・元のfpsを維持")
     }
 
     @MainActor

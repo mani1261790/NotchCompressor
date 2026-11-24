@@ -77,17 +77,27 @@ public enum VideoEncodingSpeed: String, Codable, CaseIterable, Identifiable, Sen
     public var title: String { self == .standard ? "標準" : "速度優先" }
 }
 
+public enum VideoFrameRate: String, Codable, CaseIterable, Identifiable, Sendable {
+    case source, limit30
+    public var id: String { rawValue }
+    public var title: String { self == .source ? "元のfpsを維持" : "最大30fps" }
+}
+
 public struct CompressionSettings: Codable, Equatable, Sendable {
     public var quality: CompressionQuality
     public var toolsDirectory: String?
     public var videoPercent: Int?
     public var audioKbps: Int?
     public var videoEncodingSpeed: VideoEncodingSpeed?
+    public var videoFrameRate: VideoFrameRate?
+    public var effectiveVideoFrameRate: VideoFrameRate { videoFrameRate ?? .limit30 }
     public var effectiveVideoEncodingSpeed: VideoEncodingSpeed { videoEncodingSpeed ?? .standard }
     public var effectiveVideoPercent: Int { min(100, max(10, videoPercent ?? 65)) }
     public var effectiveAudioKbps: Int { min(256, max(32, audioKbps ?? 96)) }
     public func summary(for mode: CompressionMode) -> String {
-        let speed = mode.changesVideo && effectiveVideoEncodingSpeed == .fast ? "・速度優先" : ""
+        let speed =
+            (mode.changesVideo && effectiveVideoEncodingSpeed == .fast ? "・速度優先" : "")
+            + (mode.changesVideo ? "・" + effectiveVideoFrameRate.title : "")
         guard quality == .custom else { return quality.title + speed }
         return [
             mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
@@ -96,13 +106,14 @@ public struct CompressionSettings: Codable, Equatable, Sendable {
     }
     public init(
         quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil,
-        audioKbps: Int? = nil, videoEncodingSpeed: VideoEncodingSpeed? = nil
+        audioKbps: Int? = nil, videoEncodingSpeed: VideoEncodingSpeed? = nil, videoFrameRate: VideoFrameRate? = .source
     ) {
         self.quality = quality
         self.toolsDirectory = toolsDirectory
         self.videoPercent = videoPercent
         self.audioKbps = audioKbps
         self.videoEncodingSpeed = videoEncodingSpeed
+        self.videoFrameRate = videoFrameRate
     }
 }
 
@@ -118,6 +129,8 @@ public struct CompressionPlan: Sendable {
     public let videoBitrate: Int
     public let audioBitrate: Int
     public let videoEncodingSpeed: VideoEncodingSpeed
+    public let videoFrameRate: VideoFrameRate
+    private let legacyFrameRate: Bool
     public var note: String? {
         mode == .both && media.audio == nil ? "音声がないため、映像のみ圧縮します。" : nil
     }
@@ -141,7 +154,10 @@ public struct CompressionPlan: Sendable {
         self.mode = mode
         self.quality = quality
         self.videoEncodingSpeed = settings.effectiveVideoEncodingSpeed
-        let pixelRate = Double(media.video.width ?? 0) * Double(media.video.height ?? 0) * min(media.video.fps, 30)
+        self.videoFrameRate = settings.effectiveVideoFrameRate
+        self.legacyFrameRate = settings.videoFrameRate == nil
+        let outputFPS = videoFrameRate == .source ? media.video.fps : min(media.video.fps, 30)
+        let pixelRate = Double(media.video.width ?? 0) * Double(media.video.height ?? 0) * outputFPS
         let target = pixelRate * quality.bitsPerPixel
         let sourceCap = media.video.bitRate.map { Double($0) * quality.sourceRatio } ?? 12_000_000
         if quality == .custom {
@@ -170,7 +186,15 @@ public struct CompressionPlan: Sendable {
                 "-pix_fmt", "yuv420p", "-b:v", String(videoBitrate),
             ]
             if videoEncodingSpeed == .fast { args += ["-prio_speed", "1"] }
-            if media.video.fps > 30.1 { args += ["-vf", "fps=30"] }
+            if legacyFrameRate {
+                if media.video.fps > 30.1 { args += ["-vf", "fps=30"] }
+            } else if videoFrameRate == .source {
+                args += ["-fps_mode:v", "passthrough", "-enc_time_base:v", "demux"]
+            } else {
+                // A selected cap regularizes VFR timing; source mode preserves it.
+                let rate = min(media.video.fps, 30)
+                args += ["-vf", "fps=\(rate)"]
+            }
         } else {
             args += ["-c:v", "copy"]
         }

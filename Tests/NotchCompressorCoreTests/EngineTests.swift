@@ -36,6 +36,62 @@ final class EngineTests: XCTestCase {
         return try JSONDecoder().decode(Hashes.self, from: data).packets.map(\.data_hash)
     }
 
+    private func videoTimes(_ url: URL, tools: Toolchain) async throws -> [Double] {
+        let data = try await ProcessRunner().run(
+            executable: tools.ffprobe,
+            arguments: [
+                "-v", "error", "-select_streams", "v:0", "-show_frames", "-show_entries",
+                "frame=best_effort_timestamp_time", "-of", "json", url.path,
+            ])
+        struct Report: Decodable {
+            struct Frame: Decodable { let best_effort_timestamp_time: String }
+            let frames: [Frame]
+        }
+        return try JSONDecoder().decode(Report.self, from: data).frames.compactMap {
+            Double($0.best_effort_timestamp_time)
+        }
+    }
+
+    func testFrameRateAndVariableTimingWithCopiedAudio() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        for rate in [24, 30, 60, 0] {
+            let source = folder.appendingPathComponent("timing\(rate).mov")
+            var args = [
+                "-v", "error", "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=\(rate == 0 ? 60 : rate):duration=2",
+                "-f", "lavfi", "-i", "sine=sample_rate=48000:duration=2",
+            ]
+            if rate == 0 { args += ["-vf", "select=if(lt(n\\,60)\\,1\\,not(mod(n\\,2)))"] }
+            args += [
+                "-fps_mode:v", "passthrough", "-c:v", "h264_videotoolbox", "-b:v", "6000000", "-c:a", "aac", "-n",
+                source.path,
+            ]
+            _ = try await ProcessRunner().run(executable: tools.ffmpeg, arguments: args)
+            let original = try Data(contentsOf: source)
+            let before = try await videoTimes(source, tools: tools)
+            XCTAssertEqual(before.count, rate == 0 ? 90 : rate * 2)
+            let audio = try await packetHashes(source, stream: "a:0", tools: tools)
+            for choice in VideoFrameRate.allCases {
+                try original.write(to: source, options: .atomic)
+                let result = try await CompressionEngine().compress(
+                    input: source, mode: .video, settings: .init(videoFrameRate: choice))
+                XCTAssertEqual(result.effectiveOutcome, .replaced, "Fixture must actually exercise encoding")
+                let after = try await videoTimes(source, tools: tools)
+                if choice == .source {
+                    XCTAssertEqual(after.count, before.count)
+                    for (expected, actual) in zip(before, after) { XCTAssertEqual(actual, expected, accuracy: 0.002) }
+                } else {
+                    XCTAssertLessThanOrEqual(after.count, 61)
+                    for (a, b) in zip(after, after.dropFirst()) { XCTAssertGreaterThanOrEqual(b - a, 1.0 / 30 - 0.002) }
+                }
+                let afterAudio = try await packetHashes(source, stream: "a:0", tools: tools)
+                XCTAssertEqual(afterAudio, audio)
+                let probe = try await CompressionEngine().probe(source, tools: tools)
+                XCTAssertEqual(probe.duration, 2, accuracy: 0.1)
+            }
+        }
+    }
+
     func testRealThreeModesAndCopyPacketHashes() async throws {
         let tools = try tools(), folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }

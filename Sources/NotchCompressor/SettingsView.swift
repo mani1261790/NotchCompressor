@@ -45,7 +45,7 @@ struct SettingsView: View {
                             .font(.caption).foregroundStyle(.secondary)
                         DisclosureGroup("映像の自動調整を詳しく") {
                             Text(
-                                "解像度 × 最大30fps × 係数で計算した値と、元ビットレートの上限割合のうち、小さい方を目標にします。係数は品質優先0.09・標準0.06・容量優先0.035。目標の範囲は150 kbps〜12 Mbpsです。元ビットレートが不明な場合は、解像度とfpsから計算します。"
+                                "解像度 × 出力fpsの目安 × 係数で計算した値と、元ビットレートの上限割合のうち、小さい方を目標にします。係数は品質優先0.09・標準0.06・容量優先0.035。目標の範囲は150 kbps〜12 Mbpsです。元ビットレートが不明な場合は、解像度とfpsから計算します。fps維持では元の平均fps、最大30fpsでは30を上限に計算します。"
                             )
                             .font(.caption).foregroundStyle(.secondary)
                         }
@@ -89,6 +89,18 @@ struct SettingsView: View {
                 }
                 Section {
                     Picker(
+                        "フレームレート",
+                        selection: Binding(
+                            get: { queue.settings.effectiveVideoFrameRate },
+                            set: { queue.settings.videoFrameRate = $0 })
+                    ) {
+                        ForEach(VideoFrameRate.allCases) { rate in Text(rate.title).tag(rate) }
+                    }.pickerStyle(.segmented)
+                    Text(
+                        "元のfpsを維持すると、動きの滑らかさと各フレームのタイミングを保ちます。最大30fpsは容量を抑えるため、必要に応じてフレームを間引き、一定の間隔に揃えます。変更は次に追加する動画から適用します。"
+                    )
+                    .font(.caption).foregroundStyle(.secondary)
+                    Picker(
                         "映像の処理速度",
                         selection: Binding(
                             get: { queue.settings.effectiveVideoEncodingSpeed },
@@ -114,14 +126,14 @@ struct SettingsView: View {
                 }
                 Section {
                     LabeledContent("映像", value: "HEVC（H.265）・Macのハードウェアで変換")
-                    Text("解像度は維持します。30fpsを超える動画は原則30fpsに下げるため、動きの滑らかさは変わります。")
+                    Text("解像度は維持します。フレームレートは「処理速度」で選択できます。既存の設定・投入済み動画は従来のfps設定を保持します。")
                         .font(.caption).foregroundStyle(.secondary)
                     LabeledContent("音声", value: "AACに変換")
                     Text(
                         "品質優先・標準・容量優先・カスタムで変換方式は共通です。3つのプリセットは映像のデータ量を自動調整し、カスタムは元の映像ビットレートに対する割合を使います。どれも再圧縮する部分は非可逆で、失った品質は戻せません。"
                     )
                     .font(.caption).foregroundStyle(.secondary)
-                    Text("ファイル名・場所・MOV／MP4／M4Vの拡張子は維持します。容量は内容によって変わり、圧縮前より増える場合もあります。")
+                    Text("ファイル名・場所・MOV／MP4／M4Vの拡張子は維持します。容量が減らなかった場合は、元動画を保持します。")
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Label("どの方式で変換するか", systemImage: "arrow.triangle.2.circlepath")
