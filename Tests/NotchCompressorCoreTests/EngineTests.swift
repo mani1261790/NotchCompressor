@@ -71,6 +71,21 @@ final class EngineTests: XCTestCase {
             })
     }
 
+    func testSpeedPriorityCompletesFullValidationAndPreservesCopiedAudio() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("speed.mov")
+        try await makeVideo(source, tools: tools)
+        let audioHashes = try await packetHashes(source, stream: "a:0", tools: tools)
+        let result = try await CompressionEngine().compress(
+            input: source, mode: .video, settings: .init(videoEncodingSpeed: .fast))
+        XCTAssertEqual(result.output, source)
+        let output = try await CompressionEngine().probe(result.output, tools: tools)
+        XCTAssertEqual(output.video.codecName, "hevc")
+        let afterHashes = try await packetHashes(source, stream: "a:0", tools: tools)
+        XCTAssertEqual(audioHashes, afterHashes)
+    }
+
     func testRealCustomCompressionKeepsContainerAndUsesSelectedAudioRate() async throws {
         let tools = try tools(), folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }

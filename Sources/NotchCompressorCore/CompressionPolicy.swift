@@ -71,28 +71,38 @@ public enum CompressionQuality: String, Codable, CaseIterable, Identifiable, Sen
     }
 }
 
+public enum VideoEncodingSpeed: String, Codable, CaseIterable, Identifiable, Sendable {
+    case standard, fast
+    public var id: String { rawValue }
+    public var title: String { self == .standard ? "標準" : "速度優先" }
+}
+
 public struct CompressionSettings: Codable, Equatable, Sendable {
     public var quality: CompressionQuality
     public var toolsDirectory: String?
     public var videoPercent: Int?
     public var audioKbps: Int?
+    public var videoEncodingSpeed: VideoEncodingSpeed?
+    public var effectiveVideoEncodingSpeed: VideoEncodingSpeed { videoEncodingSpeed ?? .standard }
     public var effectiveVideoPercent: Int { min(100, max(10, videoPercent ?? 65)) }
     public var effectiveAudioKbps: Int { min(256, max(32, audioKbps ?? 96)) }
     public func summary(for mode: CompressionMode) -> String {
-        guard quality == .custom else { return quality.title }
+        let speed = mode.changesVideo && effectiveVideoEncodingSpeed == .fast ? "・速度優先" : ""
+        guard quality == .custom else { return quality.title + speed }
         return [
             mode.changesVideo ? "映像\(effectiveVideoPercent)%" : nil,
             mode.changesAudio ? "音声\(effectiveAudioKbps) kbps" : nil,
-        ].compactMap { $0 }.joined(separator: "・")
+        ].compactMap { $0 }.joined(separator: "・") + speed
     }
     public init(
         quality: CompressionQuality = .balanced, toolsDirectory: String? = nil, videoPercent: Int? = nil,
-        audioKbps: Int? = nil
+        audioKbps: Int? = nil, videoEncodingSpeed: VideoEncodingSpeed? = nil
     ) {
         self.quality = quality
         self.toolsDirectory = toolsDirectory
         self.videoPercent = videoPercent
         self.audioKbps = audioKbps
+        self.videoEncodingSpeed = videoEncodingSpeed
     }
 }
 
@@ -107,6 +117,7 @@ public struct CompressionPlan: Sendable {
     public let quality: CompressionQuality
     public let videoBitrate: Int
     public let audioBitrate: Int
+    public let videoEncodingSpeed: VideoEncodingSpeed
     public var note: String? {
         mode == .both && media.audio == nil ? "音声がないため、映像のみ圧縮します。" : nil
     }
@@ -129,6 +140,7 @@ public struct CompressionPlan: Sendable {
         self.media = media
         self.mode = mode
         self.quality = quality
+        self.videoEncodingSpeed = settings.effectiveVideoEncodingSpeed
         let pixelRate = Double(media.video.width ?? 0) * Double(media.video.height ?? 0) * min(media.video.fps, 30)
         let target = pixelRate * quality.bitsPerPixel
         let sourceCap = media.video.bitRate.map { Double($0) * quality.sourceRatio } ?? 12_000_000
@@ -157,6 +169,7 @@ public struct CompressionPlan: Sendable {
                 "-c:v", "hevc_videotoolbox", "-allow_sw", "0", "-tag:v", "hvc1",
                 "-pix_fmt", "yuv420p", "-b:v", String(videoBitrate),
             ]
+            if videoEncodingSpeed == .fast { args += ["-prio_speed", "1"] }
             if media.video.fps > 30.1 { args += ["-vf", "fps=30"] }
         } else {
             args += ["-c:v", "copy"]

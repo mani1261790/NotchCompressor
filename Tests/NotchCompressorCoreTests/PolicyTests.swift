@@ -96,6 +96,25 @@ final class PolicyTests: XCTestCase {
             try CompressionPlan(media: media, mode: .both, quality: .balanced).videoBitrate)
     }
 
+    func testSpeedPriorityKeepsBitratesAndIsVideoOnly() throws {
+        let media = try MediaInfo.decode(fixture(), fileSize: 10_000_000)
+        let legacy = try JSONDecoder().decode(CompressionSettings.self, from: Data("{\"quality\":\"balanced\"}".utf8))
+        XCTAssertEqual(legacy.effectiveVideoEncodingSpeed, .standard)
+        let fast = CompressionSettings(videoEncodingSpeed: .fast)
+        XCTAssertEqual(try JSONDecoder().decode(CompressionSettings.self, from: JSONEncoder().encode(fast)), fast)
+        for mode in CompressionMode.allCases {
+            let standard = try CompressionPlan(media: media, mode: mode, settings: legacy)
+            let accelerated = try CompressionPlan(media: media, mode: mode, settings: fast)
+            XCTAssertEqual(standard.videoBitrate, accelerated.videoBitrate)
+            XCTAssertEqual(standard.audioBitrate, accelerated.audioBitrate)
+            let args = accelerated.arguments(
+                input: URL(fileURLWithPath: "/tmp/in.mov"), output: URL(fileURLWithPath: "/tmp/out.mov"))
+            XCTAssertEqual(args.contains("-prio_speed"), mode.changesVideo)
+            XCTAssertEqual(fast.summary(for: mode).contains("速度優先"), mode.changesVideo)
+            if mode.changesVideo { XCTAssertEqual(args[args.firstIndex(of: "-allow_sw")! + 1], "0") }
+        }
+    }
+
     func testMissingExplicitToolsDoesNotSilentlyFallback() {
         XCTAssertThrowsError(try Toolchain.discover(directory: "/nonexistent/NotchCompressor"))
     }

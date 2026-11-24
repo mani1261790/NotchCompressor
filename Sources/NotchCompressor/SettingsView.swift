@@ -88,6 +88,22 @@ struct SettingsView: View {
                     Label("圧縮", systemImage: "slider.horizontal.3")
                 }
                 Section {
+                    Picker(
+                        "映像の処理速度",
+                        selection: Binding(
+                            get: { queue.settings.effectiveVideoEncodingSpeed },
+                            set: { queue.settings.videoEncodingSpeed = $0 })
+                    ) {
+                        ForEach(VideoEncodingSpeed.allCases) { speed in Text(speed.title).tag(speed) }
+                    }.pickerStyle(.segmented)
+                    Text("どちらもMacのハードウェアでHEVCに変換します。「速度優先」は処理時間を優先するため、同じ目標ビットレートでも画質や圧縮効率が変わる場合があります。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("「画質のみ」「画質＋音質」に適用します。「音質のみ」と出力の検証速度には影響しません。次に追加する動画から反映され、対応していないMacでは効果がありません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Label("処理速度", systemImage: "speedometer")
+                }
+                Section {
                     LabeledContent("左・画質のみ", value: "映像を再圧縮／音声はそのまま")
                     LabeledContent("中央・画質＋音質", value: "映像と音声の両方を再圧縮")
                     LabeledContent("右・音質のみ", value: "音声を再圧縮／映像はそのまま")
