@@ -429,7 +429,9 @@ public final class JobQueue: ObservableObject {
                             self.jobs[index].phase = phase
                             self.jobs[index].progress = progress
                             self.jobs[index].localizedMessage =
-                                note == L10n.text("note.silent") ? .init("note.silent") : nil
+                                ["note.silent", "note.sleepRetry"].first(where: { note == L10n.text($0) }).map {
+                                    .init($0)
+                                }
                             self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
                             if changedPhase { self.persist() }
                         }

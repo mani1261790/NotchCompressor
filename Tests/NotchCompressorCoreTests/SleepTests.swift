@@ -101,4 +101,114 @@ final class SleepTests: XCTestCase {
         XCTAssertEqual(control.commit { 1 }, 1)
         XCTAssertFalse(control.pause(.systemSleep))
     }
+
+    func testSleepGenerationDistinguishesUserPauseAndRepeatedNotifications() {
+        let control = CompressionControl()
+        XCTAssertEqual(control.systemSleepGeneration, 0)
+        XCTAssertTrue(control.pause(.user))
+        XCTAssertEqual(control.systemSleepGeneration, 0)
+        XCTAssertTrue(control.pause(.systemSleep))
+        XCTAssertEqual(control.systemSleepGeneration, 1)
+        XCTAssertTrue(control.pause(.systemSleep))
+        XCTAssertEqual(control.systemSleepGeneration, 1)
+        XCTAssertTrue(control.resume(.systemSleep))
+        XCTAssertTrue(control.isPaused)
+        XCTAssertEqual(control.systemSleepGeneration, 1)
+        XCTAssertTrue(control.pause(.systemSleep))
+        XCTAssertEqual(control.systemSleepGeneration, 2)
+        XCTAssertTrue(control.resume(.systemSleep))
+        XCTAssertTrue(control.resume(.user))
+        XCTAssertEqual(control.commit { 1 }, 1)
+        XCTAssertFalse(control.pause(.systemSleep))
+        XCTAssertEqual(control.systemSleepGeneration, 2)
+    }
+
+    func testFailedStageRetriesOnceAfterSleep() async throws {
+        let control = CompressionControl()
+        var attempts = [Bool]()
+        try await CompressionEngine.recoverAfterSleep(control: control) { retrying in
+            attempts.append(retrying)
+            if !retrying {
+                XCTAssertTrue(control.pause(.systemSleep))
+                XCTAssertTrue(control.resume(.systemSleep))
+                throw CompressionError.localized(.init("error.process", "183"))
+            }
+        }
+        XCTAssertEqual(attempts, [false, true])
+        XCTAssertFalse(control.hasCommitted)
+    }
+
+    func testRecoveryDoesNotLoopOrRetryUnrelatedFailures() async throws {
+        for key in ["error.process", "error.changedRetry", "error.replace"] {
+            let control = CompressionControl()
+            var attempts = 0
+            do {
+                try await CompressionEngine.recoverAfterSleep(control: control) { _ in
+                    attempts += 1
+                    XCTAssertTrue(control.pause(.systemSleep))
+                    XCTAssertTrue(control.resume(.systemSleep))
+                    throw CompressionError.localized(.init(key))
+                }
+                XCTFail("Expected failure")
+            } catch let error as CompressionError {
+                XCTAssertEqual(error.localizedMessage.key, key)
+            }
+            XCTAssertEqual(attempts, key == "error.process" ? 2 : 1)
+        }
+    }
+
+    func testUserPauseDoesNotTriggerRecovery() async throws {
+        let control = CompressionControl()
+        var attempts = 0
+        do {
+            try await CompressionEngine.recoverAfterSleep(control: control) { _ in
+                attempts += 1
+                XCTAssertTrue(control.pause(.user))
+                XCTAssertTrue(control.resume(.user))
+                throw CompressionError.localized(.init("error.process", "183"))
+            }
+            XCTFail("Expected failure")
+        } catch let error as CompressionError {
+            XCTAssertEqual(error.localizedMessage.key, "error.process")
+        }
+        XCTAssertEqual(attempts, 1)
+    }
+
+    func testRecoveryWaitsForManualResume() async throws {
+        let control = CompressionControl()
+        var resumeTask: Task<Void, Never>?
+        defer { resumeTask?.cancel() }
+        var attempts = 0
+        try await CompressionEngine.recoverAfterSleep(control: control) { retrying in
+            attempts += 1
+            if !retrying {
+                XCTAssertTrue(control.pause(.systemSleep))
+                XCTAssertTrue(control.pause(.user))
+                XCTAssertTrue(control.resume(.systemSleep))
+                resumeTask = Task {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    XCTAssertTrue(control.resume(.user))
+                }
+                throw CompressionError.localized(.init("error.validation"))
+            }
+            XCTAssertFalse(control.isPaused, "Recovery must wait for the user's resume")
+        }
+        XCTAssertEqual(attempts, 2)
+        await resumeTask?.value
+    }
+
+    func testCancellationAfterSleepDoesNotRetry() async throws {
+        let control = CompressionControl()
+        var attempts = 0
+        do {
+            try await CompressionEngine.recoverAfterSleep(control: control) { _ in
+                attempts += 1
+                XCTAssertTrue(control.pause(.systemSleep))
+                XCTAssertTrue(control.resume(.systemSleep))
+                throw CancellationError()
+            }
+            XCTFail("Expected cancellation")
+        } catch is CancellationError {}
+        XCTAssertEqual(attempts, 1)
+    }
 }

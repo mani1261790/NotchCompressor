@@ -10,21 +10,30 @@ public final class CompressionControl: @unchecked Sendable {
     public enum PauseReason: Hashable, Sendable { case user, systemSleep }
     private var reasons = Set<PauseReason>()
     private var finished = false
+    private var sleepGeneration: UInt64 = 0
 
     public init() {}
     var hasCommitted: Bool { lock.withLock { finished } }
     public var isPaused: Bool { lock.withLock { !reasons.isEmpty } }
+    /// A successful system-sleep pause invalidates assumptions about hardware sessions.
+    /// User pauses and duplicate sleep notifications must not trigger recovery retries.
+    var systemSleepGeneration: UInt64 { lock.withLock { sleepGeneration } }
 
     @discardableResult
     public func pause(_ reason: PauseReason = .user) -> Bool {
         lock.withLock {
             guard !finished else { return false }
-            if !reasons.isEmpty { reasons.insert(reason); return true }
+            if !reasons.isEmpty {
+                if reason == .systemSleep, !reasons.contains(reason) { sleepGeneration &+= 1 }
+                reasons.insert(reason)
+                return true
+            }
             if let process, process.isRunning {
                 guard process.suspend() else { return false }
                 suspended = true
             }
             reasons.insert(reason)
+            if reason == .systemSleep { sleepGeneration &+= 1 }
             return true
         }
     }

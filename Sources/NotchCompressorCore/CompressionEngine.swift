@@ -109,29 +109,39 @@ public struct CompressionEngine: Sendable {
             at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: staging) }
         let output = staging.appendingPathComponent("output." + source.pathExtension.lowercased())
-        update(.encoding, 0, plan.note)
-        _ = try await runner.run(executable: tools.ffmpeg, arguments: plan.arguments(input: source, output: output)) {
-            text in
-            if let value = text.split(separator: "\n").last(where: { $0.hasPrefix("out_time_us=") })?.split(
-                separator: "="
-            ).last,
-                let microseconds = Double(value), microseconds.isFinite
-            {
-                update(.encoding, min(0.99, max(0, microseconds / 1_000_000 / media.duration)), plan.note)
+        try await Self.recoverAfterSleep(control: CompressionControl.current) { retrying in
+            guard try Fingerprint(source) == fingerprint else {
+                throw CompressionError.localized(.init("error.changedRetry"))
             }
+            if FileManager.default.fileExists(atPath: output.path) {
+                try FileManager.default.removeItem(at: output)
+            }
+            let attemptNote = retrying ? L10n.text("note.sleepRetry") : plan.note
+            update(.encoding, 0, attemptNote)
+            _ = try await runner.run(executable: tools.ffmpeg, arguments: plan.arguments(input: source, output: output))
+            {
+                text in
+                if let value = text.split(separator: "\n").last(where: { $0.hasPrefix("out_time_us=") })?.split(
+                    separator: "="
+                ).last,
+                    let microseconds = Double(value), microseconds.isFinite
+                {
+                    update(.encoding, min(0.99, max(0, microseconds / 1_000_000 / media.duration)), attemptNote)
+                }
+            }
+            try Task.checkCancellation()
+            try await CompressionControl.current?.checkpoint()
+            update(.validating, 0, attemptNote)
+            let resultMedia = try await probe(output, tools: tools)
+            try Self.validateOutput(original: media, output: resultMedia, mode: mode)
+            _ = try await runner.run(
+                executable: tools.ffmpeg,
+                arguments: [
+                    "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe",
+                    "-i", output.path, "-map", "0:v:0", "-map", "0:a?", "-f", "null", "-",
+                ],
+                timeout: max(300, min(86_400, media.duration * 10)))
         }
-        try Task.checkCancellation()
-        try await CompressionControl.current?.checkpoint()
-        update(.validating, 0, plan.note)
-        let resultMedia = try await probe(output, tools: tools)
-        try Self.validateOutput(original: media, output: resultMedia, mode: mode)
-        _ = try await runner.run(
-            executable: tools.ffmpeg,
-            arguments: [
-                "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe",
-                "-i", output.path, "-map", "0:v:0", "-map", "0:a?", "-f", "null", "-",
-            ],
-            timeout: max(300, min(86_400, media.duration * 10)))
         try Task.checkCancellation()
         guard try Fingerprint(source) == fingerprint else {
             throw CompressionError.localized(.init("error.changedRetry"))
@@ -149,6 +159,28 @@ public struct CompressionEngine: Sendable {
         }
         return try Self.finalizeVerifiedOutput(
             output, original: source, expected: fingerprint, note: plan.note, noteMessage: plan.noteMessage)
+    }
+
+    /// Retry only the encode/validate stage, once, when it crossed a system sleep.
+    /// Final replacement is deliberately outside this recovery boundary.
+    static func recoverAfterSleep(
+        control: CompressionControl?, operation: (Bool) async throws -> Void
+    ) async throws {
+        try await control?.checkpoint()
+        let generation = control?.systemSleepGeneration
+        do {
+            try await operation(false)
+        } catch {
+            try Task.checkCancellation()
+            guard let control, let generation,
+                control.systemSleepGeneration != generation,
+                let failure = error as? CompressionError,
+                ["error.process", "error.validation", "error.timeout"].contains(failure.localizedMessage.key)
+            else { throw error }
+            // A user pause must survive recovery; cancellation must not start a new child.
+            try await control.checkpoint()
+            try await operation(true)
+        }
     }
 
     /// Both outcomes pass the same cancellation and source-change checks under the commit lock.

@@ -252,3 +252,5 @@
 "settings.loginError" = "Could not change the login item. Check Login Items in System Settings.";
 
 "update.current" = "You’re up to date.";
+
+"note.sleepRetry" = "Compression or verification failed after sleep. Retrying from the beginning.";
