@@ -372,3 +372,11 @@ Sparkleの更新確認ではAX上で英語の「最新です」と公開ビル�
 ビルド5（ソースebcacf0）のアプリと日英DMGは3件とも公証Accepted。staple、Gatekeeper、ZIP再展開と同梱ツール実行、appcast署名、全チェックサムを検証。配布物 `dist/0.1.0-build5/`、ログ `.local-work/next/stable-build5-notarize.log`、公証記録 `dist/.candidate.OOZoSs/`。旧ビルド4は保持。
 
 GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commitをebcacf0に更新。認証付きで `.local-work/next/stable-build5-draft-download/` へ再取得し、ローカルとのSHA256SUMS一致と全6ファイルの照合に成功。公開更新フィードとLPのalpha.2ダウンロード導線は保持。対象CI run45434010086はこの時点でin_progress。
+
+## 2026-11-25 ウインドウを閉じた状態での処理継続
+
+公証済みビルド5で、合成動画を20回連結した検証専用 `background.mov` を追加。17%時点の画面を確認後、Window→Closeでキューウインドウが消えたことを確認。非表示中もアプリとFFmpeg子プロセスが継続し、Finderから同じアプリを開き直すと同じタスクが97%まで進んでいた。再度閉じた後、永続キューでvalidating→completed／replacedへの遷移を確認。最終再表示では完了カードがキューから消えていた。
+
+実ファイルと保存結果は807,057,316→503,675,460バイト、303,381,856バイト削減で一致。結果を `.local-work/next/native-acceptance/background-result.json` に保存した。圧縮と検証の両段階でウインドウを閉じても処理が継続することを確認したが、実スリープ・ログアウト・アプリ終了後の継続とは別の検証。ユーザーの動画・設定・通知権限は変更していない。
+
+対象CI run45434010086は単体テスト・書式・翻訳検査までsuccess、配布rehearseはこの時点でin_progress。
