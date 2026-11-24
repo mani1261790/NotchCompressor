@@ -62,6 +62,9 @@ struct QueueView: View {
                     Text("実行中は先頭に固定")
                         .font(.caption).foregroundStyle(.secondary)
                 }
+                Text("画面を閉じても処理は続きます。実行中は自動スリープを抑止します。")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .help("画面の消灯は妨げません。ふたを閉じる・手動スリープ・ログアウト・終了後の処理継続は保証しません。")
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
                     .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")
             }.padding(.horizontal, 24).padding(.bottom, 14)

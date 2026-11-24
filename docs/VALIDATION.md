@@ -236,3 +236,6 @@ CUAのアプリ取得はtimeoutReached。実キー入力による設定・解除
 実FFmpegを含む57テスト成功、失敗0、スキップ0。新規4テストで容量不足の分類・不足量と対処案内、容量増加時の前後サイズ、実プロセスのENOSPCメッセージ、成功／失敗イベントの分離、キャンセル除外、履歴復元を確認した。初回の実メディア7テストはFFmpegキャッシュ不在で失敗し、再ビルド後の全件再実行で解消。releaseビルドと署名検証成功。
 
 CUAのgetAppはtimeoutReached。実ログインでの自動起動、OS通知の許可ダイアログ・実配送・クリック動作は未検証。実ディスクを満杯にする操作は行っていない。ログは `.local-work/usage/final-tests.log` と `build.log`。公証と新版公開は今回実施していない。
+
+
+同日の追加要望としてバックグラウンド処理を補強。最後のウィンドウを閉じても終了しないことをAppDelegateに明示し、AppStateが保持するQueueActivityからProcessInfoのuserInitiated / idleSystemSleepDisabledを実行中だけ取得する。複数workerで一つの活動トークンを共有し、全件一時停止・終了・失敗時に解除する。画面消灯は禁止しない。実行・一時停止・再開・キャンセル・成功／失敗後のトークン解放を2テスト追加して59テスト全件成功（実FFmpeg、スキップ0）。独立したFoundationの検証プロセスで、同じオプションによるPreventUserIdleSystemSleepがpmsetに現れることを確認した。これは実アプリの画面閉鎖や長時間ロック／スリープの実機検証とは区別する。

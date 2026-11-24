@@ -9,6 +9,7 @@ import NotchCompressorCore
 final class AppState: ObservableObject {
     static let shared = AppState()
     let queue: JobQueue
+    private let activity: QueueActivity
     @Published var settingsPresented = false
     @Published var dropError: String?
     private var window: NSWindow?
@@ -16,7 +17,9 @@ final class AppState: ObservableObject {
     private init() {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("com.mani.NotchCompressor", isDirectory: true)
-        queue = JobQueue(storage: folder.appendingPathComponent("queue.json"))
+        let queue = JobQueue(storage: folder.appendingPathComponent("queue.json"))
+        self.queue = queue
+        activity = QueueActivity(queue: queue)
     }
 
     func presentQueue(settings: Bool = false) {
@@ -104,6 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             && launch?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
         if !loginLaunch { AppState.shared.presentQueue() }
     }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         AppState.shared.presentQueue()
