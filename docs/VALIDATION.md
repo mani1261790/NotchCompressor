@@ -328,3 +328,11 @@ Finder上でのインストール操作や日英アプリの実画面確認を�
 アプリ・通常ZIP・配布工程に分散していた番号を `config/release.env` へ集約。alpha.3/build 3の全体rehearseが成功し、両DMG・更新ZIP・対応ソース・ビルド情報のSHA-256を照合。生成Info.plistは表示0.1.0／ビルド3。成果物は `dist/.candidate.rXbWDb/assets/`、ログは `.local-work/next/alpha3-rehearsal.log`。
 
 feed生成に公開済みalpha.2のタグを与えると作成前に拒否。alpha.3のタグとalpha.2の実ZIPを与えた場合もビルド番号不一致で拒否し、どちらもfeedディレクトリを作らないことを確認。署名証明書と登録済みnotarytoolプロファイルのpreflightは成功。これは次版の公証や公開そのものの成功を意味しない。
+
+## 2026-11-25 alpha.3配布候補の署名・公証（未公開）
+
+ソース9d815ba（ビルド3）をDeveloper IDで署名し、アプリ・日本語DMG・英語DMGを公証。3件ともAccepted、各notary logのissuesはnull。アプリと両DMGへstapleし検証、ZIP再展開後の署名と公証チケット、GatekeeperのNotarized Developer ID判定、同梱FFmpeg/ffprobeの実行を確認した。
+
+`dist/0.1.0-alpha.3/` に両DMG・共通更新ZIP・対応FFmpegソース・ビルド情報・署名済みappcast・SHA256SUMSを生成。全ハッシュ照合成功。appcastのEdDSA検証、ビルド3とalpha.3 ZIP URLの一致を確認。ログは `.local-work/next/alpha3-notarize.log`、非公開の公証記録は `dist/.candidate.TXR0zZ/`。
+
+GitHub Releaseと公開更新フィードは未変更。#33で追跡。対象コミットのCIはこの記録時点でqueued。実画面・実スリープ／復帰・alpha.2からのSparkle更新・匿名ダウンロード照合は未確認であり、公証成功から動作確認済みとは推定しない。
