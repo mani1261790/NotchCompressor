@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     static let shared = AppState()
     let queue: JobQueue
     private let activity: QueueActivity
+    private let sleepMonitor: QueueSleepMonitor
     @Published var settingsPresented = false
     @Published var dropError: String?
     private var window: NSWindow?
@@ -20,6 +21,7 @@ final class AppState: ObservableObject {
         let queue = JobQueue(storage: folder.appendingPathComponent("queue.json"))
         self.queue = queue
         activity = QueueActivity(queue: queue)
+        sleepMonitor = QueueSleepMonitor(queue: queue)
     }
 
     func presentQueue(settings: Bool = false) {

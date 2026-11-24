@@ -53,7 +53,7 @@ public struct ProcessRunner: Sendable {
                     if cancellation.cancelled || activeTime > timeout {
                         timedOut = !cancellation.cancelled
                         if stopTime == nil {
-                            _ = control?.resume()
+                            control?.resumeForCancellation()
                             process.terminate(); stopTime = Date()
                         }
                         if let stopTime, Date().timeIntervalSince(stopTime) > 2, process.isRunning {

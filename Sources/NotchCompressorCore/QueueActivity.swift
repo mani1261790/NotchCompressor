@@ -4,7 +4,7 @@ import Foundation
 /// Owns one process activity while workers are doing work, independently of any window.
 @MainActor
 public final class QueueActivity {
-    public static let options: ProcessInfo.ActivityOptions = [.userInitiated, .idleSystemSleepDisabled]
+    public nonisolated static let options: ProcessInfo.ActivityOptions = [.userInitiated, .idleSystemSleepDisabled]
     private var token: NSObjectProtocol?
     private let begin: () -> NSObjectProtocol
     private let finish: (NSObjectProtocol) -> Void
@@ -21,7 +21,8 @@ public final class QueueActivity {
         self.begin = begin
         self.finish = finish
         observation = queue.$runningIDs.combineLatest(queue.$pausedIDs, queue.$cancelling)
-            .map { running, paused, cancelling in !running.subtracting(paused).isEmpty || !cancelling.isEmpty }
+            .combineLatest(queue.$systemSleeping)
+            .map { state, sleeping in !sleeping && (!state.0.subtracting(state.1).isEmpty || !state.2.isEmpty) }
             .removeDuplicates()
             .sink { [weak self] working in self?.setWorking(working) }
     }

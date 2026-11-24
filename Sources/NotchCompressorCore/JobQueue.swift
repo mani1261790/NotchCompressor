@@ -82,6 +82,11 @@ public final class JobQueue: ObservableObject {
     private var activeOrder: [UUID] = []
     private var controls: [UUID: CompressionControl] = [:]
     private var resumedPhases: [UUID: JobPhase] = [:]
+    @Published public private(set) var systemSleeping = false
+    private var systemPausedIDs = Set<UUID>()
+    private var userPausedIDs = Set<UUID>()
+    private var recoveryChecks = Set<UUID>()
+    private var recoveryFailures: [UUID: String] = [:]
     private var removalRequests = Set<UUID>()
     @Published public private(set) var pausedIDs = Set<UUID>()
     private var activeResources: [UUID: String] = [:]
@@ -111,6 +116,7 @@ public final class JobQueue: ObservableObject {
         } + queuedJobs
     }
     public var schedulingDescription: String {
+        if systemSleeping { return "Macのスリープからの復帰を待っています" }
         if isPaused {
             if !pausedIDs.isEmpty { return "一時停止中・アプリを開いたままなら途中から再開できます" }
             if !cancelling.isEmpty { return "圧縮を停止しています。次の処理は開始しません" }
@@ -199,11 +205,12 @@ public final class JobQueue: ObservableObject {
     }
 
     public func pause(_ id: UUID) {
-        guard !cancelling.contains(id), !pausedIDs.contains(id),
+        guard !cancelling.contains(id), !userPausedIDs.contains(id),
             let index = jobs.firstIndex(where: { $0.id == id }),
             !jobs[index].phase.isFinished, let control = controls[id], control.pause()
         else { return }
-        resumedPhases[id] = jobs[index].phase
+        userPausedIDs.insert(id)
+        if !pausedIDs.contains(id) { resumedPhases[id] = jobs[index].phase }
         jobs[index].phase = .paused
         pausedIDs.insert(id)
         let job = jobs.remove(at: index)
@@ -212,12 +219,80 @@ public final class JobQueue: ObservableObject {
     }
 
     public func resume(_ id: UUID) {
-        guard pausedIDs.contains(id), !cancelling.contains(id),
-            let index = jobs.firstIndex(where: { $0.id == id }), controls[id]?.resume() == true
+        guard userPausedIDs.contains(id), !cancelling.contains(id) else { return }
+        if !systemSleeping, !checkRecovery(id) { return }
+        guard controls[id]?.resume() == true else {
+            failRecovery(id, message: "圧縮プロセスを再開できませんでした。元動画を確認して再試行してください。")
+            return
+        }
+        userPausedIDs.remove(id)
+        restorePhaseIfRunning(id)
+        persist()
+    }
+
+    private func restorePhaseIfRunning(_ id: UUID) {
+        guard !userPausedIDs.contains(id), !systemPausedIDs.contains(id),
+            let index = jobs.firstIndex(where: { $0.id == id })
         else { return }
         jobs[index].phase = resumedPhases.removeValue(forKey: id) ?? .encoding
         pausedIDs.remove(id)
+    }
+
+    public func prepareForSystemSleep() {
+        guard !systemSleeping else { return }
+        systemSleeping = true  // Close dispatch before suspending any worker.
+        for id in activeOrder where !cancelling.contains(id) {
+            guard let control = controls[id], !control.hasCommitted,
+                let index = jobs.firstIndex(where: { $0.id == id })
+            else { continue }
+            guard control.pause(.systemSleep) else {
+                if !control.hasCommitted {
+                    failRecovery(id, message: "スリープ前に処理を一時停止できませんでした。元動画を確認して再試行してください。")
+                }
+                continue
+            }
+            if !pausedIDs.contains(id) { resumedPhases[id] = jobs[index].phase }
+            systemPausedIDs.insert(id)
+            recoveryChecks.insert(id)
+            jobs[index].phase = .paused
+            pausedIDs.insert(id)
+        }
         persist()
+    }
+
+    public func resumeAfterSystemSleep() {
+        guard systemSleeping else { return }
+        // Keep dispatch closed until all existing workers have been handled.
+        for id in Array(systemPausedIDs) where !cancelling.contains(id) {
+            if !userPausedIDs.contains(id), !checkRecovery(id) { continue }
+            guard controls[id]?.resume(.systemSleep) == true else {
+                failRecovery(id, message: "スリープ後に圧縮プロセスを再開できませんでした。元動画を確認して再試行してください。")
+                continue
+            }
+            systemPausedIDs.remove(id)
+            restorePhaseIfRunning(id)
+        }
+        systemSleeping = false
+        persist()
+        startNext()
+    }
+
+    private func checkRecovery(_ id: UUID) -> Bool {
+        guard recoveryChecks.contains(id), let job = jobs.first(where: { $0.id == id }) else { return true }
+        let fm = FileManager.default
+        guard fm.isReadableFile(atPath: job.input.path),
+            fm.isWritableFile(atPath: job.input.deletingLastPathComponent().path)
+        else {
+            failRecovery(id, message: "スリープ後に元動画または保存先へアクセスできません。外付けディスクの接続とアクセス権を確認して再試行してください。")
+            return false
+        }
+        recoveryChecks.remove(id)
+        return true
+    }
+
+    private func failRecovery(_ id: UUID, message: String) {
+        recoveryFailures[id] = message
+        cancel(id)
     }
 
     public func pauseAll() {
@@ -299,7 +374,7 @@ public final class JobQueue: ObservableObject {
     }
 
     private func startNext() {
-        guard accepting, !isPaused else { return }
+        guard accepting, !isPaused, !systemSleeping else { return }
         environment = readEnvironment()
         let limit = execution == .serial || (execution == .automatic && environment.conservesResources) ? 1 : 2
         while workers.count < limit {
@@ -332,6 +407,7 @@ public final class JobQueue: ObservableObject {
                     try await self.operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
                         Task { @MainActor in
                             guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
+                                !self.cancelling.contains(job.id),
                                 let index = self.jobs.firstIndex(where: { $0.id == job.id }),
                                 !self.jobs[index].phase.isFinished
                             else { return }
@@ -352,6 +428,7 @@ public final class JobQueue: ObservableObject {
                     recordCompletion(result)
                 }
             } catch {
+                let error: Error = recoveryFailures[job.id].map { CompressionError.message($0) } ?? error
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
                     jobs[index].diskSpaceIssue = DiskSpaceIssue.classify(error)
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
@@ -370,6 +447,10 @@ public final class JobQueue: ObservableObject {
                     }
                 }
             }
+            systemPausedIDs.remove(job.id)
+            userPausedIDs.remove(job.id)
+            recoveryChecks.remove(job.id)
+            recoveryFailures.removeValue(forKey: job.id)
             pausedIDs.remove(job.id)
             resumedPhases.removeValue(forKey: job.id)
             controls.removeValue(forKey: job.id)

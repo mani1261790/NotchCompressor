@@ -34,7 +34,11 @@ final class PauseTests: XCTestCase {
         let held = output.value
         try await Task.sleep(for: .seconds(3.2))
         XCTAssertEqual(output.value, held)
+        XCTAssertTrue(control.pause(.systemSleep))
         XCTAssertTrue(control.resume())
+        XCTAssertTrue(control.isPaused, "User resume must not bypass system sleep")
+        XCTAssertEqual(output.value, held)
+        XCTAssertTrue(control.resume(.systemSleep))
         let data = try await task.value
         let lines = String(decoding: data, as: UTF8.self).split(separator: "\n").map(String.init)
         XCTAssertEqual(lines.first, held.split(separator: "\n").first.map(String.init))
@@ -54,6 +58,7 @@ final class PauseTests: XCTestCase {
         }
         try await waitFor { output.value.contains("ready") }
         XCTAssertTrue(control.pause())
+        XCTAssertTrue(control.pause(.systemSleep))
         task.cancel()
         do { _ = try await task.value; XCTFail("Expected cancellation") } catch {
             XCTAssertTrue(error is CancellationError)

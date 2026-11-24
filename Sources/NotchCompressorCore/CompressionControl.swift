@@ -7,35 +7,49 @@ public final class CompressionControl: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?
     private var suspended = false
-    private var paused = false
+    public enum PauseReason: Hashable, Sendable { case user, systemSleep }
+    private var reasons = Set<PauseReason>()
     private var finished = false
 
     public init() {}
-    public var isPaused: Bool { lock.withLock { paused } }
+    var hasCommitted: Bool { lock.withLock { finished } }
+    public var isPaused: Bool { lock.withLock { !reasons.isEmpty } }
 
     @discardableResult
-    public func pause() -> Bool {
+    public func pause(_ reason: PauseReason = .user) -> Bool {
         lock.withLock {
             guard !finished else { return false }
-            if paused { return true }
+            if !reasons.isEmpty { reasons.insert(reason); return true }
             if let process, process.isRunning {
                 guard process.suspend() else { return false }
                 suspended = true
             }
-            paused = true
+            reasons.insert(reason)
             return true
         }
     }
 
     @discardableResult
-    public func resume() -> Bool {
+    public func resume(_ reason: PauseReason = .user) -> Bool {
         lock.withLock {
+            var remaining = reasons
+            remaining.remove(reason)
+            if !remaining.isEmpty { reasons = remaining; return true }
             if suspended, let process, process.isRunning {
                 guard process.resume() else { return false }
             }
             suspended = false
-            paused = false
+            reasons = remaining
             return true
+        }
+    }
+
+    /// Cancellation must release every suspension reason before terminating a child.
+    func resumeForCancellation() {
+        lock.withLock {
+            if suspended, let process, process.isRunning { _ = process.resume() }
+            suspended = false
+            reasons.removeAll()
         }
     }
 
@@ -43,7 +57,7 @@ public final class CompressionControl: @unchecked Sendable {
         try lock.withLock {
             try process.run()
             self.process = process
-            if paused, process.isRunning {
+            if !reasons.isEmpty, process.isRunning {
                 guard process.suspend() else {
                     process.terminate()
                     throw CompressionError.message("圧縮を一時停止できませんでした。")
@@ -71,7 +85,7 @@ public final class CompressionControl: @unchecked Sendable {
     /// Returns nil when a pause won the race; caller waits and tries again.
     func commit<T>(_ body: () throws -> T) rethrows -> T? {
         try lock.withLock {
-            guard !paused else { return nil }
+            guard reasons.isEmpty else { return nil }
             finished = true
             return try body()
         }
