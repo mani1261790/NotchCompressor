@@ -123,6 +123,50 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: broken), contents)
     }
 
+    func testVerifiedOutputRetainsOriginalUnlessStrictlySmaller() throws {
+        let folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("source.mov")
+        let staged = folder.appendingPathComponent("staged.mov")
+        for size in [8, 12, 4] {
+            try Data(repeating: 1, count: 8).write(to: source)
+            let before = try Fingerprint(source)
+            try Data(repeating: 2, count: size).write(to: staged)
+            let result = try CompressionEngine.finalizeVerifiedOutput(
+                staged, original: source, expected: before, note: nil)
+            XCTAssertEqual(result.candidateBytes, Int64(size))
+            XCTAssertEqual(result.outputBytes, Int64(min(size, 8)))
+            XCTAssertEqual(result.effectiveOutcome, size < 8 ? .replaced : .originalKept)
+            XCTAssertEqual(try Data(contentsOf: source), Data(repeating: size < 8 ? 2 : 1, count: min(size, 8)))
+            if size >= 8 { XCTAssertEqual(try Fingerprint(source), before) }
+        }
+        let before = try Fingerprint(source)
+        try Data(repeating: 3, count: 20).write(to: staged)
+        try Data(repeating: 4, count: 5).write(to: source)
+        XCTAssertThrowsError(
+            try CompressionEngine.finalizeVerifiedOutput(staged, original: source, expected: before, note: nil))
+        XCTAssertEqual(try Data(contentsOf: source), Data(repeating: 4, count: 5))
+    }
+
+    func testRealLargerOutputKeepsOriginalAndRemovesStaging() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("small.mp4")
+        _ = try await ProcessRunner().run(
+            executable: tools.ffmpeg,
+            arguments: [
+                "-v", "error", "-f", "lavfi", "-i", "color=size=64x64:rate=1:duration=1",
+                "-c:v", "h264_videotoolbox", "-b:v", "32000", "-n", source.path,
+            ])
+        let original = try Data(contentsOf: source)
+        let result = try await CompressionEngine().compress(input: source, mode: .video, settings: .init())
+        XCTAssertEqual(result.effectiveOutcome, .originalKept)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(result.candidateBytes), result.originalBytes)
+        XCTAssertEqual(result.outputBytes, result.originalBytes)
+        XCTAssertEqual(try Data(contentsOf: source), original)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["small.mp4"])
+    }
+
     func testReplacementPreservesNameAndPermissions() throws {
         let folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }

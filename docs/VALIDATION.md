@@ -253,3 +253,12 @@ alpha.2をGitHubのPre-releaseとして公開し、認証なしのHTTPSダウン
 画面操作ツールのgetAppは今回もtimeoutReached。Finderでの実ドラッグ、別ユーザーでの初回起動、ログイン起動、通知の配送・クリック、Sparkleの実インストール・再起動は未確認。この制限を公開説明に明記して試験版として配布。公証通過とUI操作成功は区別し、関連Issueは未確認作業の追跡に残す。
 
 記録: `.local-work/usage/notarize-release.log`、`signed-tests.log`、`public-download/`。公証ログは `dist/.candidate.LLZXCG/`。
+
+
+## 2026-11-25 削減なしの場合の原本保持（#29、未公開）
+
+圧縮候補が元以上のサイズの場合は置換せず、originalKeptの結果を記録。候補サイズと実保存サイズを分離し、通知・履歴へ原本保持を表示する。全体デコード検証と確定直前の変更検知・キャンセル確認を維持。既存CompressionControlのcommit排他で停止と確定の競合を防ぐ。
+
+実FFmpegを含む64テストが失敗0・スキップ0で成功。同容量・増加時の原本と属性保持、削減時の置換、外部変更の拒否、実動画での増加・一時出力掃除、通知集計・履歴復元・旧履歴互換を確認。従来の停止・再開・キャンセル試験も成功。ログは `.local-work/next/step1-tests.log`。
+
+段階1のreleaseアプリビルド・署名検証も成功。

@@ -180,6 +180,9 @@ private struct JobRow: View {
                     )
                     .foregroundStyle(result.savedFraction >= 0 ? Color.green : Color.orange)
                 }.font(.callout)
+                if result.effectiveOutcome == .originalKept {
+                    Text(result.completionMessage ?? "").font(.caption).foregroundStyle(.secondary)
+                }
                 if result.savedFraction < 0 { Text("圧縮前よりファイル容量が増えました。").font(.caption).foregroundStyle(.secondary) }
             }
             if job.phase == .paused {

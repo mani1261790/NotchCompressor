@@ -348,7 +348,7 @@ public final class JobQueue: ObservableObject {
                     jobs[index].phase = .completed
                     jobs[index].progress = 1
                     jobs[index].result = result
-                    jobs[index].message = result.note
+                    jobs[index].message = result.completionMessage
                     recordCompletion(result)
                 }
             } catch {

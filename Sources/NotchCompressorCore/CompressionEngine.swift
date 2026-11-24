@@ -18,11 +18,32 @@ public enum JobPhase: String, Codable, Sendable {
     public var isFinished: Bool { [.completed, .failed, .cancelled, .interrupted].contains(self) }
 }
 
+public enum CompressionOutcome: String, Codable, Sendable {
+    case replaced, originalKept
+}
+
 public struct CompressionResult: Codable, Sendable {
     public let output: URL
     public let originalBytes: Int64
     public let outputBytes: Int64
     public let note: String?
+    public let outcome: CompressionOutcome?
+    public let candidateBytes: Int64?
+    public var effectiveOutcome: CompressionOutcome { outcome ?? .replaced }
+    public var completionMessage: String? {
+        effectiveOutcome == .originalKept ? "容量が減らなかったため元動画を保持しました。" : note
+    }
+    public init(
+        output: URL, originalBytes: Int64, outputBytes: Int64, note: String?,
+        outcome: CompressionOutcome? = nil, candidateBytes: Int64? = nil
+    ) {
+        self.output = output
+        self.originalBytes = originalBytes
+        self.outputBytes = outputBytes
+        self.note = note
+        self.outcome = outcome
+        self.candidateBytes = candidateBytes
+    }
     public var savedFraction: Double { 1 - Double(outputBytes) / Double(max(1, originalBytes)) }
 }
 
@@ -112,22 +133,36 @@ public struct CompressionEngine: Sendable {
         guard try Fingerprint(source) == fingerprint else {
             throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。もう一度お試しください。")
         }
-        let destination: URL
         if let control = CompressionControl.current {
             while true {
                 try await control.checkpoint()
-                if let committed = try control.commit({
-                    try Self.replaceOriginal(output, original: source, expected: fingerprint)
+                if let result = try control.commit({
+                    try Self.finalizeVerifiedOutput(output, original: source, expected: fingerprint, note: plan.note)
                 }) {
-                    destination = committed
-                    break
+                    return result
                 }
             }
-        } else {
-            destination = try Self.replaceOriginal(output, original: source, expected: fingerprint)
         }
+        return try Self.finalizeVerifiedOutput(output, original: source, expected: fingerprint, note: plan.note)
+    }
+
+    /// Both outcomes pass the same cancellation and source-change checks under the commit lock.
+    static func finalizeVerifiedOutput(
+        _ staged: URL, original: URL, expected: Fingerprint,
+        note: String?
+    ) throws -> CompressionResult {
+        try Task.checkCancellation()
+        guard try Fingerprint(original) == expected else {
+            throw CompressionError.message("処理中に元ファイルが変更されたため、出力を確定しませんでした。")
+        }
+        let candidate = Int64(clamping: try Fingerprint(staged).size)
+        let originalBytes = Int64(clamping: expected.size)
+        let keep = candidate >= originalBytes
+        if !keep { _ = try replaceOriginal(staged, original: original, expected: expected) }
         return CompressionResult(
-            output: destination, originalBytes: media.size, outputBytes: resultMedia.size, note: plan.note)
+            output: original, originalBytes: originalBytes,
+            outputBytes: keep ? originalBytes : candidate, note: note,
+            outcome: keep ? .originalKept : .replaced, candidateBytes: candidate)
     }
 
     static func validateOutput(original: MediaInfo, output: MediaInfo, mode: CompressionMode) throws {

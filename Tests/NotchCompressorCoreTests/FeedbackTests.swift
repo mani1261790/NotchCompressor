@@ -14,6 +14,39 @@ final class FeedbackTests: XCTestCase {
         XCTAssertTrue(notice.text.contains("削減"))
     }
 
+    @MainActor
+    func testRetainedResultNotifiesAndRestoresWithoutQueueCard() async throws {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = folder.appendingPathComponent("queue.json")
+        let result = CompressionResult(
+            output: folder.appendingPathComponent("source.mov"), originalBytes: 1000,
+            outputBytes: 1000, note: nil, outcome: .originalKept, candidateBytes: 1500)
+        let queue = JobQueue(storage: storage, operation: { _, _, _, _ in result })
+        queue.enqueue([result.output], mode: .both)
+        await queue.waitUntilIdle()
+        XCTAssertTrue(queue.displayedJobs.isEmpty)
+        XCTAssertEqual(queue.jobs.first?.phase, .completed)
+        XCTAssertEqual(queue.completionNotice?.savedBytes, 0)
+        XCTAssertTrue(queue.completionNotice?.text.contains("元動画を保持") == true)
+        let restored = JobQueue(storage: storage)
+        XCTAssertEqual(restored.jobs.first?.result?.effectiveOutcome, .originalKept)
+        XCTAssertEqual(restored.jobs.first?.result?.candidateBytes, 1500)
+        XCTAssertNil(restored.completionNotice)
+        var notice = CompletionNotice()
+        notice.include(result)
+        notice.include(.init(output: result.output, originalBytes: 2000, outputBytes: 500, note: nil))
+        XCTAssertEqual(notice.savedBytes, 1500)
+        XCTAssertEqual(notice.originalKeptCount, 1)
+        var old = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(result)) as? [String: Any])
+        old.removeValue(forKey: "outcome")
+        old.removeValue(forKey: "candidateBytes")
+        let legacy = try JSONDecoder().decode(CompressionResult.self, from: JSONSerialization.data(withJSONObject: old))
+        XCTAssertEqual(legacy.effectiveOutcome, .replaced)
+        XCTAssertNil(legacy.candidateBytes)
+    }
+
     func testMixedQueueDoesNotHidePausedOrFailedJobs() {
         var running = CompressionJob(input: URL(fileURLWithPath: "/tmp/a.mov"), mode: .both, settings: .init())
         running.phase = .encoding

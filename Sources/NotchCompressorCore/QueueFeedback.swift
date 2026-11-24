@@ -2,12 +2,14 @@ import Foundation
 
 public struct CompletionNotice: Equatable, Sendable {
     public private(set) var count = 0
+    public private(set) var originalKeptCount = 0
     public private(set) var originalBytes: Int64 = 0
     public private(set) var outputBytes: Int64 = 0
 
     public init() {}
     public mutating func include(_ result: CompressionResult) {
         count += 1
+        if result.effectiveOutcome == .originalKept { originalKeptCount += 1 }
         originalBytes += result.originalBytes
         outputBytes += result.outputBytes
     }
@@ -18,7 +20,8 @@ public struct CompletionNotice: Equatable, Sendable {
     public var text: String {
         let bytes = ByteCountFormatter.string(fromByteCount: abs(savedBytes), countStyle: .file)
         let difference = savedBytes > 0 ? "\(bytes)削減" : savedBytes < 0 ? "\(bytes)増加" : "容量の変化なし"
-        return "\(count)件完了 · \(sizeTransition)（\(difference)）"
+        let retained = originalKeptCount == 0 ? "" : " · \(originalKeptCount)件は削減なしのため元動画を保持"
+        return "\(count)件完了 · \(sizeTransition)（\(difference)）" + retained
     }
 }
 
