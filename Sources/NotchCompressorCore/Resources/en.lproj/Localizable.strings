@@ -250,3 +250,5 @@
 "settings.originalPercent" = "%@%% of original";
 "settings.kbps" = "%@ kbps";
 "settings.loginError" = "Could not change the login item. Check Login Items in System Settings.";
+
+"update.current" = "You’re up to date.";

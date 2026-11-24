@@ -70,6 +70,13 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         deferredInstall?.cancel()
         installing = false
+        let failure = error as NSError
+        // Sparkle reports a successful check with no newer release via this callback too.
+        if failure.domain == SUSparkleErrorDomain && failure.code == Int(SUError.noUpdateError.rawValue) {
+            status = L10n.text("update.current")
+            technicalDetails = nil
+            return
+        }
         status = L10n.text("update.error")
         technicalDetails = error.localizedDescription
     }

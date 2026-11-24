@@ -32,7 +32,7 @@ arch="$(uname -m)"
 [[ "$arch" == arm64 ]] || { echo 'This release targets arm64.' >&2; exit 1; }
 version="$NOTCH_RELEASE_VERSION"
 name="NotchCompressor-$version-$arch"
-dest="$PWD/dist/$version"
+dest="$PWD/dist/$version-build$NOTCH_BUILD_NUMBER"
 if [[ "$mode" == notarize ]]; then
     [[ ! -e "$dest" && -z "$(git status --porcelain)" ]] || { echo "Use a clean checkout and an unused release directory." >&2; exit 1; }
 else

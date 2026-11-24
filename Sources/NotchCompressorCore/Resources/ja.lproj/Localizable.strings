@@ -250,3 +250,5 @@
 "settings.originalPercent" = "元の%@%%";
 "settings.kbps" = "%@ kbps";
 "settings.loginError" = "ログイン項目を変更できませんでした。システム設定のログイン項目を確認してください。";
+
+"update.current" = "現在のバージョンは最新です。";
