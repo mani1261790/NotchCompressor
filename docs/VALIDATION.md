@@ -380,3 +380,9 @@ GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commit�
 実ファイルと保存結果は807,057,316→503,675,460バイト、303,381,856バイト削減で一致。結果を `.local-work/next/native-acceptance/background-result.json` に保存した。圧縮と検証の両段階でウインドウを閉じても処理が継続することを確認したが、実スリープ・ログアウト・アプリ終了後の継続とは別の検証。ユーザーの動画・設定・通知権限は変更していない。
 
 対象CI run45434010086は単体テスト・書式・翻訳検査までsuccess、配布rehearseはこの時点でin_progress。
+
+## 2026-11-25 削減なしの原本保持と英語表示を実確認
+
+公証済みビルド5で、黒画面HEVCと16 kbps AACを含む10秒の合成動画 `keep-original.mov` を作り、追加メニューのAudio onlyで処理。候補41,306バイトは原本38,906バイト以上のため、保存結果はcompleted／originalKept、実際の保存容量は38,906バイトのままだった。事前SHA-256との一致を確認。候補容量を保存済み容量と混同していない。
+
+実画面とAXで `Completed: 1 · 39 kB → 39 kB (No size change) · Originals kept without size reduction: 1` を確認し、失敗扱いにならずカードが除外され、通常の説明は英語で統一されていた。結果JSONは `.local-work/next/native-acceptance/keep-original-result.json`、事前ハッシュは同ディレクトリの `keep-original-before.sha256`。通知バナー・日本語画面は別途未確認。ユーザーの動画や設定は変更していない。
