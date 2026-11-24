@@ -24,12 +24,20 @@ final class LocalizationTests: XCTestCase {
             XCTAssertTrue(notice.text.hasPrefix("Completed: 1"))
             XCTAssertTrue(notice.text.contains("Originals kept without size reduction: 1"))
             XCTAssertFalse(notice.text.contains("件"))
+            XCTAssertEqual(
+                CompressionQuality.gentle.videoBudgetDescription, "Automatic, capped at about 85% of the source bitrate"
+            )
+            XCTAssertEqual(L10n.text("settings.originalPercent", "50"), "50% of original")
+            XCTAssertEqual(L10n.text("queue.counts", "1", "0", "2"), "Running: 1 · Paused: 0 · Waiting: 2")
         }
         L10n.$languageOverride.withValue("ja") {
             XCTAssertEqual(CompressionMode.both.title, "画質＋音質")
             XCTAssertEqual(restored.text, "音声80 kbps")
             XCTAssertEqual(JobPhase.validating.title, "出力を検証中")
             XCTAssertTrue(FailureNotice(diskSpaceIssue: .init()).body.contains("空き容量"))
+            XCTAssertEqual(CompressionQuality.gentle.videoBudgetDescription, "自動調整・元の85%を上限の目安に")
+            XCTAssertEqual(L10n.text("settings.originalPercent", "50"), "元の50%")
+            XCTAssertEqual(L10n.text("queue.counts", "1", "0", "2"), "実行中 1件 · 一時停止 0件 · 待機 2件")
         }
     }
 
@@ -80,6 +88,11 @@ final class LocalizationTests: XCTestCase {
             XCTAssertNil(english.range(of: "[ぁ-んァ-ヶ一-龠]", options: .regularExpression), key)
             XCTAssertFalse(english.isEmpty)
             XCTAssertFalse(japanese.isEmpty)
+            for template in [english, japanese] {
+                let withoutFormats = template.replacingOccurrences(of: "%@", with: "")
+                    .replacingOccurrences(of: "%%", with: "")
+                XCTAssertFalse(withoutFormats.contains("%"), "Unsupported or unescaped format in \(key)")
+            }
         }
     }
 }

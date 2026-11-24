@@ -17,6 +17,8 @@ jobs:
         run: xcodebuild -version
       - name: Swift formatting
         run: bash scripts/format.sh check
+      - name: Localization catalogs
+        run: python3 scripts/check-localization.py
       - name: Unit tests
         run: swift test
       - name: Rehearse distribution (no Apple credentials)

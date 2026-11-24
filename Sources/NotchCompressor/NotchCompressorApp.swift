@@ -44,7 +44,7 @@ final class AppState: ObservableObject {
 
     func chooseVideos(mode: CompressionMode) {
         let panel = NSOpenPanel()
-        panel.title = "圧縮する動画を選択 — \(mode.title)"
+        panel.title = L10n.text("app.choose", mode.title)
         panel.allowedContentTypes = [.movie]
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
@@ -66,18 +66,21 @@ struct NotchCompressorApp: App {
             Text(queue.status.title)
             if let notice = queue.completionNotice { Text(notice.text) }
             Divider()
-            Button("圧縮キューを開く\(queue.pendingCount > 0 ? "（\(queue.pendingCount)件）" : "")") {
+            Button(
+                queue.pendingCount > 0
+                    ? L10n.text("app.openQueueCount", L10n.integer(queue.pendingCount)) : L10n.text("app.openQueue")
+            ) {
                 AppState.shared.presentQueue()
             }
-            Button("設定…") { AppState.shared.presentQueue(settings: true) }
+            Button(L10n.text("app.settings")) { AppState.shared.presentQueue(settings: true) }
                 .keyboardShortcut(",")
-            Button("アップデートを確認…") { updates.check() }
+            Button(L10n.text("app.checkUpdates")) { updates.check() }
                 .disabled(!updates.canCheck || queue.isBusy)
             Divider()
-            Text("左：画質　中央：両方　右：音質")
-            Text("検証後に元動画を置き換えます")
+            Text(L10n.text("app.zones"))
+            Text(L10n.text("app.replace"))
             Divider()
-            Button("NotchCompressorを終了") { NSApplication.shared.terminate(nil) }
+            Button(L10n.text("app.quit")) { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
             Image(
@@ -124,11 +127,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if UpdateController.shared.installing { return .terminateCancel }
         guard !terminating else { return .terminateLater }
         let alert = NSAlert()
-        alert.messageText = "圧縮を中止して終了しますか？"
+        alert.messageText = L10n.text("app.quitTitle")
         alert.informativeText =
-            "実行中・一時停止中・待機中の\(queue.pendingCount)件を中止します。途中データは破棄され、次回は最初からの再試行になります。元ファイルと完了済みの出力は残ります。"
-        alert.addButton(withTitle: "処理を続ける")
-        alert.addButton(withTitle: "中止して終了")
+            L10n.text("app.quitBody", L10n.integer(queue.pendingCount))
+        alert.addButton(withTitle: L10n.text("app.keepRunning"))
+        alert.addButton(withTitle: L10n.text("app.cancelQuit"))
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         terminating = true
         Task {
@@ -157,7 +160,7 @@ struct DropPanel: View {
                                 DropZone(mode: mode, targeted: presentation.mode == mode)
                             }
                         }
-                        Text("ドロップして圧縮・検証後に元動画を置き換え")
+                        Text(L10n.text("notch.dropHint"))
                             .font(.caption2).foregroundStyle(.white.opacity(0.65))
                     }.padding(14).frame(height: 148)
                 }
@@ -176,13 +179,17 @@ struct DropZone: View {
         VStack(spacing: 7) {
             Image(systemName: mode.symbol).font(.title2)
             Text(mode.title).font(.callout.weight(.semibold))
-            Text(mode == .video ? "音声はそのまま" : mode == .audio ? "映像はそのまま" : "映像と音声を圧縮")
-                .font(.system(size: 10))
+            Text(
+                mode == .video
+                    ? L10n.text("notch.keepAudio")
+                    : mode == .audio ? L10n.text("notch.keepVideo") : L10n.text("notch.both")
+            )
+            .font(.system(size: 10))
         }
         .foregroundStyle(targeted ? .black : .white)
         .frame(maxWidth: .infinity).frame(height: 88)
         .background(targeted ? Color.mint : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
         .animation(.easeOut(duration: 0.1), value: targeted)
-        .accessibilityLabel("\(mode.title)のドロップ領域")
+        .accessibilityLabel(L10n.text("notch.accessibility", mode.title))
     }
 }

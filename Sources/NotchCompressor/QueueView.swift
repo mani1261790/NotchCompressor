@@ -12,11 +12,13 @@ struct QueueView: View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("圧縮キュー").font(.title2.weight(.semibold))
+                    Text(L10n.text("queue.title")).font(.title2.weight(.semibold))
                     Text(
                         queue.pendingCount > 0
-                            ? "実行中 \(queue.runningCount)件 · 一時停止 \(queue.pausedIDs.count)件 · 待機 \(queue.waitingJobs.count)件"
-                            : "動画を画面上端の中央へドラッグ"
+                            ? L10n.text(
+                                "queue.counts", L10n.integer(queue.runningCount), L10n.integer(queue.pausedIDs.count),
+                                L10n.integer(queue.waitingJobs.count))
+                            : L10n.text("queue.dragHint")
                     )
                     .font(.callout).foregroundStyle(.secondary)
                 }
@@ -42,14 +44,14 @@ struct QueueView: View {
                         .allowsHitTesting(false)
                         .accessibilityHidden(true)
                 }
-                .help("動画を追加して圧縮方法を選ぶ").accessibilityLabel("動画を追加")
-                IconControl(title: "設定", symbol: "gearshape") { app.settingsPresented = true }
+                .help(L10n.text("queue.addHelp")).accessibilityLabel(L10n.text("queue.add"))
+                IconControl(title: L10n.text("ui.settings"), symbol: "gearshape") { app.settingsPresented = true }
             }
             .padding(24)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Menu {
-                        Picker("実行方式", selection: $queue.execution) {
+                        Picker(L10n.text("queue.execution"), selection: $queue.execution) {
                             ForEach(QueueExecution.allCases) { mode in Text(mode.title).tag(mode) }
                         }
                     } label: {
@@ -57,16 +59,16 @@ struct QueueView: View {
                             Label(queue.execution.title, systemImage: "slider.horizontal.3")
                             Image(systemName: "chevron.down").font(.system(size: 9, weight: .semibold))
                         }
-                    }.capsuleMenu().accessibilityLabel("実行方式：\(queue.execution.title)")
+                    }.capsuleMenu().accessibilityLabel(L10n.text("queue.executionValue", queue.execution.title))
                     Spacer()
-                    Text("実行中は先頭に固定")
+                    Text(L10n.text("queue.runningFixed"))
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Text("画面を閉じても処理は続きます。実行中は自動スリープを抑止します。")
+                Text(L10n.text("queue.background"))
                     .font(.caption).foregroundStyle(.secondary)
-                    .help("画面の消灯は妨げません。ふたを閉じる・手動スリープ・ログアウト・終了後の処理継続は保証しません。")
+                    .help(L10n.text("queue.sleepHelp"))
                 Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
-                    .help("空き枠で実行できる動画から開始します。実行中以外のカードはドラッグで並べ替え・個別に除外できます。")
+                    .help(L10n.text("queue.orderHelp"))
             }.padding(.horizontal, 24).padding(.bottom, 14)
             Divider()
             if let notice = queue.completionNotice {
@@ -74,13 +76,13 @@ struct QueueView: View {
                     Label(notice.text, systemImage: "checkmark.circle")
                         .font(.callout).accessibilityLabel(notice.text)
                     Spacer()
-                    IconControl(title: "完了表示を閉じる", symbol: "xmark") { queue.dismissCompletion() }
+                    IconControl(title: L10n.text("queue.dismissResult"), symbol: "xmark") { queue.dismissCompletion() }
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }
             if let error = app.dropError {
                 HStack {
                     Text(error).font(.callout); Spacer();
-                    IconControl(title: "閉じる", symbol: "xmark") { app.dropError = nil }
+                    IconControl(title: L10n.text("ui.close"), symbol: "xmark") { app.dropError = nil }
                 }.padding()
             }
             if let error = queue.persistenceError {
@@ -94,7 +96,7 @@ struct QueueView: View {
             if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil {
                 HStack {
                     Image(systemName: "exclamationmark.triangle").foregroundStyle(.orange)
-                    Text("圧縮エンジンが不足しています。アプリを再インストールしてください。")
+                    Text(L10n.text("queue.missingEngine"))
                     Spacer()
                 }.padding()
             }
@@ -102,13 +104,13 @@ struct QueueView: View {
                 VStack(spacing: 18) {
                     Image(systemName: "arrow.up.document").font(.system(size: 38, weight: .light)).foregroundStyle(
                         .secondary)
-                    Text("ドロップする場所で、圧縮方法を選べます").font(.headline)
+                    Text(L10n.text("queue.dropChoice")).font(.headline)
                     HStack(spacing: 24) {
                         ForEach(CompressionMode.allCases) { mode in
                             Label(mode.title, systemImage: mode.symbol).font(.callout)
                         }
                     }.foregroundStyle(.secondary)
-                    Text("左：画質のみ　中央：画質＋音質　右：音質のみ").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("queue.zones")).font(.caption).foregroundStyle(.secondary)
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
@@ -133,12 +135,12 @@ struct QueueView: View {
             }
             Divider()
             HStack {
-                Text("圧縮結果を検証してから、元動画を置き換えます。")
+                Text(L10n.text("queue.replaceHint"))
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                IconControl(title: "終了した項目を消す（動画は残ります）", symbol: "clock.badge.xmark") { queue.clearFinished() }
+                IconControl(title: L10n.text("queue.clear"), symbol: "clock.badge.xmark") { queue.clearFinished() }
                     .disabled(!queue.displayedJobs.contains { $0.phase.isFinished })
-                    .help("履歴だけを消します。動画ファイルは削除しません。")
+                    .help(L10n.text("queue.clearHelp"))
             }.padding(16)
         }
         .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
@@ -161,11 +163,11 @@ private struct JobRow: View {
                 VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
                 VStack(alignment: .leading, spacing: 4) {
                     Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
-                    Label("\(job.mode.title)・\(job.settings.summary(for: job.mode))", systemImage: job.mode.symbol)
+                    Label("\(job.mode.title) · \(job.settings.summary(for: job.mode))", systemImage: job.mode.symbol)
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(queue.cancelling.contains(job.id) ? "停止中…" : job.phase.title)
+                Text(queue.cancelling.contains(job.id) ? L10n.text("queue.stopping") : job.phase.title)
                     .font(.caption.weight(.medium))
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(.quaternary, in: Capsule())
@@ -174,7 +176,8 @@ private struct JobRow: View {
             }
             if job.phase == .encoding || job.phase == .paused {
                 ProgressView(value: job.progress)
-                Text("\(Int(job.progress * 100))%・圧縮後に出力を検証します").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("queue.progress", L10n.integer(Int(job.progress * 100)))).font(.caption).foregroundStyle(
+                    .secondary)
             } else if [.probing, .validating].contains(job.phase) {
                 ProgressView().controlSize(.small)
             }
@@ -183,24 +186,27 @@ private struct JobRow: View {
                     Text("\(bytes(result.originalBytes)) → \(bytes(result.outputBytes))")
                     Text(
                         result.savedFraction >= 0
-                            ? "\(Int(result.savedFraction * 100))%削減" : "\(Int(-result.savedFraction * 100))%増加"
+                            ? L10n.text("queue.saved", L10n.integer(Int(result.savedFraction * 100)))
+                            : L10n.text("queue.grew", L10n.integer(Int(-result.savedFraction * 100)))
                     )
                     .foregroundStyle(result.savedFraction >= 0 ? Color.green : Color.orange)
                 }.font(.callout)
                 if result.effectiveOutcome == .originalKept {
                     Text(result.completionMessage ?? "").font(.caption).foregroundStyle(.secondary)
                 }
-                if result.savedFraction < 0 { Text("圧縮前よりファイル容量が増えました。").font(.caption).foregroundStyle(.secondary) }
+                if result.savedFraction < 0 {
+                    Text(L10n.text("queue.larger")).font(.caption).foregroundStyle(.secondary)
+                }
             }
             if job.phase == .paused {
-                Text("アプリを開いたままなら、途中から再開できます。終了すると途中データは破棄されます。")
+                Text(L10n.text("queue.pausedHint"))
                     .font(.caption).foregroundStyle(.secondary)
             }
             if job.diskSpaceIssue != nil {
                 Button {
                     NSWorkspace.shared.open(job.input.resolvingSymlinksInPath().deletingLastPathComponent())
                 } label: {
-                    Label("保存先フォルダを開く", systemImage: "externaldrive")
+                    Label(L10n.text("queue.openFolder"), systemImage: "externaldrive")
                 }.capsuleControl()
             }
             if let details = job.displayDetails, !details.isEmpty {
@@ -213,7 +219,7 @@ private struct JobRow: View {
             }
             HStack {
                 if job.result?.output != job.input.resolvingSymlinksInPath() {
-                    IconControl(title: "入力ファイルをFinderに表示", symbol: "doc") {
+                    IconControl(title: L10n.text("queue.revealInput"), symbol: "doc") {
                         NSWorkspace.shared.activateFileViewerSelecting([job.input])
                     }
                 }
@@ -221,35 +227,35 @@ private struct JobRow: View {
                     Button {
                         NSWorkspace.shared.activateFileViewerSelecting([result.output])
                     } label: {
-                        Label("圧縮した動画", systemImage: "folder")
+                        Label(L10n.text("queue.revealOutput"), systemImage: "folder")
                     }.capsuleControl(prominent: true).controlSize(.large)
                 }
                 Spacer()
                 if queue.canReorder(job.id) {
-                    Label("ドラッグで並べ替え", systemImage: "line.3.horizontal")
+                    Label(L10n.text("queue.reorder"), systemImage: "line.3.horizontal")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 if queue.pausedIDs.contains(job.id) {
-                    IconControl(title: "途中から再開", symbol: "play.fill") { queue.resume(job.id) }
+                    IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
                         .disabled(queue.cancelling.contains(job.id))
-                    IconControl(title: "キューから外す（途中データは破棄・元動画は保持）", symbol: "xmark") { queue.remove(job.id) }
+                    IconControl(title: L10n.text("queue.removePaused"), symbol: "xmark") { queue.remove(job.id) }
                         .disabled(!queue.canRemove(job.id))
                 } else if queue.runningIDs.contains(job.id) {
-                    Label("先頭に固定", systemImage: "pin.fill")
+                    Label(L10n.text("queue.pinned"), systemImage: "pin.fill")
                         .font(.caption).foregroundStyle(.secondary)
-                    IconControl(title: "この圧縮を一時停止", symbol: "pause.fill") { queue.pause(job.id) }
+                    IconControl(title: L10n.text("queue.pause"), symbol: "pause.fill") { queue.pause(job.id) }
                         .disabled(queue.cancelling.contains(job.id))
                 } else {
                     if job.phase.isFinished && job.phase != .completed {
-                        IconControl(title: "再試行", symbol: "arrow.clockwise") { queue.retry(job.id) }
+                        IconControl(title: L10n.text("queue.retry"), symbol: "arrow.clockwise") { queue.retry(job.id) }
                     }
-                    IconControl(title: "キューから外す（動画は残ります）", symbol: "xmark") { queue.remove(job.id) }
+                    IconControl(title: L10n.text("queue.remove"), symbol: "xmark") { queue.remove(job.id) }
                         .disabled(!queue.canRemove(job.id))
                 }
             }.controlSize(.small)
         }
     }
-    private func bytes(_ count: Int64) -> String { ByteCountFormatter.string(fromByteCount: count, countStyle: .file) }
+    private func bytes(_ count: Int64) -> String { L10n.bytes(count) }
 }
 
 private extension UTType {

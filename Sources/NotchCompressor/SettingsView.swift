@@ -11,85 +11,98 @@ struct SettingsView: View {
     @State private var loginStatus = SMAppService.mainApp.status
     @ObservedObject private var notifications = TaskNotifications.shared
     @State private var message: String?
+    @State private var loginDetails: String?
     @State private var showingDiagnostics = false
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("設定", systemImage: "slider.horizontal.3").font(.title2.weight(.semibold))
+                Label(L10n.text("ui.settings"), systemImage: "slider.horizontal.3").font(.title2.weight(.semibold))
                 Spacer()
-                IconControl(title: "設定を閉じる", symbol: "checkmark", prominent: true) { dismiss() }
+                IconControl(title: L10n.text("settings.close"), symbol: "checkmark", prominent: true) { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }.padding(24)
             Form {
                 Section {
-                    Picker("品質と容量", selection: $queue.settings.quality) {
+                    Picker(L10n.text("settings.quality"), selection: $queue.settings.quality) {
                         ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
                     }.pickerStyle(.segmented)
                     Text(queue.settings.quality.explanation)
                         .font(.callout)
-                    Text("どの圧縮方法にも適用します。「画質のみ」なら映像の設定だけ、「音質のみ」なら音声の設定だけを使います。")
+                    Text(L10n.text("settings.modeScope"))
                         .font(.caption).foregroundStyle(.secondary)
                     if queue.settings.quality != .custom {
                         LabeledContent {
                             Text(queue.settings.quality.videoBudgetDescription)
                         } label: {
-                            Label("映像", systemImage: "video")
+                            Label(L10n.text("settings.video"), systemImage: "video")
                         }
                         LabeledContent {
-                            Text("AAC・目標 \(queue.settings.quality.audioBitrate / 1000) kbps")
-                        } label: {
-                            Label("音声", systemImage: "waveform")
-                        }
-                        Text("映像は解像度・fps・元のビットレートから自動調整します。上の割合まで必ず使うわけではなく、容量の削減率でもありません。")
-                            .font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup("映像の自動調整を詳しく") {
                             Text(
-                                "解像度 × 出力fpsの目安 × 係数で計算した値と、元ビットレートの上限割合のうち、小さい方を目標にします。係数は品質優先0.09・標準0.06・容量優先0.035。目標の範囲は150 kbps〜12 Mbpsです。元ビットレートが不明な場合は、解像度とfpsから計算します。fps維持では元の平均fps、最大30fpsでは30を上限に計算します。"
+                                L10n.text(
+                                    "settings.audioTarget", L10n.integer(queue.settings.quality.audioBitrate / 1000)))
+                        } label: {
+                            Label(L10n.text("settings.audio"), systemImage: "waveform")
+                        }
+                        Text(L10n.text("settings.autoHint"))
+                            .font(.caption).foregroundStyle(.secondary)
+                        DisclosureGroup(L10n.text("settings.autoDetails")) {
+                            Text(
+                                L10n.text("settings.formula")
                             )
                             .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                     if queue.settings.quality == .custom {
                         VStack(alignment: .leading, spacing: 8) {
-                            LabeledContent("映像のビットレート", value: "元の\(queue.settings.effectiveVideoPercent)%")
-                                .monospacedDigit()
+                            LabeledContent(
+                                L10n.text("settings.videoBitrate"),
+                                value: L10n.text(
+                                    "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent))
+                            )
+                            .monospacedDigit()
                             Slider(
                                 value: Binding(
                                     get: { Double(queue.settings.effectiveVideoPercent) },
                                     set: { queue.settings.videoPercent = Int($0) }), in: 10...100, step: 1
                             )
-                            .accessibilityLabel("映像のビットレート割合")
-                            .accessibilityValue("元の\(queue.settings.effectiveVideoPercent)%")
-                            Text("小さいほど容量を抑え、画質が下がります。元の値が不明な場合は容量と長さから推定します。")
+                            .accessibilityLabel(L10n.text("settings.videoPercent"))
+                            .accessibilityValue(
+                                L10n.text(
+                                    "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent)))
+                            Text(L10n.text("settings.videoHint"))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         VStack(alignment: .leading, spacing: 8) {
-                            LabeledContent("音声のビットレート", value: "\(queue.settings.effectiveAudioKbps) kbps")
-                                .monospacedDigit()
+                            LabeledContent(
+                                L10n.text("settings.audioBitrate"),
+                                value: L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps))
+                            )
+                            .monospacedDigit()
                             Slider(
                                 value: Binding(
                                     get: { Double(queue.settings.effectiveAudioKbps) },
                                     set: { queue.settings.audioKbps = Int($0) }), in: 32...256, step: 8
                             )
-                            .accessibilityLabel("音声のビットレート")
-                            .accessibilityValue("\(queue.settings.effectiveAudioKbps) kbps")
-                            Text("小さいほど容量を抑え、音質が下がります。元音声のビットレートを上限に調整します（最低32 kbps）。")
+                            .accessibilityLabel(L10n.text("settings.audioBitrate"))
+                            .accessibilityValue(
+                                L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps)))
+                            Text(L10n.text("settings.audioHint"))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
-                        Text("映像50%は、ファイル容量を必ず半分にする指定ではありません。実際の容量は内容や保持する音声・映像によって変わります。")
+                        Text(L10n.text("settings.percentHint"))
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                    Text("設定は自動保存し、次に追加する動画から適用します。追加済みの動画の設定は変わりません。")
+                    Text(L10n.text("settings.nextOnly"))
                         .font(.caption).foregroundStyle(.secondary)
-                    Text("音声の実際の目標は元のビットレートを上限に調整します（最低32 kbps）。ビットレートは1秒あたりのデータ量で、値が小さいほど容量を抑えられます。")
+                    Text(L10n.text("settings.bitrateExplanation"))
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Label("圧縮", systemImage: "slider.horizontal.3")
+                    Label(L10n.text("settings.compression"), systemImage: "slider.horizontal.3")
                 }
                 Section {
                     Picker(
-                        "フレームレート",
+                        L10n.text("settings.fps"),
                         selection: Binding(
                             get: { queue.settings.effectiveVideoFrameRate },
                             set: { queue.settings.videoFrameRate = $0 })
@@ -97,82 +110,89 @@ struct SettingsView: View {
                         ForEach(VideoFrameRate.allCases) { rate in Text(rate.title).tag(rate) }
                     }.pickerStyle(.segmented)
                     Text(
-                        "元のfpsを維持すると、動きの滑らかさと各フレームのタイミングを保ちます。最大30fpsは容量を抑えるため、必要に応じてフレームを間引き、一定の間隔に揃えます。変更は次に追加する動画から適用します。"
+                        L10n.text("settings.fpsHint")
                     )
                     .font(.caption).foregroundStyle(.secondary)
                     Picker(
-                        "映像の処理速度",
+                        L10n.text("settings.videoSpeed"),
                         selection: Binding(
                             get: { queue.settings.effectiveVideoEncodingSpeed },
                             set: { queue.settings.videoEncodingSpeed = $0 })
                     ) {
                         ForEach(VideoEncodingSpeed.allCases) { speed in Text(speed.title).tag(speed) }
                     }.pickerStyle(.segmented)
-                    Text("どちらもMacのハードウェアでHEVCに変換します。「速度優先」は処理時間を優先するため、同じ目標ビットレートでも画質や圧縮効率が変わる場合があります。")
+                    Text(L10n.text("settings.speedHint"))
                         .font(.caption).foregroundStyle(.secondary)
-                    Text("「画質のみ」「画質＋音質」に適用します。「音質のみ」と出力の検証速度には影響しません。次に追加する動画から反映され、対応していないMacでは効果がありません。")
-                        .font(.caption).foregroundStyle(.secondary)
-                } header: {
-                    Label("処理速度", systemImage: "speedometer")
-                }
-                Section {
-                    LabeledContent("左・画質のみ", value: "映像を再圧縮／音声はそのまま")
-                    LabeledContent("中央・画質＋音質", value: "映像と音声の両方を再圧縮")
-                    LabeledContent("右・音質のみ", value: "音声を再圧縮／映像はそのまま")
-                    Text("圧縮する対象は、ドロップする位置か追加メニューで選びます。変更しない映像・音声は再圧縮せずコピーするため、その部分の品質は変わりません。")
+                    Text(L10n.text("settings.speedScope"))
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Label("何を圧縮するか", systemImage: "square.split.2x1")
+                    Label(L10n.text("settings.speed"), systemImage: "speedometer")
                 }
                 Section {
-                    LabeledContent("映像", value: "HEVC（H.265）・Macのハードウェアで変換")
-                    Text("解像度は維持します。フレームレートは「処理速度」で選択できます。既存の設定・投入済み動画は従来のfps設定を保持します。")
+                    LabeledContent(L10n.text("settings.left"), value: L10n.text("settings.videoCopyAudio"))
+                    LabeledContent(L10n.text("settings.center"), value: L10n.text("settings.compressBoth"))
+                    LabeledContent(L10n.text("settings.right"), value: L10n.text("settings.audioCopyVideo"))
+                    Text(L10n.text("settings.targetHint"))
                         .font(.caption).foregroundStyle(.secondary)
-                    LabeledContent("音声", value: "AACに変換")
+                } header: {
+                    Label(L10n.text("settings.target"), systemImage: "square.split.2x1")
+                }
+                Section {
+                    LabeledContent(L10n.text("settings.video"), value: L10n.text("settings.hevc"))
+                    Text(L10n.text("settings.resolution"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    LabeledContent(L10n.text("settings.audio"), value: L10n.text("settings.aac"))
                     Text(
-                        "品質優先・標準・容量優先・カスタムで変換方式は共通です。3つのプリセットは映像のデータ量を自動調整し、カスタムは元の映像ビットレートに対する割合を使います。どれも再圧縮する部分は非可逆で、失った品質は戻せません。"
+                        L10n.text("settings.lossy")
                     )
                     .font(.caption).foregroundStyle(.secondary)
-                    Text("ファイル名・場所・MOV／MP4／M4Vの拡張子は維持します。容量が減らなかった場合は、元動画を保持します。")
+                    Text(L10n.text("settings.preserve"))
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Label("どの方式で変換するか", systemImage: "arrow.triangle.2.circlepath")
+                    Label(L10n.text("settings.codecs"), systemImage: "arrow.triangle.2.circlepath")
                 }
                 Section {
-                    KeyboardShortcuts.Recorder("圧縮キューを開く", name: .showCompressionQueue)
-                    Text("他のアプリを使っているときもキューを開けます。動画の追加や圧縮は開始しません。右端の×で解除できます。")
+                    KeyboardShortcuts.Recorder(L10n.text("app.openQueue"), name: .showCompressionQueue)
+                    Text(L10n.text("settings.shortcutHint"))
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Label("ショートカット", systemImage: "keyboard")
+                    Label(L10n.text("settings.shortcut"), systemImage: "keyboard")
                 }
                 Section {
                     Toggle(
-                        "Macへのログイン時に起動",
+                        L10n.text("settings.login"),
                         isOn: Binding(
                             get: { loginStatus == .enabled || loginStatus == .requiresApproval }, set: updateLogin)
                     )
                     .toggleStyle(.switch)
-                    Text("Macを起動してログインすると、ノッチとメニューバーに常駐します。ログイン時はキュー画面を自動で開きません。")
+                    Text(L10n.text("settings.loginHint"))
                         .font(.caption).foregroundStyle(.secondary)
                     Text(
                         loginStatus == .enabled
-                            ? "有効です" : loginStatus == .requiresApproval ? "登録済み・macOSでの承認待ちです" : "無効です"
+                            ? L10n.text("settings.enabled")
+                            : loginStatus == .requiresApproval
+                                ? L10n.text("settings.approval") : L10n.text("settings.disabled")
                     )
                     .font(.caption)
                     if loginStatus == .requiresApproval {
                         Button {
                             SMAppService.openSystemSettingsLoginItems()
                         } label: {
-                            Label("ログイン項目を確認", systemImage: "arrow.up.forward.app")
+                            Label(L10n.text("settings.loginItems"), systemImage: "arrow.up.forward.app")
                         }.capsuleControl()
                     }
                     if let message { Text(message).font(.callout).foregroundStyle(.orange) }
+                    if let loginDetails {
+                        DisclosureGroup(L10n.text("details.technical")) {
+                            Text(loginDetails).font(.caption).textSelection(.enabled)
+                        }
+                    }
                 } header: {
-                    Label("起動", systemImage: "power")
+                    Label(L10n.text("settings.startup"), systemImage: "power")
                 }
                 Section {
                     Toggle(
-                        "圧縮の完了・失敗を通知",
+                        L10n.text("settings.notify"),
                         isOn: Binding(
                             get: { notifications.enabled },
                             set: { value in Task { await notifications.setEnabled(value) } })
@@ -180,25 +200,25 @@ struct SettingsView: View {
                     .toggleStyle(.switch).disabled(notifications.changing)
                     Text(notifications.status).font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Label("通知", systemImage: "bell")
+                    Label(L10n.text("settings.notifications"), systemImage: "bell")
                 }
                 Section {
-                    Label("検証後に元動画を置き換えます", systemImage: "checkmark.shield")
-                    Text("同じファイル名・場所・拡張子で保存します。失敗・キャンセル時は元動画を保持します。置き換え後、圧縮前の動画は残りません。")
+                    Label(L10n.text("app.replace"), systemImage: "checkmark.shield")
+                    Text(L10n.text("settings.saveHint"))
                         .font(.callout).foregroundStyle(.secondary)
                 } header: {
-                    Text("保存")
+                    Text(L10n.text("settings.save"))
                 }
                 Section {
                     Toggle(
-                        "アップデートを自動で確認",
+                        L10n.text("settings.autoUpdate"),
                         isOn: Binding(get: { updates.automaticallyChecks }, set: { updates.automaticallyChecks = $0 })
                     )
                     .toggleStyle(.switch)
-                    Button("アップデートを確認…") { updates.check() }
+                    Button(L10n.text("app.checkUpdates")) { updates.check() }
                         .capsuleControl()
                         .disabled(!updates.canCheck || queue.isBusy)
-                    Text("インストール前に確認します。圧縮・待機・一時停止中は、キューが空になるまで更新を待ちます。")
+                    Text(L10n.text("settings.updateHint"))
                         .font(.caption).foregroundStyle(.secondary)
                     if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
                     if let details = updates.technicalDetails {
@@ -207,24 +227,24 @@ struct SettingsView: View {
                         }
                     }
                 } header: {
-                    Label("アップデート", systemImage: "arrow.down.circle")
+                    Label(L10n.text("settings.updates"), systemImage: "arrow.down.circle")
                 }
                 Section {
                     Button {
                         showingDiagnostics = true
                     } label: {
-                        Label("診断情報を確認…", systemImage: "stethoscope")
+                        Label(L10n.text("settings.diagnostics"), systemImage: "stethoscope")
                     }.capsuleControl()
-                    Text("不具合の報告に使う情報を確認してコピーできます。自動送信はしません。")
+                    Text(L10n.text("settings.supportHint"))
                         .font(.caption).foregroundStyle(.secondary)
                 } header: {
-                    Text("サポート")
+                    Text(L10n.text("settings.support"))
                 }
                 Section {
                     LabeledContent(
-                        "バージョン",
+                        L10n.text("settings.version"),
                         value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-                            ?? "開発版")
+                            ?? L10n.text("app.development"))
                     Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later\nSparkle 2.10.1 · MIT")
                         .font(.caption).foregroundStyle(.secondary)
                     Button {
@@ -232,10 +252,10 @@ struct SettingsView: View {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
-                        Label("ライセンス", systemImage: "doc.text")
+                        Label(L10n.text("settings.licenses"), systemImage: "doc.text")
                     }.capsuleControl()
                 } header: {
-                    Text("このアプリについて")
+                    Text(L10n.text("settings.about"))
                 }
             }.formStyle(.grouped)
         }.frame(width: 560, height: 620)
@@ -254,9 +274,11 @@ struct SettingsView: View {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             loginStatus = SMAppService.mainApp.status
             message = nil
+            loginDetails = nil
         } catch {
             loginStatus = SMAppService.mainApp.status
-            message = "ログイン項目を変更できませんでした。\(error.localizedDescription)"
+            message = L10n.text("settings.loginError")
+            loginDetails = error.localizedDescription
         }
     }
 }
