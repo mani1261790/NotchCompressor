@@ -76,7 +76,9 @@ public struct CompressionEngine: Sendable {
         let estimated =
             max(Double(media.size), media.duration * Double(plan.videoBitrate + 256_000) / 8) * 1.2 + 64 * 1024 * 1024
         if let capacity, Double(capacity) < estimated {
-            throw CompressionError.message("出力用の空き容量が不足しています。元ファイルを残したまま保存できる空きを確保してください。")
+            throw DiskSpaceIssue(
+                availableBytes: max(0, capacity),
+                requiredBytes: Int64(min(estimated.rounded(.up), Double(Int64.max - 1024))))
         }
         let staging = folder.appendingPathComponent(".notchcompressor-" + UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(

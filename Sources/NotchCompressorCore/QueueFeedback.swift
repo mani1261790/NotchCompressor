@@ -12,10 +12,13 @@ public struct CompletionNotice: Equatable, Sendable {
         outputBytes += result.outputBytes
     }
     public var savedBytes: Int64 { originalBytes - outputBytes }
+    public var sizeTransition: String {
+        "\(ByteCountFormatter.string(fromByteCount: originalBytes, countStyle: .file)) → \(ByteCountFormatter.string(fromByteCount: outputBytes, countStyle: .file))"
+    }
     public var text: String {
         let bytes = ByteCountFormatter.string(fromByteCount: abs(savedBytes), countStyle: .file)
         let difference = savedBytes > 0 ? "\(bytes)削減" : savedBytes < 0 ? "\(bytes)増加" : "容量の変化なし"
-        return "\(count)件完了 · \(difference)"
+        return "\(count)件完了 · \(sizeTransition)（\(difference)）"
     }
 }
 
@@ -43,5 +46,21 @@ public struct QueueStatus: Equatable, Sendable {
                 : waitingCount > 0
                     ? "clock" : failedCount > 0 ? "exclamationmark.circle" : "arrow.down.right.and.arrow.up.left"
         count = activeCount + pausedCount + waitingCount + failedCount
+    }
+}
+
+public struct FailureNotice: Equatable, Sendable {
+    public let diskSpaceIssue: DiskSpaceIssue?
+    public init(diskSpaceIssue: DiskSpaceIssue? = nil) { self.diskSpaceIssue = diskSpaceIssue }
+    public var title: String { diskSpaceIssue == nil ? "圧縮に失敗しました" : "空き容量が不足しています" }
+    public var body: String {
+        if let issue = diskSpaceIssue {
+            let deficit =
+                issue.additionalBytes.map {
+                    "あと約\(ByteCountFormatter.string(fromByteCount: $0, countStyle: .file))の空きを確保してください。"
+                } ?? "保存先とMacの空き容量を確認してください。"
+            return "\(deficit)不要なファイルを整理するか、別ディスクへ動画を移して追加し直せます。クリックしてキューで詳細を確認してください。"
+        }
+        return "元動画は置き換えていません。クリックして圧縮キューで原因を確認し、対処後に再試行してください。"
     }
 }

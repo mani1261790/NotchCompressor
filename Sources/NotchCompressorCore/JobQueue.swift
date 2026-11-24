@@ -11,6 +11,7 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public var progress: Double
     public var message: String?
     public var result: CompressionResult?
+    public var diskSpaceIssue: DiskSpaceIssue?
     public init(input: URL, mode: CompressionMode, settings: CompressionSettings) {
         id = UUID(); self.input = input; self.mode = mode; self.settings = settings
         createdAt = Date(); phase = .waiting; progress = 0
@@ -48,6 +49,8 @@ public final class JobQueue: ObservableObject {
     @Published public private(set) var persistenceError: String?
     @Published public private(set) var cancelling = Set<UUID>()
     @Published public private(set) var completionNotice: CompletionNotice?
+    public let completionEvents = PassthroughSubject<CompressionResult, Never>()
+    public let failureEvents = PassthroughSubject<FailureNotice, Never>()
     private var completionExpiry: Task<Void, Never>?
     private let feedbackDuration: Duration
     public var status: QueueStatus { QueueStatus(jobs: jobs, running: runningIDs, paused: pausedIDs) }
@@ -61,6 +64,7 @@ public final class JobQueue: ObservableObject {
         var notice = completionNotice ?? CompletionNotice()
         notice.include(result)
         completionNotice = notice
+        completionEvents.send(result)
         completionExpiry?.cancel()
         completionExpiry = Task { [weak self, feedbackDuration] in
             do { try await Task.sleep(for: feedbackDuration) } catch { return }
@@ -349,9 +353,15 @@ public final class JobQueue: ObservableObject {
                 }
             } catch {
                 if let index = jobs.firstIndex(where: { $0.id == job.id }) {
+                    jobs[index].diskSpaceIssue = DiskSpaceIssue.classify(error)
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
                     jobs[index].message =
-                        error is CancellationError ? "処理を停止しました。元ファイルは保持しています。" : error.localizedDescription
+                        error is CancellationError
+                        ? "処理を停止しました。元ファイルは保持しています。"
+                        : (jobs[index].diskSpaceIssue?.localizedDescription ?? error.localizedDescription)
+                    if !(error is CancellationError) {
+                        failureEvents.send(FailureNotice(diskSpaceIssue: jobs[index].diskSpaceIssue))
+                    }
                     if error is CancellationError {
                         // Keep the stopped card visible above inactive cards instead of
                         // returning it to its old enqueue position below the viewport.

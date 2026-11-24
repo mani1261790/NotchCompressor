@@ -8,7 +8,8 @@ struct SettingsView: View {
     @ObservedObject var queue: JobQueue
     @ObservedObject private var updates = UpdateController.shared
     @Environment(\.dismiss) private var dismiss
-    @State private var loginEnabled = SMAppService.mainApp.status == .enabled
+    @State private var loginStatus = SMAppService.mainApp.status
+    @ObservedObject private var notifications = TaskNotifications.shared
     @State private var message: String?
     @State private var showingDiagnostics = false
 
@@ -117,9 +118,20 @@ struct SettingsView: View {
                     Label("ショートカット", systemImage: "keyboard")
                 }
                 Section {
-                    Toggle("ログイン時に起動", isOn: Binding(get: { loginEnabled }, set: updateLogin))
-                        .toggleStyle(.switch)
-                    if SMAppService.mainApp.status == .requiresApproval {
+                    Toggle(
+                        "Macへのログイン時に起動",
+                        isOn: Binding(
+                            get: { loginStatus == .enabled || loginStatus == .requiresApproval }, set: updateLogin)
+                    )
+                    .toggleStyle(.switch)
+                    Text("Macを起動してログインすると、ノッチとメニューバーに常駐します。ログイン時はキュー画面を自動で開きません。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text(
+                        loginStatus == .enabled
+                            ? "有効です" : loginStatus == .requiresApproval ? "登録済み・macOSでの承認待ちです" : "無効です"
+                    )
+                    .font(.caption)
+                    if loginStatus == .requiresApproval {
                         Button {
                             SMAppService.openSystemSettingsLoginItems()
                         } label: {
@@ -129,6 +141,18 @@ struct SettingsView: View {
                     if let message { Text(message).font(.callout).foregroundStyle(.orange) }
                 } header: {
                     Label("起動", systemImage: "power")
+                }
+                Section {
+                    Toggle(
+                        "圧縮の完了・失敗を通知",
+                        isOn: Binding(
+                            get: { notifications.enabled },
+                            set: { value in Task { await notifications.setEnabled(value) } })
+                    )
+                    .toggleStyle(.switch).disabled(notifications.changing)
+                    Text(notifications.status).font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Label("通知", systemImage: "bell")
                 }
                 Section {
                     Label("検証後に元動画を置き換えます", systemImage: "checkmark.shield")
@@ -182,16 +206,23 @@ struct SettingsView: View {
                 }
             }.formStyle(.grouped)
         }.frame(width: 560, height: 620)
+            .task {
+                loginStatus = SMAppService.mainApp.status; await notifications.refresh()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                loginStatus = SMAppService.mainApp.status
+                Task { await notifications.refresh() }
+            }
             .sheet(isPresented: $showingDiagnostics) { DiagnosticsView(queue: queue) }
     }
 
     private func updateLogin(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            loginEnabled = SMAppService.mainApp.status == .enabled
+            loginStatus = SMAppService.mainApp.status
             message = nil
         } catch {
-            loginEnabled = SMAppService.mainApp.status == .enabled
+            loginStatus = SMAppService.mainApp.status
             message = "ログイン項目を変更できませんでした。\(error.localizedDescription)"
         }
     }

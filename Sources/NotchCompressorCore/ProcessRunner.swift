@@ -71,6 +71,9 @@ public struct ProcessRunner: Sendable {
                 if timedOut { throw CompressionError.message("処理が制限時間を超えました。ファイルとツールを確認してください。") }
                 guard process.terminationStatus == 0 else {
                     let message = String(data: (try? Self.tail(stderr, limit: 4096)) ?? Data(), encoding: .utf8) ?? ""
+                    if message.localizedCaseInsensitiveContains("No space left on device") {
+                        throw DiskSpaceIssue()
+                    }
                     throw CompressionError.message(
                         "変換ツールが失敗しました（\(process.terminationStatus)）。\n\(message.trimmingCharacters(in: .whitespacesAndNewlines))"
                     )

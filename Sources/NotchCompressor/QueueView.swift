@@ -183,6 +183,13 @@ private struct JobRow: View {
                 Text("アプリを開いたままなら、途中から再開できます。終了すると途中データは破棄されます。")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            if job.diskSpaceIssue != nil {
+                Button {
+                    NSWorkspace.shared.open(job.input.resolvingSymlinksInPath().deletingLastPathComponent())
+                } label: {
+                    Label("保存先フォルダを開く", systemImage: "externaldrive")
+                }.capsuleControl()
+            }
             if let message = job.message {
                 Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }

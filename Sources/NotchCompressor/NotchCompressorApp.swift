@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.setActivationPolicy(.accessory)
         controller = NotchPanelController()
         UpdateController.shared.start()
+        TaskNotifications.shared.start(queue: AppState.shared.queue)
         KeyboardShortcuts.onKeyUp(for: .showCompressionQueue) {
             AppState.shared.presentQueue()
         }
