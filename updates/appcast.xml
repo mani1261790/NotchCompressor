@@ -1,13 +1,18 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes"?><!-- sparkle-sign-warning:
+<?xml version="1.0" standalone="yes"?><!-- sparkle-sign-warning:
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
 --><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
-  <channel>
-    <title>NotchCompressor Updates</title>
-    <link>https://github.com/mani1261790/NotchCompressor/releases</link>
-    <description>Signed updates for NotchCompressor on Apple Silicon.</description>
-    <language>ja</language>
-  </channel>
+    <channel>
+        <title>NotchCompressor</title>
+        <item>
+            <title>0.1.0</title>
+            <pubDate>Tue, 24 Nov 2026 23:53:58 +0900</pubDate>
+            <sparkle:version>2</sparkle:version>
+            <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/mani1261790/NotchCompressor/releases/download/v0.1.0-alpha.2/NotchCompressor-0.1.0-alpha.2-arm64.zip" length="23181228" type="application/octet-stream" sparkle:edSignature="EZoQMzcW6xb2b6a94VSibP0drKMFAVCEoNqMiHV4CoyyccoDq16HpngSYEWIcaJygJGSykzqtCIHOA1O22LvBA=="></enclosure>
+        </item>
+    </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Dy462j3jqsV5ZbWMnOCLIO4VgZeJxH60c5Hd3nuHHQfyn6PCrSZKSS9smTorjQxus4IdUhlj0/HpZAY4GoY5AA==
-length: 638
+edSignature: uM5gofA0j9L32TE58QUNavNqxT9sccjsq7O8H7/Ozutb2ei8qs4wo0CDmJStJXQrdyRz4I2gDUI27dLpBbTSBw==
+length: 1088
 -->

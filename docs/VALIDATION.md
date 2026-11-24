@@ -242,3 +242,14 @@ CUAのgetAppはtimeoutReached。実ログインでの自動起動、OS通知の�
 
 
 同日の速度調査（#28）では、任意の映像速度優先設定を追加。実FFmpegを含む61テストが失敗0・スキップ0で成功。旧設定の読み込み、対象モード、ビットレート維持、速度優先の実変換と保持音声の一致を確認。[測定結果](PERFORMANCE.md)では合成動画の圧縮のみ約36%短縮したが、画質指標は低下。実ユーザーのMac／動画と設定画面の実操作は未検証。
+
+
+## 2026-11-24 alpha.2の公証・公開
+
+ソース4af98a9からDeveloper ID署名済みの配布物を生成。アプリ公証ID `3db8aa98-aed3-4e88-a705-ec228ebc5a8d` はAccepted・issuesなし。DMGもAccepted・issuesなし。両方にチケットを付与し、アプリとDMGのGatekeeper判定を通過した。署名済み同梱FFmpegを使った61テストは失敗0・スキップ0。GitHub CI 45417298283も成功。
+
+alpha.2をGitHubのPre-releaseとして公開し、認証なしのHTTPSダウンロードで全6資産を再取得。SHA256SUMSにある全5資産を照合し、再取得したZIPのアプリとDMGの署名・公証チケット・Gatekeeperを再検査。更新ZIPの公開後に、署名済みappcastを変更せず更新フィードへ反映する。
+
+画面操作ツールのgetAppは今回もtimeoutReached。Finderでの実ドラッグ、別ユーザーでの初回起動、ログイン起動、通知の配送・クリック、Sparkleの実インストール・再起動は未確認。この制限を公開説明に明記して試験版として配布。公証通過とUI操作成功は区別し、関連Issueは未確認作業の追跡に残す。
+
+記録: `.local-work/usage/notarize-release.log`、`signed-tests.log`、`public-download/`。公証ログは `dist/.candidate.LLZXCG/`。
