@@ -61,3 +61,11 @@ Sparkle 2.10.1を固定し、メニューバーと設定に更新確認を追加
 初期の `updates/appcast.xml` は署名済みの空フィードで、未検証の版を案内しない。alpha.1にはSparkleがないため、最初の対応版はDMGから手動インストールする。次版からアプリ内で更新できる。GitHub Actionsの検証にはApple認証やSparkle秘密鍵を置かず、公証と更新署名は鍵を持つMacで行う。
 
 Sparkle: [配布ガイド](https://sparkle-project.org/documentation/publishing/) / [カスタマイズ](https://sparkle-project.org/documentation/customization/)
+
+## 次版の言語別インストーラ（開発中）
+
+次版の配布スクリプトは `-ja.dmg` と `-en.dmg` を生成する。背景の案内を言語別にし、両方に同一のアプリを含める。DMGの選択はアプリの表示言語を固定せず、アプリはmacOSの優先言語を使う。更新ZIPとSparkleフィードは共通で、各DMGを個別に署名・公証・staple・Gatekeeper検証する。SHA256SUMSには両方を含める。公開済みalpha.2の添付物は変更しない。
+
+個別のローカル検証は `bash scripts/create-dmg.sh app-path new-output-path en` または末尾 `ja`。引数省略は従来どおり日本語。不正な言語指定は生成前に拒否する。リリース前に `distribute.sh` とアプリ生成のバージョン・ビルド番号を次版へ揃え、既存のalpha.2ディレクトリを再利用しない。
+
+[英語README](../README.en.md)は公開版の日本語UIと開発中の英語対応を区別する。公開時は両READMEの配布リンクと既知の制限を更新し、リリース説明も日英の文書を分けてリンクする。

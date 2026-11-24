@@ -4,6 +4,8 @@ root="$(cd "$(dirname "$0")/.."; pwd)"
 source "$root/scripts/select-xcode.sh"
 app="${1:?app path required}"
 output="${2:?new DMG path required}"
+language="${3:-ja}"
+case "$language" in ja|en) ;; *) echo "DMG language must be ja or en" >&2; exit 2;; esac
 [[ -d "$app" && ! -e "$output" ]]
 parent="$(cd "$(dirname "$output")"; pwd)"
 stage="$(mktemp -d "$parent/.dmg-stage.XXXXXX")"
@@ -18,7 +20,7 @@ if [[ ! -x "$root/.build/dmg-tools/bin/python" ]]; then
     python3 -m venv "$root/.build/dmg-tools"
 fi
 "$root/.build/dmg-tools/bin/python" -m pip install --require-hashes -r "$root/scripts/dmg-requirements.txt" >/dev/null
-xcrun swift "$root/scripts/make-dmg-background.swift" "$stage/background.png"
+xcrun swift "$root/scripts/make-dmg-background.swift" "$stage/background.png" "$language"
 "$root/.build/dmg-tools/bin/dmgbuild" -s "$root/scripts/dmg-settings.py" \
     -D "app=$app" -D "background=$stage/background.png" NotchCompressor "$output"
 hdiutil verify "$output" >/dev/null

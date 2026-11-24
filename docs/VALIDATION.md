@@ -312,3 +312,13 @@ SwiftPMのen/jaリソースと共通L10n、保存可能なLocalizedMessageを追
 実FFmpegを含む72テスト成功、スキップ0。追加した割合・件数の期待値はLocalizationTests 3件を再実行して成功。252キーの日英一致、重複なし、差し込み書式、直接参照214件を確認する `scripts/check-localization.py` をCIへ追加。以前の品質説明に含まれていた未エスケープの%も修正した。releaseビルド・codesign検証・生成アプリ内の日英Bundle読み出し・整形チェック成功。ログ: `.local-work/next/l10n-ui-tests.log`、`l10n-ui-focused.log`、`l10n-ui-build.log`。
 
 実画面の操作ツールは再び `timeoutReached`。日英表示の収まり、Sparkle/KeyboardShortcutsの依存UIは未確認であり、画面を見て確認済みとはしない。配布文書・DMGの言語対応も引き続き必要。Release/更新フィードは未変更。
+
+## 2026-11-25 日英の配布案内とDMG（#32、未公開）
+
+英語READMEを追加し、日本語READMEと相互リンク。公開済みalpha.2の日本語UIと開発中の英語対応を明示的に区別した。次版のリリース案内も `docs/releases/next.ja.md` / `next.en.md` に分け、未公開の草稿として準備した。
+
+DMG生成はja/enを指定可能にし、配布スクリプトが同じアプリから `-ja.dmg` / `-en.dmg` を作る。各DMGへ個別の署名・公証・検証を行う経路とログを分け、SHA256SUMSには両方を含める。インストーラの再生成に必要な背景スクリプト・設定・固定依存もビルド情報へ同梱する。
+
+両DMGを個別生成し、チェックサム・内部アプリ署名・Applicationsリンク・DS_Storeの配置と背景を検証。背景PNGの日英案内を画像として確認し、文字切れなし。不正言語frは終了コード2で生成前に拒否。配布全体のrehearseも成功し、両DMG・更新ZIP・FFmpeg対応ソース・ビルド情報のSHA-256照合が通った。ログは `.local-work/next/dmg-l10n/`、リハーサル成果物は `dist/.candidate.0tDqmp/assets/`。これは未公証のローカル検証であり公開物ではない。公開済みのReleaseと更新フィードは変更していない。
+
+Finder上でのインストール操作や日英アプリの実画面確認を、この背景画像と内部検査で代替したとは扱わない。次版のバージョン／ビルド番号確定・実機確認・署名公証・配布は引き続き必要。

@@ -75,23 +75,28 @@ if [[ "$mode" == notarize ]]; then
     xcrun stapler validate "$unpacked"
     spctl --assess --type execute --verbose=4 "$unpacked"
 fi
-bash scripts/create-dmg.sh "$app" "$assets/$name.dmg"
+for language in ja en; do
+    dmg="$assets/$name-$language.dmg"
+    bash scripts/create-dmg.sh "$app" "$dmg" "$language"
+    if [[ "$mode" == notarize ]]; then
+        codesign --force --timestamp --sign "$identity" "$dmg"
+        xcrun notarytool submit "$dmg" --keychain-profile "$profile" --wait --output-format json > "$work/dmg-$language-submission.json"
+        dmg_id="$(plutil -extract id raw "$work/dmg-$language-submission.json")"
+        xcrun notarytool log "$dmg_id" --keychain-profile "$profile" "$work/dmg-$language-notary-log.json"
+        [[ "$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$work/dmg-$language-notary-log.json")" == Accepted ]]
+        xcrun stapler staple "$dmg"
+        xcrun stapler validate "$dmg"
+        spctl --assess --type open --context context:primary-signature --verbose=4 "$dmg"
+    fi
+done
 if [[ "$mode" == notarize ]]; then
-    codesign --force --timestamp --sign "$identity" "$assets/$name.dmg"
-    xcrun notarytool submit "$assets/$name.dmg" --keychain-profile "$profile" --wait --output-format json > "$work/dmg-submission.json"
-    dmg_id="$(plutil -extract id raw "$work/dmg-submission.json")"
-    xcrun notarytool log "$dmg_id" --keychain-profile "$profile" "$work/dmg-notary-log.json"
-    [[ "$(/usr/bin/python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$work/dmg-notary-log.json")" == Accepted ]]
-    xcrun stapler staple "$assets/$name.dmg"
-    xcrun stapler validate "$assets/$name.dmg"
-    spctl --assess --type open --context context:primary-signature --verbose=4 "$assets/$name.dmg"
     bash scripts/generate-update-feed.sh "$assets/$name.zip" "$work/feed" "v$version"
     cp "$work/feed/appcast.xml" "$assets/"
 fi
 cp dist/ffmpeg-9.0.1.tar.xz "$assets/"
 ditto dist/build-information "$work/build-information"
 git rev-parse HEAD > "$work/build-information/source-commit.txt"
-cp scripts/distribute.sh scripts/sign-app.sh scripts/create-dmg.sh scripts/generate-update-feed.sh Package.resolved "$work/build-information/"
+cp scripts/distribute.sh scripts/sign-app.sh scripts/create-dmg.sh scripts/make-dmg-background.swift scripts/dmg-settings.py scripts/dmg-requirements.txt scripts/generate-update-feed.sh Package.resolved "$work/build-information/"
 ditto -c -k --keepParent "$work/build-information" "$assets/$name-build-information.zip"
 (cd "$assets"; shasum -a 256 *.zip *.dmg *.tar.xz > SHA256SUMS.txt
  if [[ -f appcast.xml ]]; then shasum -a 256 appcast.xml >> SHA256SUMS.txt; fi; shasum -a 256 -c SHA256SUMS.txt)
