@@ -364,3 +364,11 @@ CUAの接続が復旧し、公証済みビルド4（`dist/.candidate.HA5lGj/Notc
 Sparkleの更新確認ではAX上で英語の「最新です」と公開ビルド2／実行ビルド4を確認したが、その後設定に失敗表示が残る不具合を発見。ダイアログの画像取得は白紙となったため、外観の確認済みとはしない。`SUNoUpdateError` が通常のエラーと同じdelegateへ届くことを固定版Sparkleのヘッダで確認し、更新なしを正常案内へ分離する修正を追加。修正版はビルド5とし、ビルド4の署名済み候補は保持。実画面での修正再確認・ビルド5の公証と下書き資産差替は引き続き必要。
 
 修正後はビルド5のreleaseビルドとcodesign検査に成功。日英253キー・直接参照215件の検査とLocalizationTests 3件も成功。ログは `.local-work/next/update-no-new-release-build5.log`、`update-no-new-release-tests.log`。これは更新なしの修正を実UIで再確認した証拠ではなく、その再確認は次に行う。Release下書きの先頭にもビルド4は差替待ちと明記した。
+
+## 2026-11-25 ビルド5の更新なし表示を実確認
+
+単独build-appのローカル成果物は、起動時にSparkleとのTeam ID不一致でdyldが停止した。配布工程でアプリと内包物を同一Developer IDで再署名した候補 `dist/.candidate.OOZoSs/NotchCompressor.app` は起動成功。更新確認のAXで実行ビルド5を確認し、OK後の設定画面で `You’re up to date.` をAXと画像の両方で確認した。旧ビルドの失敗案内と技術詳細は表示されない。ユーザーの設定値や通知権限は変更していない。これは更新なし経路の確認であり、alpha.2からの実更新の確認ではない。
+
+ビルド5（ソースebcacf0）のアプリと日英DMGは3件とも公証Accepted。staple、Gatekeeper、ZIP再展開と同梱ツール実行、appcast署名、全チェックサムを検証。配布物 `dist/0.1.0-build5/`、ログ `.local-work/next/stable-build5-notarize.log`、公証記録 `dist/.candidate.OOZoSs/`。旧ビルド4は保持。
+
+GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commitをebcacf0に更新。認証付きで `.local-work/next/stable-build5-draft-download/` へ再取得し、ローカルとのSHA256SUMS一致と全6ファイルの照合に成功。公開更新フィードとLPのalpha.2ダウンロード導線は保持。対象CI run45434010086はこの時点でin_progress。
