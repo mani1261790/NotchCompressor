@@ -1,5 +1,7 @@
 # NotchCompressor
 
+[Product page](https://mani1261790.github.io/NotchCompressor/en.html)
+
 [日本語](README.md)
 
 A macOS app built with SwiftUI that compresses screen recordings dropped near the notch at the top of your screen.

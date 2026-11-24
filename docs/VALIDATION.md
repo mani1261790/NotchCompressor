@@ -336,3 +336,11 @@ feed生成に公開済みalpha.2のタグを与えると作成前に拒否。alp
 `dist/0.1.0-alpha.3/` に両DMG・共通更新ZIP・対応FFmpegソース・ビルド情報・署名済みappcast・SHA256SUMSを生成。全ハッシュ照合成功。appcastのEdDSA検証、ビルド3とalpha.3 ZIP URLの一致を確認。ログは `.local-work/next/alpha3-notarize.log`、非公開の公証記録は `dist/.candidate.TXR0zZ/`。
 
 GitHub Releaseと公開更新フィードは未変更。#33で追跡。対象コミットのCIはこの記録時点でqueued。実画面・実スリープ／復帰・alpha.2からのSparkle更新・匿名ダウンロード照合は未確認であり、公証成功から動作確認済みとは推定しない。
+
+## 2026-11-25 正式配布準備とLunamo系LP
+
+正式版候補の設定を0.1.0／ビルド4へ更新。alpha.3は未公開候補として保持し、正式版へ改名して流用しない。準備項目は `docs/RELEASE_0_1_0.md` に記載。
+
+LunamoのLPを基に `site/` へ日英ページを作成。淡いグリーン、余白、外観・言語切替を継承。クリックでノッチの3領域と圧縮対象を確認する説明図を追加し、実画面ではなく説明用であることを明記。現時点のダウンロードは公開済みalpha.2を指し、未公開機能を利用可能とは案内しない。
+
+Playwrightで日本語1440px／390px、英語390pxの実ブラウザ表示を確認。横はみ出しなし、英語本文に日本語なし（言語切替リンクを除外）。3モードの選択状態と説明の切替、FAQの展開、外観と日英リンクでの外観保持を確認。ブラウザconsoleはエラー・警告0。ローカルのHTMLリンク・画像・CSS・JSの参照を検査。スクリーンショットは `output/playwright/`、操作記録は `.local-work/next/site-interactions.log`。Webの確認はmacOSアプリの実機確認とは別。

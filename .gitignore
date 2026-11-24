@@ -7,3 +7,6 @@ xcuserdata/
 
 
 .local-work/
+
+.playwright-cli/
+output/playwright/

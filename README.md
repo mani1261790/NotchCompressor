@@ -1,5 +1,7 @@
 # NotchCompressor
 
+[製品ページ](https://mani1261790.github.io/NotchCompressor/)
+
 [English](README.en.md)
 
 画面収録を画面上端のノッチ周辺へドロップして圧縮する、SwiftUI製のmacOSアプリです。
