@@ -344,3 +344,11 @@ GitHub Releaseと公開更新フィードは未変更。#33で追跡。対象コ
 LunamoのLPを基に `site/` へ日英ページを作成。淡いグリーン、余白、外観・言語切替を継承。クリックでノッチの3領域と圧縮対象を確認する説明図を追加し、実画面ではなく説明用であることを明記。現時点のダウンロードは公開済みalpha.2を指し、未公開機能を利用可能とは案内しない。
 
 Playwrightで日本語1440px／390px、英語390pxの実ブラウザ表示を確認。横はみ出しなし、英語本文に日本語なし（言語切替リンクを除外）。3モードの選択状態と説明の切替、FAQの展開、外観と日英リンクでの外観保持を確認。ブラウザconsoleはエラー・警告0。ローカルのHTMLリンク・画像・CSS・JSの参照を検査。スクリーンショットは `output/playwright/`、操作記録は `.local-work/next/site-interactions.log`。Webの確認はmacOSアプリの実機確認とは別。
+
+## 2026-11-25 正式版候補の配布準備とLP公開
+
+ソースd866b98、0.1.0／ビルド4。アプリ・日英DMGの公証は3件ともAccepted、issuesなし。staple、Gatekeeper、ZIP再展開後の検査、FFmpeg/ffprobe実行、ビルド4と正式版URLを持つappcastの署名検証、全SHA-256照合を通過。成果物は `dist/0.1.0/`、ログは `.local-work/next/stable-0.1.0-notarize.log`、公証記録は `dist/.candidate.HA5lGj/`。
+
+GitHub v0.1.0 Releaseを下書きとして作成し全7資産を添付。下書きから認証付きでダウンロードし、ローカルのSHA256SUMS自体と全ファイルのハッシュを照合した。保存先 `.local-work/next/stable-draft-download/`。公開更新フィードはalpha.2のまま。対象macOS CIはこの記録時点でqueuedであり、実機確認も未完了。
+
+LPのGitHub Pages初回デプロイはアップロード済み成果物の取得時に一時的な可視性エラーで失敗。APIで成果物を確認して同runを再実行し、run 45431618128のattempt 2はsuccess。公開URLで日英HTML・CSS・JS・アイコンがローカルと一致し、ブラウザで日英切替と既存alpha.2 DMGへの導線を確認した。320pxの日本語表示でも横はみ出しなし。LP公開と正式アプリ公開は別で、正式版はまだ下書き。
