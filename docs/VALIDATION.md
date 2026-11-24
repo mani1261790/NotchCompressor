@@ -404,3 +404,15 @@ GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commit�
 最後にアプリのログイン起動・通知をオフ、OSのNotchCompressor通知許可をオフ、アプリ別言語指定を解除した。解除時にSystem Settingsの「再起動」を選んでもアプリのプロセスが残り、更新された部分だけ英語・未更新のモード表示は日本語になる現象を実画面で確認。手動で終了・起動すると英語へ統一された。
 
 原因はL10nがLocale.preferredLanguagesを毎回読む一方、SwiftUIには再評価されていないラベルが残ること。AppKit・依存UIと同じ起動時のBundle言語をプロセス内で固定し、言語変更は再起動後に反映する修正を追加した。修正版はビルド6。LocalizationTests 3件、翻訳253キー・参照215件、書式検査成功。修正後の実画面・署名公証・下書き差替は別途必要。ビルド5は公開しない。
+
+## 2026-11-25 ビルド6の公証と実スリープ試験
+
+6974f21のビルド6を再署名・公証。アプリ・日英DMGはAccepted、staple・Gatekeeper・署名付きappcast・全SHA-256検査成功。CI run45511466834もsuccess。v0.1.0下書きの全7資産を差替え、target commitを6974f21へ更新。認証付き再取得 `.local-work/next/build6-draft-download/` とローカル `dist/0.1.0-build6/` のSHA256SUMS自体および全6資産が一致。公開フィードは変更していない。
+
+Applicationsのビルド6で検証専用audio.movを手動停止し、video.movを映像＋音声で開始。08:41:19にpmsetで実スリープ、08:41:48にHID ActivityによるFullWake。暗所復帰中は両FFmpegがT、通常復帰後は映像の同じPIDがRへ戻り進捗10%→34%、手動停止した音声のPIDはTを維持した。自動復帰タイマーはsudo認証不足で設定できず、既存の電源スケジュールを変更していない。
+
+08:43:35にキューのvalidatingを観測した直後、2回目の実スリープ。08:44:00にFullWake。検証プロセスもTから復帰したが、HEVCのCould not find ref with POC／Error constructing the frame RPSを検出し、出力検証が終了コード183で失敗。失敗状態は明示され、候補を元へ置換せず一時出力を片付けた。手動停止の音声は両方の復帰を通じて停止を維持し、明示的なResume後には正常完了した。現在の一般的な変換エラー表示では対処が分かりにくく、スリープ後の映像出力の扱いを追加調査する。
+
+生ログ・キュー証拠は `.local-work/next/native-acceptance/sleep-events.log`、`sleep-processes-before.txt`、`sleep-processes-after.txt`、`sleep-validation-before.json`、`sleep-after-wake.json`。2回のスリープを経た同じタスクのため、破損が圧縮中のスリープによるものか、検証中の中断によるものかは、この試験だけでは区別できない。消灯だけの試験や正常完了の合格には置き換えない。
+
+スリープ失敗後、同じvideo.movを再試行し、今回はスリープを挟まずに全体検証・置換が成功（503,675,460→430,380,716バイト）。再試行の出力検証中まで、入力のSHA-256は最初の事前値と一致していた。音声は明示再開後originalKeptで完了（候補503,681,208バイトに対し原本503,675,460バイトを保持）。証拠は `sleep-retry-results.json`。検証用の旧失敗カードは保存した証拠を残して除外し、実行／停止タスクなしの空キューに戻した。なお再試行が成功しても旧失敗カードが残る挙動が見られ、再試行の完了を把握しづらい点も改善候補として残す。
