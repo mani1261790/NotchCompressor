@@ -386,3 +386,5 @@ GitHub v0.1.0下書きの全7資産をビルド5へ差し替え、target commit�
 公証済みビルド5で、黒画面HEVCと16 kbps AACを含む10秒の合成動画 `keep-original.mov` を作り、追加メニューのAudio onlyで処理。候補41,306バイトは原本38,906バイト以上のため、保存結果はcompleted／originalKept、実際の保存容量は38,906バイトのままだった。事前SHA-256との一致を確認。候補容量を保存済み容量と混同していない。
 
 実画面とAXで `Completed: 1 · 39 kB → 39 kB (No size change) · Originals kept without size reduction: 1` を確認し、失敗扱いにならずカードが除外され、通常の説明は英語で統一されていた。結果JSONは `.local-work/next/native-acceptance/keep-original-result.json`、事前ハッシュは同ディレクトリの `keep-original-before.sha256`。通知バナー・日本語画面は別途未確認。ユーザーの動画や設定は変更していない。
+
+ビルド5対象コミットebcacf0のCI run45434010086はcompleted／success。単体テスト、書式、翻訳、配布rehearseの全工程を通過。CI成功は未実施の日本語実画面・実スリープ・実更新の代替にはしない。
