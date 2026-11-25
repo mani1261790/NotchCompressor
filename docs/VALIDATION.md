@@ -516,3 +516,11 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 再開後に同じタスクが進行し、検証・置換（430,380,716→368,034,626 bytes）と完了を経て、追加の終了操作なしにPID64244/build9へ更新・再起動した。全既存履歴レコード、圧縮設定、実行方式が試験前と一致し、追加したタスクも同一IDでcompleted/replacedとして保持。更新後のdeep/strict署名・Gatekeeper・stapler検証成功。空キューを実画面で確認。
 
 試験前・停止時・更新後のqueue.jsonは `.local-work/next/deferred-update9/` に保存。SUFeedURLは元の未設定へ復元し、ローカルHTTPサーバー停止後に通常起動した。公開フィードは変更していない。
+
+## 2026-11-25 完了・失敗通知のOS配送を確認
+
+ビルド9でOSのNotchCompressor通知許可とアプリ内通知を一時的に有効化。短い合成動画の圧縮完了（21,712,660→18,681,846 bytes）に対応し、10:16:36にusernotedが通知要求547E799A-C8E3-402A-9C5C-F4F61EBA44A0をsuccessとして処理し、アプリのbanner/list応答とPresenting as bannerを記録した。
+
+意図的に無効な内容の試験MOVを投入すると、キューにFailedと英語の復旧案内・技術詳細の開閉項目を表示。10:17:57に別の通知要求96493B5A-F610-4D4D-9E1E-D2C0A5C30EA7でも同じ配送成功とbanner/list提示処理を確認。元の試験ファイルのSHA-256は一致。失敗項目は個別除外して空キューへ戻した。
+
+ログは `.local-work/next/native-acceptance/notifications-build9.log`。NotificationCenterのCUAではカレンダーウィジェットしか取得できず、ControlCenter取得はtimeoutReached。ユーザーもバナーは見ていなかったため、実際の外観・文言・クリック動作の確認とは扱わない。OSの画面共有中Notifications Offは変更していない。アプリ内通知はfalse、OSの当アプリ通知許可はoffへ復元した。
