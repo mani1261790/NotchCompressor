@@ -7,7 +7,6 @@ import NotchCompressorCore
 struct SettingsView: View {
     @ObservedObject var queue: JobQueue
     @ObservedObject private var updates = UpdateController.shared
-    let close: () -> Void
     @State private var loginStatus = SMAppService.mainApp.status
     @ObservedObject private var notifications = TaskNotifications.shared
     @State private var message: String?
@@ -17,7 +16,7 @@ struct SettingsView: View {
     @State private var category: SettingsCategory = .general
 
     var body: some View {
-        NavigationSplitView {
+        HStack(spacing: 0) {
             List(selection: $category) {
                 Section(L10n.text("settings.application")) {
                     navigationRow(.general)
@@ -34,9 +33,12 @@ struct SettingsView: View {
                 }
             }
             .listStyle(.sidebar)
-            .navigationSplitViewColumnWidth(min: 200, ideal: 210, max: 250)
-            .navigationTitle(L10n.text("ui.settings"))
-        } detail: {
+            .scrollContentBackground(.hidden)
+            .frame(width: 210)
+            .modifier(SettingsSidebarSurface())
+            .padding(10)
+            Divider()
+
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
                     Image(systemName: category.symbol)
@@ -50,14 +52,12 @@ struct SettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
-                    IconControl(title: L10n.text("settings.close"), symbol: "xmark") { close() }
-                        .keyboardShortcut(.cancelAction)
                 }.padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 8)
                 settingsForm
             }
-            .navigationTitle(L10n.text(category.rawValue))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .navigationSplitViewStyle(.balanced)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .frame(minWidth: 760, idealWidth: 820, minHeight: 580, idealHeight: 650)
         .task {
             loginStatus = SMAppService.mainApp.status; await notifications.refresh()
@@ -278,14 +278,15 @@ struct SettingsView: View {
             }
             if category == .notch {
                 Section {
-                    Toggle(L10n.text("widgets.clock"), isOn: $widgets.showClock).toggleStyle(.switch)
-                    Toggle(L10n.text("widgets.music"), isOn: $widgets.showMusic).toggleStyle(.switch)
-                    Toggle(L10n.text("widgets.alwaysVisible"), isOn: $widgets.alwaysVisible).toggleStyle(.switch)
-                        .disabled(!widgets.showClock && !widgets.showMusic)
+                    Picker(L10n.text("widgets.clock"), selection: $widgets.clockDisplay) {
+                        ForEach(NotchWidgetDisplay.allCases) { mode in Text(mode.title).tag(mode) }
+                    }.pickerStyle(.segmented)
+                    Picker(L10n.text("widgets.music"), selection: $widgets.musicDisplay) {
+                        ForEach(NotchWidgetDisplay.allCases) { mode in Text(mode.title).tag(mode) }
+                    }.pickerStyle(.segmented)
                     Toggle(L10n.text("widgets.idleBackground"), isOn: $widgets.showIdleBackground).toggleStyle(.switch)
-                        .disabled(widgets.alwaysVisible || (!widgets.showClock && !widgets.showMusic))
-                    Text(L10n.text("widgets.idleHint")).font(.caption).foregroundStyle(.secondary)
-                    Text(L10n.text("widgets.hint")).font(.caption).foregroundStyle(.secondary)
+                        .disabled(!widgets.showClock && !widgets.showMusic)
+                    Text(L10n.text("widgets.displayHint")).font(.caption).foregroundStyle(.secondary)
                     if widgets.showMusic {
                         VStack(alignment: .leading, spacing: 10) {
                             Label(
@@ -537,6 +538,16 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
         case .audio: L10n.text("settings.summary.audio")
         case .saving: L10n.text("settings.summary.saving")
         case .updates: L10n.text("settings.summary.updates")
+        }
+    }
+}
+
+private struct SettingsSidebarSurface: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
         }
     }
 }

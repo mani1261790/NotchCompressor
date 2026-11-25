@@ -139,3 +139,11 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - The installed Preview's prior noTrack result already implied successful permission and player-state read; the original UI obscured that distinction.
 - Validation: 12 NotchTests including connection-state classification, 354 localization keys, universal build and signed Preview. Fresh authorization prompts/denied UI paths are not end-to-end verified.
 - Native UI acceptance: displayed Connected · No track playing and automatic-update explanation. Clicking Check status again completed and displayed Checked at 11:48:29 PM; screenshot visually reviewed. Existing Music permission was reused; no new permission granted and no playback changed.
+
+### 2026-11-26: stable settings shell and independent widget visibility (build 22)
+
+- Replaced the NavigationSplitView settings shell with a stable sidebar/detail layout inside the existing native window. Sidebar has a native Glass surface on macOS 26; category selection does not replace navigation/title-bar layout. Removed redundant in-content close button; native window close and Cmd-W remain.
+- Clock and Music each use Off / On hover / Always. Legacy enabled/always-visible values migrate independently; newly saved display choices take precedence. Compact widgets include only those set to Always.
+- Removed unconditional black backgrounds from compact content and its outer host. Idle-background toggle now controls both layers, including persistent information; expanded hover/drop remains black. Physical camera cutout is not software background.
+- 13 notch tests pass including independent migration; universal build/signing and localization checks completed. Physical transparency/hover acceptance remains separate from code verification.
+- Native UI check: General and Image screenshots have matching sidebar top inset and header position; no custom close button. Clock changed to Always while Music remained On hover, then restored. Cmd-W closed settings and returned to the queue.

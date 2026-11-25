@@ -17,6 +17,13 @@ final class NotchTests: XCTestCase {
         XCTAssertFalse(MusicConnectionState.closed.connected)
     }
 
+    func testIndependentWidgetDisplayMigration() {
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: false, legacyAlways: true), .off)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: true, legacyAlways: false), .hover)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: true, legacyAlways: true), .always)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: "off", legacyEnabled: true, legacyAlways: true), .off)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: "hover", legacyEnabled: true, legacyAlways: true), .hover)
+    }
     func testDropContentMatchesTargets() {
         let samples: [([String], NotchDropContent)] = [
             (["a.MOV", "b.mp4"], .video), (["a.png", "b.JPEG"], .image),

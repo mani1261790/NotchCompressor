@@ -225,15 +225,15 @@ final class NotchPanelController {
             presentation.compactHeight = geometry.collapsed.height
         }
         host.geometry = geometry
-        if presentation.showingWidgets != (widgets.alwaysVisible && widgets.hasVisibleContent) {
-            presentation.showingWidgets = widgets.alwaysVisible && widgets.hasVisibleContent
+        if presentation.showingWidgets != (widgets.hasPersistentContent) {
+            presentation.showingWidgets = widgets.hasPersistentContent
         }
-        let compactWidgets = widgets.alwaysVisible && widgets.hasVisibleContent
+        let compactWidgets = widgets.hasPersistentContent
         if presentation.compactWidgets != compactWidgets { presentation.compactWidgets = compactWidgets }
-        if widgets.alwaysVisible && widgets.hasVisibleContent {
+        if widgets.hasPersistentContent {
             let layout = NotchWidgetGeometry(
                 screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width,
-                preferredSideWidth: widgets.showMusic && widgets.track != nil ? 120 : 90)
+                preferredSideWidth: widgets.persistentMusic ? 120 : 90)
             if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
             setFrame(layout.frame)
             if !panel.isVisible { panel.orderFrontRegardless() }

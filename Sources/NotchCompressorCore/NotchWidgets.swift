@@ -52,3 +52,18 @@ public struct NotchHoverState {
         }
     }
 }
+
+public enum NotchWidgetDisplay: String, CaseIterable, Identifiable, Sendable {
+    case off, hover, always
+    public var id: Self { self }
+    public var title: String {
+        switch self {
+        case .off: L10n.text("widgets.display.off")
+        case .hover: L10n.text("widgets.display.hover")
+        case .always: L10n.text("widgets.display.always")
+        }
+    }
+    public init(savedValue: String?, legacyEnabled: Bool, legacyAlways: Bool) {
+        self = savedValue.flatMap(Self.init(rawValue:)) ?? (legacyEnabled ? (legacyAlways ? .always : .hover) : .off)
+    }
+}

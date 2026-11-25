@@ -9,16 +9,20 @@ final class NotchWidgetsController: ObservableObject {
     @Published var showIdleBackground: Bool {
         didSet { UserDefaults.standard.set(showIdleBackground, forKey: "notch.showIdleBackground") }
     }
-    @Published var alwaysVisible: Bool {
-        didSet { UserDefaults.standard.set(alwaysVisible, forKey: "notch.alwaysVisible") }
+    @Published var clockDisplay: NotchWidgetDisplay {
+        didSet { UserDefaults.standard.set(clockDisplay.rawValue, forKey: "notch.clockDisplay") }
     }
-    @Published var showClock: Bool { didSet { UserDefaults.standard.set(showClock, forKey: "notch.showClock") } }
-    @Published var showMusic: Bool {
+    @Published var musicDisplay: NotchWidgetDisplay {
         didSet {
-            UserDefaults.standard.set(showMusic, forKey: "notch.showMusic")
-            if !showMusic { track = nil; statusKey = nil }
+            UserDefaults.standard.set(musicDisplay.rawValue, forKey: "notch.musicDisplay")
+            if musicDisplay == .off { track = nil; statusKey = nil }
         }
     }
+    var showClock: Bool { clockDisplay != .off }
+    var showMusic: Bool { musicDisplay != .off }
+    var persistentClock: Bool { clockDisplay == .always }
+    var persistentMusic: Bool { musicDisplay == .always && track != nil }
+    var hasPersistentContent: Bool { persistentClock || persistentMusic }
     @Published private(set) var track: NowPlayingTrack?
     @Published private(set) var statusKey: String?
     @Published private(set) var connecting = false
@@ -34,11 +38,14 @@ final class NotchWidgetsController: ObservableObject {
 
     private init() {
         showIdleBackground = UserDefaults.standard.bool(forKey: "notch.showIdleBackground")
-        alwaysVisible = UserDefaults.standard.bool(forKey: "notch.alwaysVisible")
-        showClock =
-            UserDefaults.standard.object(forKey: "notch.showClock") == nil
-            ? true : UserDefaults.standard.bool(forKey: "notch.showClock")
-        showMusic = UserDefaults.standard.bool(forKey: "notch.showMusic")
+        let defaults = UserDefaults.standard
+        let legacyAlways = defaults.bool(forKey: "notch.alwaysVisible")
+        clockDisplay = NotchWidgetDisplay(
+            savedValue: defaults.string(forKey: "notch.clockDisplay"),
+            legacyEnabled: (defaults.object(forKey: "notch.showClock") as? Bool) ?? true, legacyAlways: legacyAlways)
+        musicDisplay = NotchWidgetDisplay(
+            savedValue: defaults.string(forKey: "notch.musicDisplay"),
+            legacyEnabled: defaults.bool(forKey: "notch.showMusic"), legacyAlways: legacyAlways)
         timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.refresh() }
         sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.willSleepNotification, object: nil, queue: .main

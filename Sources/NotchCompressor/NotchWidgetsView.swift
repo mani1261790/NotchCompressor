@@ -7,22 +7,22 @@ struct NotchWidgetsView: View {
     var body: some View {
         HStack(spacing: 0) {
             Group {
-                if widgets.showClock {
+                if widgets.persistentClock {
                     NotchClockView(compact: true)
-                } else if let track = widgets.track, widgets.showMusic {
+                } else if let track = widgets.track, widgets.persistentMusic {
                     AlbumArtworkView(data: track.artwork).frame(width: 22, height: 22)
                 }
             }.frame(maxWidth: .infinity)
             Color.clear.frame(width: cameraWidth)
             Group {
-                if widgets.showMusic, let track = widgets.track {
+                if widgets.persistentMusic, let track = widgets.track {
                     HStack(spacing: 5) {
                         PlaybackActivityView(playing: track.playing).font(.caption2)
                         Text(track.title).font(.caption).lineLimit(1).truncationMode(.tail)
                     }
                     .help([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
                     .accessibilityLabel([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: ", "))
-                } else if widgets.showClock {
+                } else if widgets.persistentClock {
                     TimelineView(.everyMinute) { context in
                         Text(context.date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(L10n.locale)))
                             .font(.caption).lineLimit(1)
@@ -32,11 +32,15 @@ struct NotchWidgetsView: View {
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            .black,
-            in: UnevenRoundedRectangle(
-                topLeadingRadius: 0,
-                bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: 0))
+        .background {
+            if widgets.showIdleBackground {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 0,
+                    bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: 0
+                ).fill(.black)
+            }
+        }
+        .shadow(color: widgets.showIdleBackground ? .clear : .black.opacity(0.5), radius: 1)
     }
 }
 

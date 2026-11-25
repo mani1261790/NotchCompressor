@@ -55,10 +55,7 @@ final class AppState: ObservableObject {
             window.title = L10n.text("ui.settings")
             window.minSize = NSSize(width: 780, height: 580)
             window.isReleasedWhenClosed = false
-            window.contentView = NSHostingView(
-                rootView: SettingsView(queue: queue) { [weak self] in
-                    self?.settingsPresented = false
-                })
+            window.contentView = NSHostingView(rootView: SettingsView(queue: queue))
             window.center()
             settingsWindow = window
         }
@@ -277,7 +274,9 @@ struct DropPanel: View {
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
-            .background(.black)
+            .background {
+                if presentation.visible || widgets.showIdleBackground { Color.black }
+            }
             .mask(alignment: .top) {
                 UnevenRoundedRectangle(
                     topLeadingRadius: 0,

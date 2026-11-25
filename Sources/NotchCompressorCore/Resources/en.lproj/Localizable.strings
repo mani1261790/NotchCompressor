@@ -362,3 +362,8 @@
 "music.recheck" = "Check status again";
 "music.checked" = "Checked at %@";
 "widgets.permissionNeeded" = "Allow Music access in settings.";
+
+"widgets.display.off" = "Off";
+"widgets.display.hover" = "On hover";
+"widgets.display.always" = "Always";
+"widgets.displayHint" = "Choose clock and music visibility separately. With the background off, persistent text and artwork have a transparent background. When both are Off, nothing appears while idle. The physical camera notch is unchanged.";
