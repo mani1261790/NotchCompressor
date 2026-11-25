@@ -39,6 +39,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
     override func draggingEnded(_ sender: NSDraggingInfo) { presentation.mode = nil; onEnd?() }
     override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool { update(sender) == .copy }
     override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        updateContent(sender.draggingPasteboard)
         guard let mode = selectedMode(sender),
             let urls = sender.draggingPasteboard.readObjects(
                 forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty
@@ -56,14 +57,16 @@ private final class DropHostingView: NSHostingView<DropPanel> {
         let local = CGPoint(x: point.x, y: isFlipped ? bounds.height - point.y : point.y)
         return presentation.content.mode(for: geometry?.mode(at: local))
     }
-    private var contentGeneration: Int?
     func updateContent(_ pasteboard: NSPasteboard) {
-        guard contentGeneration != pasteboard.changeCount else { return }
+        // Providers can populate URLs lazily without a new changeCount. That
+        // counter alone is not a valid cache key for the current file selection.
         let urls =
             pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
-        guard !urls.isEmpty else { return }
-        contentGeneration = pasteboard.changeCount
-        presentation.content = NotchDropContent(urls: urls)
+        let content = NotchDropContent(urls: urls)
+        if presentation.content != content {
+            presentation.mode = nil
+            presentation.content = content
+        }
     }
     private func update(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard
@@ -264,13 +267,15 @@ final class NotchPanelController {
             lastLoggedPasteboard = pasteboard.changeCount
             log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
         }
-        if hasFiles { host.updateContent(pasteboard) }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
         if receiptTask != nil && !drag.active { return }
         // Do not resize away the drop target between mouse-up and performDragOperation.
         if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) {
             trace("native destination"); return
         }
+        // Once AppKit owns the drag, its sender pasteboard is authoritative.
+        // Global polling must not overwrite it with an older drag pasteboard.
+        if drag.active { host.updateContent(pasteboard) }
         let screens = NSScreen.screens
         guard let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame))
         else { hover.reset(); collapse(); return }

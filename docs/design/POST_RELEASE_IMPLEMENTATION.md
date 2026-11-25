@@ -114,3 +114,10 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Read back only player state after the command, updating the button without waiting for artwork/title retrieval. A revision counter discards metadata polls begun before the command so they cannot restore stale playback state.
 - Failure preserves the last known playback state and displays the existing error indicator. No optimistic playback success is shown.
 - Universal build and localization checks passed. Actual Music response latency and physical notch-button acceptance have not been measured.
+
+### 2026-11-25: image drag target refresh (build 19)
+
+- User reported video targets while dragging an image. Live inspection found both the installed public app and Preview running; the public app still offers only video targets. It has one paused and two waiting jobs, so termination requires the user's decision about losing partial progress.
+- Removed the presentation cache keyed only by pasteboard changeCount. Re-read actual URL entries during active drag and update only when the classified kind changes; unavailable URLs now reset to the neutral automatic target.
+- Native dragging callbacks own their pasteboard classification while the native session holds the panel. Global polling no longer overwrites it, and drop delivery rechecks before selecting a compression mode.
+- Existing 10 notch tests pass. Physical image-hover/drop and removing the old app's overlapping panel remain acceptance steps.
