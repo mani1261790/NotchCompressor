@@ -508,3 +508,11 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 実行中にAppleLanguagesを試験前の未設定へ戻し、設定を閉じて開き直した。既存キューと新しく描画された設定の双方が日本語を保持した。Sparkle更新確認も日本語の「最新版を使用しています」となり、OK後の設定結果も日本語を維持。その後メニューから終了して再起動すると、キューと設定は英語に統一。英語設定上部の実画像も確認した。試験後は設定を閉じ、空キュー、AppleLanguages未設定に復元。
 
 これは公開候補ビルド9のプロセス内言語固定・次回起動での言語反映の実確認。System Settingsの再起動ボタンそのもの、通知バナー、容量不足表示、全てのノッチ文言のレイアウトまで確認済みとはしない。試験前の設定バックアップは `.local-work/next/language-build9-before.plist`。
+
+## 2026-11-25 更新取得後のタスク追加・インストール延期を実確認
+
+署名済みbuild8を更新元にして、公証済みbuild9を署名付き127.0.0.1限定フィードから取得・展開。Ready to Installの状態でキューへ長い合成動画を追加した。圧縮中にInstall and Relaunchを選択してもPID63155/build8が維持され、圧縮が進行。27%で個別一時停止すると更新も待機を継続し、設定にはWaiting for the compression queue to empty before restarting for the updateと表示された。
+
+再開後に同じタスクが進行し、検証・置換（430,380,716→368,034,626 bytes）と完了を経て、追加の終了操作なしにPID64244/build9へ更新・再起動した。全既存履歴レコード、圧縮設定、実行方式が試験前と一致し、追加したタスクも同一IDでcompleted/replacedとして保持。更新後のdeep/strict署名・Gatekeeper・stapler検証成功。空キューを実画面で確認。
+
+試験前・停止時・更新後のqueue.jsonは `.local-work/next/deferred-update9/` に保存。SUFeedURLは元の未設定へ復元し、ローカルHTTPサーバー停止後に通常起動した。公開フィードは変更していない。
