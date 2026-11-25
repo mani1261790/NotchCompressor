@@ -450,3 +450,9 @@ EngineTests.testRealEngineRecoversFromDamagedCandidateOnlyAfterSleepを追加。
 3条件を確認した。(1) 最初の候補だけ破損→2回目の圧縮・全体検証・縮小置換が成功、(2) 両候補が破損→2回で停止し原本を保持、(3) スリープなしで破損→1回で失敗し原本を保持。全検証段階で原本の全バイト一致を確認し、再試行の翻訳済み案内・最終commitの有無・一時出力の片付けも検査。成功時のHEVC形式・2秒の長さと縮小も確認した。
 
 `NOTCH_MEDIA_TESTS=1 bash scripts/test.sh --filter EngineTests/testRealEngineRecoversFromDamagedCandidateOnlyAfterSleep` 成功（1テスト内3条件、skipなし、5.18秒）。書式検査成功。ログ `.local-work/next/sleep-fault-tests.log`。アプリソースはビルド7から変更していない。実スリープ後の破損自体は再現しておらず、その原因を特定したという意味ではない。
+
+## 2026-11-25 ビルド7の公証と下書き更新
+
+ec3baa9のビルド7を署名・公証。アプリ27296a7a-5fbb-454f-963b-2f406b7348b5、日本語DMG1936b8fe-b29d-43b0-b0a3-4fff9fe851c9、英語DMG18bf5b44-755d-4a57-a6c3-4413dfa49f63はいずれもAccepted。staple・Gatekeeper・署名付きappcast・全SHA-256検査が成功。ログ `.local-work/next/build7-notarize.log`、成果物 `dist/0.1.0-build7/`、一時作業 `dist/.candidate.H8CDAh/`。
+
+v0.1.0の草稿全7資産を差替え、targetをec3baa9へ更新。`.local-work/next/build7-draft-download/` へ認証付き再取得し、SHA256SUMS自身と全6資産を照合して一致。公開フィードは変更していない。CI run45518969785は確認時点で実行中。
