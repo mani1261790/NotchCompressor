@@ -67,6 +67,15 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
         return true
     }
     func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) { installing = true }
+    func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        // AppKit blocks termination while a SwiftUI settings/diagnostics sheet is
+        // attached. End the native sheets synchronously before Sparkle quits;
+        // changing the SwiftUI binding alone may leave its dismissal animating.
+        AppState.shared.settingsPresented = false
+        for window in NSApp.windows {
+            if let sheet = window.attachedSheet { window.endSheet(sheet) }
+        }
+    }
     func updater(_ updater: SPUUpdater, didAbortWithError error: Error) {
         deferredInstall?.cancel()
         installing = false

@@ -472,3 +472,13 @@ Sparkleチェックアウトの公式sparkle-cliスキームをローカルビ�
 --probeでUpdate available／exit 0。続く--check-immediatelyでフィードとZIPをHTTP 200取得、ダウンロード・展開・Installation Finished／exit 0。対象コピーはBundleVersion=7へ変わり、署名deep/strict・staple・Gatekeeperが成功、実行ファイルは公証済み候補とバイト一致。/Applicationsの実行中アプリPID50106は継続しており、テスト対象コピーの置換のみを行った。終了後はローカルサーバーを停止した。
 
 ログは `.local-work/next/sparkle-build7-probe.log`、`sparkle-build7-install.log`、`sparkle-build7-http.log`。これは実Sparkleによる取得・置換を証明するが、アプリ内の更新ダイアログ・再起動・設定や待機キューの保持・処理中の再起動抑止は別途必要。CLIではアプリのdelegate動作まで検査できないため、これらを合格へ置き換えない。
+
+## 2026-11-25 アプリ内Sparkle更新で設定シートの終了阻害を発見
+
+キューに未完了がないことを確認し、設定とqueue.jsonを `.local-work/next/sparkle-native-backup/` へ保存。公開済み未変更alpha.2をApplicationsへ導入して署名・BundleVersion=2を確認。SUFeedURLだけを公式のテスト用defaults overrideで127.0.0.1限定の署名済みフィードへ変更した。初回の上書きコピーは旧資産の残存で署名検証に失敗したため起動せず隔離し、新しいアプリディレクトリへ再展開して署名検証後に起動した。
+
+アプリの設定→更新確認から「0.1.0 (2)→0.1.0 (7)」の更新UIを確認。署名検証・ZIP取得・展開・Install and Relaunchまで進んだが、旧プロセス54512とbuild2が残った。AppKitログで09:49:33に「App termination blocked by modal sheet」を検出。設定を閉じて通常終了すると更新が完了し、PID54973/build7で再起動。署名・stapleも成功した。
+
+alpha.2からのインストール直前と再起動後で、圧縮設定・実行方式・全30件のID順序と履歴レコードが一致。実行中・待機中のタスクを含む試験ではない。試験開始前のbuild7履歴にはalpha.2が知らないresult/localizedMessageフィールドがあり、旧版起動時に失われたため、空キューで終了して試験前のqueue.jsonをバックアップから完全復元した。SUFeedURLも元の有無・値へ復元し、ローカルHTTPサーバーを停止した。
+
+UpdateControllerのupdaterWillRelaunchApplicationでSwiftUIの設定表示フラグを解除し、残るAppKitのattachedSheetを同期的に閉じる修正を追加。ビルド8へ更新し、書式検査・releaseアプリビルド成功。修正版の実更新再起動は別途確認する。ビルド7の下書きはまだ差し替えていない。alpha.2側の終了処理は配布後に変更できないため、旧版からの更新では設定を閉じて進める経路も再検証・案内する。
