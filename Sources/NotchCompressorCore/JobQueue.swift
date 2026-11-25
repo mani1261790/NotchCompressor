@@ -7,6 +7,20 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public let mode: CompressionMode
     public var mediaKind: MediaKind?
     public var effectiveMediaKind: MediaKind { mediaKind ?? .video }
+    public var usesVisualEncoder: Bool { effectiveMediaKind != .audio && mode != .audio }
+    public var modeTitle: String { effectiveMediaKind == .video ? mode.title : effectiveMediaKind.title }
+    public var modeSymbol: String { effectiveMediaKind == .image ? "photo" : mode.symbol }
+    public var settingsSummary: String {
+        if effectiveMediaKind == .image {
+            return input.pathExtension.lowercased() == "png"
+                ? L10n.text("image.pngLossless")
+                : L10n.text("image.jpegQuality", L10n.integer(Int(settings.effectiveImageQuality)))
+        }
+        if effectiveMediaKind == .audio {
+            return L10n.text("audio.settingsSummary", L10n.integer(settings.effectiveStandaloneAudioKbps))
+        }
+        return settings.summary(for: mode)
+    }
     public let settings: CompressionSettings
     public let createdAt: Date
     public var phase: JobPhase
@@ -361,7 +375,7 @@ public final class JobQueue: ObservableObject {
 
     public func retry(_ id: UUID) {
         guard let job = jobs.first(where: { $0.id == id }), job.phase.isFinished else { return }
-        enqueue([job.input], mode: job.mode)
+        enqueue([job.input], mode: job.mode, mediaKind: job.mediaKind)
     }
 
     public func clearFinished() {
@@ -398,12 +412,12 @@ public final class JobQueue: ObservableObject {
         let limit = execution == .serial || (execution == .automatic && environment.conservesResources) ? 1 : 2
         while workers.count < limit {
             let activePaths = Set(jobs.filter { runningIDs.contains($0.id) }.map { $0.input.path })
-            let videoActive = jobs.contains { runningIDs.contains($0.id) && $0.mode != .audio }
+            let videoActive = jobs.contains { runningIDs.contains($0.id) && $0.usesVisualEncoder }
             guard
                 let job = waitingJobs.first(where: {
                     !activePaths.contains($0.input.path)
                         && !activeResources.values.contains(resourceKey($0.input))
-                        && !(execution == .automatic && videoActive && $0.mode != .audio)
+                        && !(execution == .automatic && videoActive && $0.usesVisualEncoder)
                 })
             else { break }
             launch(job)

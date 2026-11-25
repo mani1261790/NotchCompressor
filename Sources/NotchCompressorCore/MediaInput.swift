@@ -62,6 +62,9 @@ public struct InputBatch: Sendable {
                 guard enabledKinds.contains(input.kind) else {
                     throw CompressionError.localized(.init("error.mediaUnavailable", input.kind.title))
                 }
+                if input.kind == .image, !["jpg", "jpeg", "png"].contains(input.url.pathExtension.lowercased()) {
+                    throw CompressionError.localized(.init("error.imageFormat"))
+                }
                 batch.accepted.append(input)
             } catch is CancellationError {
                 throw CancellationError()
@@ -127,6 +130,7 @@ public enum MediaInputInspector {
         guard ext == "m4a", report.streams.contains(where: { $0.codecType == "audio" }) else {
             throw CompressionError.localized(.init("error.mediaMismatch"))
         }
+        _ = try AudioMediaInfo.decode(data)
         return .audio
     }
 }

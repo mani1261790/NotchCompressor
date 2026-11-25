@@ -15,6 +15,16 @@ final class AppState: ObservableObject {
     @Published var dropError: String?
     @Published private(set) var importingCount = 0
     private var importTask: Task<Void, Never>?
+    private var importTasks: [UUID: Task<Void, Never>] = [:]
+    private var acceptingImports = true
+    @Published var rejectedInputs: [InputRejection] = []
+    var isBusy: Bool { queue.isBusy || importingCount > 0 }
+    func stopImports() async {
+        acceptingImports = false
+        let tasks = Array(importTasks.values)
+        tasks.forEach { $0.cancel() }
+        for task in tasks { await task.value }
+    }
     private var window: NSWindow?
 
     private init() {
@@ -45,22 +55,25 @@ final class AppState: ObservableObject {
     }
 
     func receiveFiles(_ urls: [URL], mode: CompressionMode) {
+        guard acceptingImports else { return }
         let settings = queue.settings
         let previous = importTask
-        importingCount += 1
+        let importID = UUID()
+        importingCount += urls.count
         importTask = Task { [weak self] in
             await previous?.value
             guard let self else { return }
-            defer { importingCount -= 1 }
+            defer { importingCount -= urls.count; importTasks.removeValue(forKey: importID) }
             do {
-                let batch = try await InputBatch.inspect(urls, mode: mode, toolsDirectory: settings.toolsDirectory)
+                let batch = try await InputBatch.inspect(
+                    urls, mode: mode, toolsDirectory: settings.toolsDirectory, enabledKinds: [.video, .image, .audio])
+                try Task.checkCancellation()
+                guard acceptingImports else { return }
                 for input in batch.accepted {
                     queue.enqueue([input.url], mode: mode, mediaKind: input.kind, settings: settings)
                 }
                 if !batch.rejected.isEmpty {
-                    let reasons = batch.rejected.map { "\($0.url.lastPathComponent): \($0.reason.text)" }
-                    dropError = ([L10n.text("input.rejected", L10n.integer(batch.rejected.count))] + reasons).joined(
-                        separator: "\n")
+                    rejectedInputs.append(contentsOf: batch.rejected)
                     presentQueue()
                 }
             } catch is CancellationError {
@@ -70,12 +83,15 @@ final class AppState: ObservableObject {
                 presentQueue()
             }
         }
+        importTasks[importID] = importTask
     }
 
     func chooseVideos(mode: CompressionMode) {
         let panel = NSOpenPanel()
-        panel.title = L10n.text("app.choose", mode.title)
-        panel.allowedContentTypes = [.movie]
+        panel.title = L10n.text("app.choose", mode.selectionTitle)
+        panel.allowedContentTypes = ["mov", "mp4", "m4v", "jpg", "jpeg", "png", "m4a"].compactMap {
+            UTType(filenameExtension: $0)
+        }
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
@@ -98,7 +114,8 @@ struct NotchCompressorApp: App {
             Divider()
             Button(
                 queue.pendingCount > 0
-                    ? L10n.text("app.openQueueCount", L10n.integer(queue.pendingCount)) : L10n.text("app.openQueue")
+                    ? L10n.text("app.openQueueCount", L10n.integer(queue.pendingCount + AppState.shared.importingCount))
+                    : L10n.text("app.openQueue")
             ) {
                 AppState.shared.presentQueue()
             }
@@ -152,19 +169,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let queue = AppState.shared.queue
-        guard queue.isBusy else { return .terminateNow }
+        guard AppState.shared.isBusy else { return .terminateNow }
         // An updater must never turn a running or paused compression into cancellation.
         if UpdateController.shared.installing { return .terminateCancel }
         guard !terminating else { return .terminateLater }
         let alert = NSAlert()
         alert.messageText = L10n.text("app.quitTitle")
         alert.informativeText =
-            L10n.text("app.quitBody", L10n.integer(queue.pendingCount))
+            L10n.text("app.quitBody", L10n.integer(queue.pendingCount + AppState.shared.importingCount))
         alert.addButton(withTitle: L10n.text("app.keepRunning"))
         alert.addButton(withTitle: L10n.text("app.cancelQuit"))
         guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
         terminating = true
         Task {
+            await AppState.shared.stopImports()
             await queue.stopForTermination()
             sender.reply(toApplicationShouldTerminate: true)
         }
@@ -207,8 +225,8 @@ struct DropZone: View {
     let targeted: Bool
     var body: some View {
         VStack(spacing: 7) {
-            Image(systemName: mode.symbol).font(.title2)
-            Text(mode.title).font(.callout.weight(.semibold))
+            Image(systemName: mode.selectionSymbol).font(.title2)
+            Text(mode.selectionTitle).font(.callout.weight(.semibold))
             Text(
                 mode == .video
                     ? L10n.text("notch.keepAudio")
@@ -220,6 +238,6 @@ struct DropZone: View {
         .frame(maxWidth: .infinity).frame(height: 88)
         .background(targeted ? Color.mint : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
         .animation(.easeOut(duration: 0.1), value: targeted)
-        .accessibilityLabel(L10n.text("notch.accessibility", mode.title))
+        .accessibilityLabel(L10n.text("notch.accessibility", mode.selectionTitle))
     }
 }

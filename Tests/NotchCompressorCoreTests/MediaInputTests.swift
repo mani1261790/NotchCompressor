@@ -9,7 +9,7 @@ final class MediaInputTests: XCTestCase {
         XCTAssertThrowsError(try MediaInputInspector.classifyProbe(fixture(), extension: "m4a"))
         let audio = Data(
             """
-            {"streams":[{"index":0,"codec_type":"audio","codec_name":"aac","channels":2},
+            {"streams":[{"index":0,"codec_type":"audio","codec_name":"aac","channels":2,"sample_rate":"48000"},
             {"index":1,"codec_type":"video","codec_name":"mjpeg","disposition":{"attached_pic":1}}],
             "format":{"format_name":"mov,mp4,m4a,3gp,3g2,mj2","duration":"2.0"}}
             """.utf8)

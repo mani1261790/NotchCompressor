@@ -138,6 +138,34 @@ struct SettingsView: View {
                         Label(L10n.text("settings.speed"), systemImage: "speedometer")
                     }
                     Section {
+                        LabeledContent(
+                            L10n.text("image.jpegQualityLabel"),
+                            value: L10n.integer(Int(queue.settings.effectiveImageQuality)))
+                        Slider(
+                            value: Binding(
+                                get: { queue.settings.effectiveImageQuality }, set: { queue.settings.imageQuality = $0 }
+                            ), in: 10...100, step: 1
+                        )
+                        .accessibilityLabel(L10n.text("image.jpegQualityLabel"))
+                        Text(L10n.text("image.qualityHint")).font(.caption).foregroundStyle(.secondary)
+                        Text(L10n.text("image.pngLossless")).font(.caption).foregroundStyle(.secondary)
+                    } header: {
+                        Label(L10n.text("media.image"), systemImage: "photo")
+                    }
+                    Section {
+                        Picker(
+                            L10n.text("audio.bitrate"),
+                            selection: Binding(
+                                get: { queue.settings.effectiveStandaloneAudioKbps },
+                                set: { queue.settings.standaloneAudioKbps = $0 })
+                        ) {
+                            ForEach([64, 96, 128, 160, 192, 256], id: \.self) { rate in Text("\(rate) kbps").tag(rate) }
+                        }
+                        Text(L10n.text("audio.bitrateHint")).font(.caption).foregroundStyle(.secondary)
+                    } header: {
+                        Label(L10n.text("audio.files"), systemImage: "waveform")
+                    }
+                    Section {
                         LabeledContent(L10n.text("settings.left"), value: L10n.text("settings.videoCopyAudio"))
                         LabeledContent(L10n.text("settings.center"), value: L10n.text("settings.compressBoth"))
                         LabeledContent(L10n.text("settings.right"), value: L10n.text("settings.audioCopyVideo"))

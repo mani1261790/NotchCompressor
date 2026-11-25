@@ -17,6 +17,7 @@ cp .build/vendor/ffmpeg-9.0.1/LICENSE.md "$app_dir/Contents/Resources/Licenses/F
 xcrun swift scripts/make-icon.swift .build/AppIcon.iconset
 iconutil -c icns .build/AppIcon.iconset -o "$app_dir/Contents/Resources/AppIcon.icns"
 cp "$bin_dir/NotchCompressor" "$app_dir/Contents/MacOS/NotchCompressor"
+cp "$bin_dir/NotchImageWorker" "$app_dir/Contents/MacOS/NotchImageWorker"
 ditto "$bin_dir/KeyboardShortcuts_KeyboardShortcuts.bundle" "$app_dir/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle"
 ditto "$bin_dir/NotchCompressor_NotchCompressorCore.bundle" "$app_dir/Contents/Resources/NotchCompressor_NotchCompressorCore.bundle"
 install -m 644 .build/checkouts/KeyboardShortcuts/license "$app_dir/Contents/Resources/Licenses/KeyboardShortcuts-LICENSE.txt"

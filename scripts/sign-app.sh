@@ -8,7 +8,7 @@ framework="$app/Contents/Frameworks/Sparkle.framework"
 for item in "$framework/Versions/B/XPCServices/Installer.xpc" \
             "$framework/Versions/B/XPCServices/Downloader.xpc" \
             "$framework/Versions/B/Autoupdate" "$framework/Versions/B/Updater.app" \
-            "$framework" "$app/Contents/MacOS/ffmpeg" "$app/Contents/MacOS/ffprobe" "$app"; do
+            "$framework" "$app/Contents/MacOS/ffmpeg" "$app/Contents/MacOS/ffprobe" "$app/Contents/MacOS/NotchImageWorker" "$app"; do
     if [[ "$item" == */Downloader.xpc ]]; then
         codesign "${sign[@]}" --preserve-metadata=entitlements "$item"
     else
