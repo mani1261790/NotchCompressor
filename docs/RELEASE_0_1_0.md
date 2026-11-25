@@ -90,3 +90,9 @@ ZIPから展開したアプリのbuild=11、version=0.1.0、日英リソース�
 空キューを確認してビルド10を終了。配布ZIPから展開済みの公証済みビルド11を、署名・Gatekeeper検査後に `/Applications/NotchCompressor.app` へ配置し、起動と新UIを確認した。旧アプリは `.local-work/next/installed-build10-before11.app` に保持。手動導入であり、Sparkle経由の10→11の検証ではない。
 
 手元のマウス確認用に、自作素材01・02・03を投入し、先頭01を3%で一時停止、02・03は待機状態。ユーザーへ03を02の上へドラッグし、順序変更と手のカーソルを確認する依頼を送った。回答と実状態の確認前に合格としない。ログアウトは実施していない。
+
+## LP公開用ドラフトPR
+
+[PR #39](https://github.com/mani1261790/NotchCompressor/pull/39)に `release/0.1.0-site` のLPとREADMEをまとめた。Lunamoのテンプレートと画面内デモを含む最新版が対象。mainとのmerge-tree検査は衝突なし、HTML3ページのローカル参照31件とフラグメント検査は成功。PRはdraftであり、マージ・公開は未実施。
+
+v0.1.0公開→匿名ダウンロード照合→PR #39の内容確認とマージ→GitHub Pages公開表示と導入導線の確認、の順を守る。mainへのsite変更はPagesを自動デプロイするため、未公開DMGのままマージしない。過去の個別cherry-pick手順より、このPRにまとまった最新コミット群を優先する。
