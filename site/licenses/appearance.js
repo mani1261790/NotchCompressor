@@ -12,3 +12,5 @@ appearance.addEventListener('change', () => {
   updateAppearance();
 });
 updateAppearance();
+
+document.addEventListener('notchcompressor-language', updateAppearance);

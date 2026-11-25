@@ -27,7 +27,8 @@ const status = demo.querySelector('.demo-state');
 const percent = demo.querySelector('.demo-percent');
 const pause = demo.querySelector('.demo-pause');
 const meter = demo.querySelector('progress');
-const ja = document.documentElement.lang === 'ja';
+let ja = document.documentElement.lang === 'ja';
+let selectedMode = 'both';
 let gesture = null;
 let suppressClick = false;
 let dragging = false, progress = 0, paused = false, timer;
@@ -59,15 +60,20 @@ function updateProgress() {
   pause.textContent = paused ? '▶' : 'Ⅱ';
   pause.setAttribute('aria-label', ja ? (paused ? '再開' : '一時停止') : (paused ? 'Resume' : 'Pause'));
 }
-function start(mode) {
-  const focusControls=zones.contains(document.activeElement);
-  clearInterval(timer); expand(false); dragging=false; file.hidden=true; queue.hidden=false;
+function updateMode() {
+  const mode=selectedMode;
   demo.querySelector('.demo-mode').textContent = zones.querySelector(`[data-mode="${mode}"]`).getAttribute('aria-label') + ' · 430.3 MB';
   const settings=demo.querySelector('.demo-settings');
-  settings.open=false;
   settings.querySelector('p').textContent=ja
     ? '標準 · ' + (mode==='audio' ? '映像はそのまま' : '映像 HEVC') + ' · ' + (mode==='video' ? '音声はそのまま' : '音声 AAC')
     : 'Balanced · ' + (mode==='audio' ? 'Keep video' : 'HEVC video') + ' · ' + (mode==='video' ? 'Keep audio' : 'AAC audio');
+}
+function start(mode) {
+  const focusControls=zones.contains(document.activeElement);
+  clearInterval(timer); expand(false); dragging=false; file.hidden=true; queue.hidden=false;
+  selectedMode=mode;
+  updateMode();
+  demo.querySelector('.demo-settings').open=false;
   progress=0;paused=false;updateProgress();
   if(focusControls)pause.focus({preventScroll:true});
   timer=setInterval(()=>{if(paused)return;progress=Math.min(100,progress+2);updateProgress();if(progress===100)clearInterval(timer);},160);
@@ -146,3 +152,9 @@ zones.addEventListener('keydown',event=>{
 });
 
 demo.querySelector('.demo-gear').addEventListener('click',()=>{const details=demo.querySelector('.demo-settings');details.open=!details.open;if(!demo.querySelector('.demo-card').hidden)details.querySelector('summary').focus({preventScroll:true});});
+
+document.addEventListener('notchcompressor-language',()=>{
+  ja=document.documentElement.lang==='ja';
+  draw();
+  if(!queue.hidden){updateMode();updateProgress();}
+});

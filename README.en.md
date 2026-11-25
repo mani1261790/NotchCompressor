@@ -1,6 +1,6 @@
 # NotchCompressor
 
-[Product page](https://mani1261790.github.io/NotchCompressor/en.html)
+[Product page](https://mani1261790.github.io/NotchCompressor/?lang=en)
 
 [日本語](README.md)
 
