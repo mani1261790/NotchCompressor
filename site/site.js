@@ -110,7 +110,8 @@ const file = demo.querySelector('.demo-file');
 const island = demo.querySelector('.demo-notch');
 const zones = demo.querySelector('.demo-zones');
 const queue = demo.querySelector('.demo-queue');
-const status = demo.querySelector('.demo-status');
+const status = demo.querySelector('.demo-state');
+const percent = demo.querySelector('.demo-percent');
 const pause = demo.querySelector('.demo-pause');
 const meter = demo.querySelector('progress');
 const ja = document.documentElement.lang === 'ja';
@@ -128,9 +129,13 @@ function updateProgress() {
   demo.querySelector('.demo-job').hidden = progress === 100;
   demo.querySelector('.demo-empty').hidden = progress !== 100;
   meter.hidden = progress === 100;
-  status.textContent = progress === 100
+  const stateText = progress === 100
     ? (ja ? 'デモ完了 — 実際の動画は変更していません。' : 'Demo complete — no real video was changed.')
-    : (ja ? (paused ? '一時停止中' : '圧縮中（デモ）') : (paused ? 'Paused' : 'Compressing (demo)')) + ' · ' + progress + '%';
+    : (ja ? (paused ? '一時停止中' : '圧縮中（デモ）') : (paused ? 'Paused' : 'Compressing (demo)'));
+  // Announce state changes, not each 160 ms progress tick. The labeled native
+  // progress element remains available when someone wants the current value.
+  if(status.textContent !== stateText)status.textContent = stateText;
+  percent.textContent = progress === 100 ? '' : ' · ' + progress + '%';
   pause.hidden = progress === 100;
   pause.textContent = paused ? '▶' : 'Ⅱ';
   pause.setAttribute('aria-label', ja ? (paused ? '再開' : '一時停止') : (paused ? 'Resume' : 'Pause'));
