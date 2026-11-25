@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "ffmpeg": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "machine": "arm64",
+  "os": "27.3",
+  "width": 1920,
+  "height": 1080,
+  "fps": 60.0,
+  "frame_rate_policy": "source",
+  "target_fps": 60.0,
+  "video_bitrate_preset": "gentle",
+  "seconds": 12.0,
+  "original_bytes": 25639320,
+  "target_bps": 11197440,
+  "analysis_seconds": 0.019090249901637435,
+  "seed": 20261125,
+  "trials": [
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 3,
+      "output": "hevc-bitrate-3.mov",
+      "status": "passed",
+      "encode_seconds": 4.215628416044638,
+      "output_probe_seconds": 0.02420358406379819,
+      "output_fps": 60.0,
+      "validation_seconds": 1.2541625420562923,
+      "audio_check_seconds": 0.01244341698475182,
+      "total_seconds": 5.525528209051117,
+      "bytes": 13958569,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 2,
+      "output": "hevc-bitrate-2.mov",
+      "status": "passed",
+      "encode_seconds": 4.449921375140548,
+      "output_probe_seconds": 0.01271458389237523,
+      "output_fps": 60.0,
+      "validation_seconds": 1.192769582848996,
+      "audio_check_seconds": 0.01373699982650578,
+      "total_seconds": 5.688232791610062,
+      "bytes": 13958569,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 1,
+      "output": "hevc-bitrate-1.mov",
+      "status": "passed",
+      "encode_seconds": 4.306373541010544,
+      "output_probe_seconds": 0.01246291701681912,
+      "output_fps": 60.0,
+      "validation_seconds": 1.151432250160724,
+      "audio_check_seconds": 0.012798916082829237,
+      "total_seconds": 5.502157874172553,
+      "bytes": 13958569,
+      "smaller": true
+    }
+  ],
+  "scope": "Frame-rate policy: source; audio copied. Copy and integrity hashing excluded from total. Not an end-to-end app benchmark.",
+  "visual_review": "pending; no optimal codec or quality is inferred from timing alone",
+  "source_unchanged": true,
+  "summary": {
+    "hevc-bitrate": {
+      "passed": 3,
+      "expected": 3,
+      "median_total_seconds": 5.525528209051117,
+      "median_bytes": 13958569
+    }
+  }
+}

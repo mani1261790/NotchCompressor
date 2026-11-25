@@ -1,0 +1,12 @@
+{
+  "programs": [],
+  "stream_groups": [],
+  "streams": [
+    {
+      "codec_name": "hevc",
+      "codec_type": "video",
+      "avg_frame_rate": "60/1",
+      "nb_frames": "720"
+    }
+  ]
+}

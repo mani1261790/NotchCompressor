@@ -1,0 +1,44 @@
+[
+  {
+    "file": "h264-bitrate-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  },
+  {
+    "file": "hevc-bitrate-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  },
+  {
+    "file": "hevc-fast-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  },
+  {
+    "file": "hevc-quality-50-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  },
+  {
+    "file": "hevc-quality-65-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  },
+  {
+    "file": "hevc-quality-80-1.mov",
+    "frames": 360,
+    "first": 0.0,
+    "last": 11.966667,
+    "uniform_30fps": true
+  }
+]

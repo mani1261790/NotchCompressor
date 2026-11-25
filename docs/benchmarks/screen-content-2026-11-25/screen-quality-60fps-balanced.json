@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "ffmpeg": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "machine": "arm64",
+  "os": "27.3",
+  "width": 1920,
+  "height": 1080,
+  "fps": 60.0,
+  "frame_rate_policy": "source",
+  "target_fps": 60.0,
+  "video_bitrate_preset": "balanced",
+  "seconds": 12.0,
+  "original_bytes": 25639320,
+  "target_bps": 7464960,
+  "analysis_seconds": 0.02300966694019735,
+  "seed": 20261125,
+  "trials": [
+    {
+      "variant": "hevc-fast",
+      "repeat": 1,
+      "output": "hevc-fast-1.mov",
+      "status": "passed",
+      "encode_seconds": 2.7257224591448903,
+      "output_probe_seconds": 0.008156290976330638,
+      "output_fps": 60.0,
+      "validation_seconds": 0.8890301249921322,
+      "audio_check_seconds": 0.013434375170618296,
+      "total_seconds": 3.6593529172241688,
+      "bytes": 11436891,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-fast",
+      "repeat": 3,
+      "output": "hevc-fast-3.mov",
+      "status": "passed",
+      "encode_seconds": 2.7256897080224007,
+      "output_probe_seconds": 0.01312208385206759,
+      "output_fps": 60.0,
+      "validation_seconds": 0.9130181248765439,
+      "audio_check_seconds": 0.01238674996420741,
+      "total_seconds": 3.687226333655417,
+      "bytes": 11436891,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 3,
+      "output": "hevc-bitrate-3.mov",
+      "status": "passed",
+      "encode_seconds": 4.016444958047941,
+      "output_probe_seconds": 0.009999249828979373,
+      "output_fps": 60.0,
+      "validation_seconds": 0.9583598328754306,
+      "audio_check_seconds": 0.015461790841072798,
+      "total_seconds": 5.023275498533621,
+      "bytes": 10843136,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-fast",
+      "repeat": 2,
+      "output": "hevc-fast-2.mov",
+      "status": "passed",
+      "encode_seconds": 2.8734267079271376,
+      "output_probe_seconds": 0.014557582791894674,
+      "output_fps": 60.0,
+      "validation_seconds": 1.3719862499274313,
+      "audio_check_seconds": 0.014009082922711968,
+      "total_seconds": 4.296989290509373,
+      "bytes": 11436891,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 2,
+      "output": "hevc-bitrate-2.mov",
+      "status": "passed",
+      "encode_seconds": 4.316000167047605,
+      "output_probe_seconds": 0.012873708037659526,
+      "output_fps": 60.0,
+      "validation_seconds": 1.2213695840910077,
+      "audio_check_seconds": 0.012661375105381012,
+      "total_seconds": 5.5859145012218505,
+      "bytes": 10843136,
+      "smaller": true
+    },
+    {
+      "variant": "hevc-bitrate",
+      "repeat": 1,
+      "output": "hevc-bitrate-1.mov",
+      "status": "passed",
+      "encode_seconds": 4.68604079214856,
+      "output_probe_seconds": 0.01644750009290874,
+      "output_fps": 60.0,
+      "validation_seconds": 1.6959985420107841,
+      "audio_check_seconds": 0.012916165869683027,
+      "total_seconds": 6.4344126670621336,
+      "bytes": 10843136,
+      "smaller": true
+    }
+  ],
+  "scope": "Frame-rate policy: source; audio copied. Copy and integrity hashing excluded from total. Not an end-to-end app benchmark.",
+  "visual_review": "pending; no optimal codec or quality is inferred from timing alone",
+  "source_unchanged": true,
+  "summary": {
+    "hevc-bitrate": {
+      "passed": 3,
+      "expected": 3,
+      "median_total_seconds": 5.5859145012218505,
+      "median_bytes": 10843136
+    },
+    "hevc-fast": {
+      "passed": 3,
+      "expected": 3,
+      "median_total_seconds": 3.687226333655417,
+      "median_bytes": 11436891
+    }
+  }
+}

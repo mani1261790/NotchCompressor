@@ -48,6 +48,13 @@ def main():
     parser.add_argument('--output', type=Path, required=True, help='New local directory; must not exist')
     parser.add_argument('--tools', type=Path, default=Path(__file__).resolve().parents[1] / '.build' / 'vendor' / ('install-' + platform.machine()) / 'bin')
     parser.add_argument('--repeats', type=int, default=3)
+    parser.add_argument('--frame-rate', choices=['source', 'limit30'], default='source',
+                        help='Match the app frame-rate setting; limit30 regularizes VFR')
+    parser.add_argument('--quality', choices=['gentle', 'balanced', 'compact'], default='balanced',
+                        help='App video bitrate preset; audio remains copied for a controlled comparison')
+    parser.add_argument('--variants', nargs='+', choices=['hevc-bitrate', 'hevc-fast', 'h264-bitrate',
+                        'hevc-quality-50', 'hevc-quality-65', 'hevc-quality-80'],
+                        help='Run only these encoders (default: all six)')
     parser.add_argument('--timeout', type=int, default=900, help='Seconds per subprocess')
     args = parser.parse_args()
     if not 1 <= args.repeats <= 10 or args.timeout <= 0:
@@ -75,24 +82,31 @@ def main():
         raise RuntimeError('Only SDR, 8-bit, opaque video is supported')
     num, den = map(float, v['avg_frame_rate'].split('/'))
     fps = num / den
+    output_fps = fps if args.frame_rate == 'source' else min(fps, 30)
     duration = float(info['format']['duration'])
     source_rate = int(v.get('bit_rate', 0))
-    target = int(max(150000, min(v['width'] * v['height'] * fps * 0.06,
-                                  source_rate * 0.65 if source_rate > 0 else 12000000, 12000000)))
+    bits_per_pixel, source_ratio = dict(gentle=(0.09, 0.85), balanced=(0.06, 0.65),
+                                       compact=(0.035, 0.45))[args.quality]
+    target = int(max(150000, min(v['width'] * v['height'] * output_fps * bits_per_pixel,
+                                  source_rate * source_ratio if source_rate > 0 else 12000000, 12000000)))
     audio_packets, _ = packets(ffprobe, staged, args.timeout)
     variants = [
         ('hevc-bitrate', 'hevc_videotoolbox', ['-b:v', str(target)]),
         ('hevc-fast', 'hevc_videotoolbox', ['-b:v', str(target), '-prio_speed', '1']),
         ('h264-bitrate', 'h264_videotoolbox', ['-b:v', str(target)]),
     ] + [(f'hevc-quality-{q}', 'hevc_videotoolbox', ['-q:v', str(q)]) for q in [50, 65, 80]]
+    if args.variants:
+        variants = [variant for variant in variants if variant[0] in args.variants]
     trials = [(repeat, variant) for repeat in range(1, args.repeats + 1) for variant in variants]
     random.Random(20261125).shuffle(trials)
     version, _ = run([str(ffmpeg), '-version'], args.timeout)
     report = dict(schema=1, ffmpeg=version.splitlines()[0], machine=platform.machine(),
                   os=platform.mac_ver()[0], width=v['width'], height=v['height'], fps=fps,
+                  frame_rate_policy=args.frame_rate, target_fps=output_fps,
+                  video_bitrate_preset=args.quality,
                   seconds=duration, original_bytes=staged.stat().st_size, target_bps=target,
                   analysis_seconds=analysis_time, seed=20261125, trials=[],
-                  scope='Source fps preserved, audio copied. Copy and integrity hashing excluded from total. Not an end-to-end app benchmark.',
+                  scope=f'Frame-rate policy: {args.frame_rate}; audio copied. Copy and integrity hashing excluded from total. Not an end-to-end app benchmark.',
                   visual_review='pending; no optimal codec or quality is inferred from timing alone')
     for repeat, (label, codec, options) in trials:
         name = f'{label}-{repeat}'
@@ -102,14 +116,21 @@ def main():
             command = [str(ffmpeg), '-nostdin', '-hide_banner', '-v', 'error', '-xerror', '-n',
                        '-protocol_whitelist', 'file,pipe', '-noautorotate', '-i', str(staged),
                        '-map', '0:v:0', '-map', '0:a?', '-map_metadata', '0', '-map_chapters', '0',
-                       '-c:v', codec, '-allow_sw', '0', '-pix_fmt', 'yuv420p',
-                       '-fps_mode:v', 'passthrough', '-enc_time_base:v', 'demux']
+                       '-c:v', codec, '-allow_sw', '0', '-pix_fmt', 'yuv420p']
+            if args.frame_rate == 'source':
+                command += ['-fps_mode:v', 'passthrough', '-enc_time_base:v', 'demux']
+            else:
+                command += ['-vf', f'fps={output_fps}']
             if codec == 'hevc_videotoolbox':
                 command += ['-tag:v', 'hvc1']
             command += options + ['-c:a', 'copy', '-movflags', '+faststart', '-f', 'mov' if source.suffix.lower() == '.mov' else 'mp4', str(dest)]
             _, encode = run(command, args.timeout)
             converted, output_probe = probe(ffprobe, dest, args.timeout)
             ov = next(s for s in converted['streams'] if s['codec_type'] == 'video')
+            out_num, out_den = map(float, ov['avg_frame_rate'].split('/'))
+            measured_fps = out_num / out_den
+            if abs(measured_fps - output_fps) > 0.1:
+                raise RuntimeError('Output average frame rate does not match selected policy')
             if (ov['width'], ov['height']) != (v['width'], v['height']) or abs(float(converted['format']['duration']) - duration) > max(0.25, 2 / fps):
                 raise RuntimeError('Output dimensions or duration do not match')
             _, validate = run([str(ffmpeg), '-nostdin', '-v', 'error', '-xerror', '-err_detect', 'explode',
@@ -118,6 +139,7 @@ def main():
             if converted_audio != audio_packets:
                 raise RuntimeError('Copied audio packets or timing changed')
             row.update(status='passed', encode_seconds=encode, output_probe_seconds=output_probe,
+                       output_fps=measured_fps,
                        validation_seconds=validate, audio_check_seconds=audio_check,
                        total_seconds=analysis_time + encode + output_probe + validate + audio_check,
                        bytes=dest.stat().st_size, smaller=dest.stat().st_size < staged.stat().st_size)
