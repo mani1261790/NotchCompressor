@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 820" fill="none">
 <defs><g id="arc"><path d="M-180 756C190 638 387 675 683 565S1240 257 1780 377"/></g></defs>
-<g stroke="#81a391" stroke-width="1">
+<g stroke="#819fce" stroke-width="1">
 <use href="#arc" opacity=".72"/><use href="#arc" transform="translate(0 8)" opacity=".62"/><use href="#arc" transform="translate(0 18)" opacity=".5"/><use href="#arc" transform="translate(0 31)" opacity=".45"/><use href="#arc" transform="translate(0 48)" opacity=".38"/><use href="#arc" transform="translate(0 69)" opacity=".32"/><use href="#arc" transform="translate(0 94)" opacity=".26"/><use href="#arc" transform="translate(0 124)" opacity=".20"/>
-</g><g fill="#95ac88"><circle cx="170" cy="226" r="1.6"/><circle cx="323" cy="150" r="1"/><circle cx="251" cy="335" r="1.2"/><circle cx="1197" cy="240" r="1.5"/><circle cx="1374" cy="128" r="1.1"/><circle cx="1466" cy="298" r="1.9"/><circle cx="91" cy="537" r="1.2"/></g></svg>
+</g><g fill="#8ca4d1"><circle cx="170" cy="226" r="1.6"/><circle cx="323" cy="150" r="1"/><circle cx="251" cy="335" r="1.2"/><circle cx="1197" cy="240" r="1.5"/><circle cx="1374" cy="128" r="1.1"/><circle cx="1466" cy="298" r="1.9"/><circle cx="91" cy="537" r="1.2"/></g></svg>

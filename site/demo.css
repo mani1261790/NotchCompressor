@@ -76,3 +76,16 @@
 .demo-zones button{min-height:44px}.demo-zones b{font-size:max(8px,.94cqw)}.demo-zones small{font-size:max(6px,.725cqw)}
 .demo-queue strong{margin-right:0}
 @media(max-width:600px){.demo-gear{width:36px;height:36px;padding:7px}.demo-heading-actions{gap:4px}}
+
+/* Keep the original mock landscape, recolored blue only inside the display.
+   The metal enclosure and native UI colors are not filtered. */
+:root{--mock-image:url(assets/lunamo-laptop-light-v2.png);--mock-blue-filter:grayscale(1) sepia(1) saturate(1.8) hue-rotate(175deg)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--mock-image:url(assets/lunamo-laptop-dark-v2.png)}}
+:root[data-theme=dark]{--mock-image:url(assets/lunamo-laptop-dark-v2.png)}
+.housing::after{content:"";position:absolute;inset:6.934% auto auto 7.943%;width:84.115%;height:80.469%;background:var(--mock-image) 50% 35.5%/118.89% auto;filter:var(--mock-blue-filter);border-radius:1.5% 1.5% 0 0;pointer-events:none}
+.queue-shot img{box-shadow:0 14px 45px #14284d17}
+@media(max-width:600px){
+ .machine{background:#202631;border-color:#202631}
+ .demo-screen{background:none!important;isolation:isolate}
+ .demo-screen::before{content:"";position:absolute;inset:0;z-index:-1;background:var(--mock-image) 50% 35.5%/118.89% auto;filter:var(--mock-blue-filter);pointer-events:none}
+}
