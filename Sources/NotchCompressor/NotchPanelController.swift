@@ -12,8 +12,8 @@ final class DropPresentation: ObservableObject {
     @Published var visible = false
     @Published var showingWidgets = false
     @Published var compactWidgets = false
-    @Published var compactWidth: CGFloat = 180
-    @Published var compactHeight: CGFloat = 28
+    @Published var expandedFrame = CGRect(x: 0, y: 0, width: 480, height: 148)
+    @Published var compactFrame = CGRect(x: 150, y: 0, width: 180, height: 28)
     @Published var cameraWidth: CGFloat = 0
     @Published var widgetSideWidth: CGFloat = 120
 }
@@ -21,6 +21,7 @@ final class DropPresentation: ObservableObject {
 @MainActor
 private final class DropHostingView: NSHostingView<DropPanel> {
     var geometry: NotchGeometry?
+    var canvasFrame = CGRect.zero
     let presentation: DropPresentation
     var onEnd: (() -> Void)?
     var onAccepted: (() -> Void)?
@@ -56,7 +57,11 @@ private final class DropHostingView: NSHostingView<DropPanel> {
         let point = convert(sender.draggingLocation, from: nil)
         // NSHostingView is flipped; the geometry contract uses a bottom-left origin.
         let local = CGPoint(x: point.x, y: isFlipped ? bounds.height - point.y : point.y)
-        return presentation.content.mode(for: geometry?.mode(at: local))
+        guard let geometry else { return nil }
+        let dropPoint = CGPoint(
+            x: local.x + canvasFrame.minX - geometry.panel.minX,
+            y: local.y + canvasFrame.minY - geometry.panel.minY)
+        return presentation.content.mode(for: geometry.mode(at: dropPoint))
     }
     func updateContent(_ pasteboard: NSPasteboard) {
         // Providers can populate URLs lazily without a new changeCount. That
@@ -174,7 +179,7 @@ final class NotchPanelController {
         }
     }
 
-    private func prepareExpansionLayout(_ geometry: NotchGeometry) {
+    private func prepareExpansionLayout(_ geometry: NotchGeometry, on screen: NSScreen) {
         // Commit the closed mask at the destination size before changing visible.
         // Also covers switching displays or expanding from compact widgets.
         var transaction = Transaction(animation: nil)
@@ -182,10 +187,7 @@ final class NotchPanelController {
         withTransaction(transaction) {
             host.geometry = geometry
             presentation.topInset = geometry.topInset
-            presentation.compactWidth = geometry.collapsed.width
-            presentation.compactHeight = geometry.collapsed.height
-            presentation.compactWidgets = false
-            setFrame(geometry.panel)
+            applyLayout(geometry, on: screen)
             host.layoutSubtreeIfNeeded()
             host.displayIfNeeded()
         }
@@ -202,9 +204,11 @@ final class NotchPanelController {
         panel.ignoresMouseEvents = true
         if presentation.mode != nil { presentation.mode = nil }
         if presentation.visible {
+            // Set the true idle destination before starting the closing spring.
+            if let screen = panel.screen { applyLayout(geometry(on: screen), on: screen) }
             presentation.visible = false
             collapseTask = Task { [weak self] in
-                do { try await Task.sleep(for: .milliseconds(220)) } catch { return }
+                do { try await Task.sleep(for: .milliseconds(450)) } catch { return }
                 guard let self else { return }
                 collapseTask = nil
                 finishCollapse()
@@ -215,66 +219,69 @@ final class NotchPanelController {
     }
 
     private func finishCollapse() {
-        guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens.first else {
+        guard
+            let screen = panel.screen ?? NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 })
+                ?? NSScreen.screens.first
+        else {
             panel.orderOut(nil); return
         }
         let geometry = geometry(on: screen)
-        if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
-        if presentation.compactWidth != geometry.collapsed.width {
-            presentation.compactWidth = geometry.collapsed.width
-        }
-        if presentation.compactHeight != geometry.collapsed.height {
-            presentation.compactHeight = geometry.collapsed.height
-        }
-        host.geometry = geometry
-        if presentation.showingWidgets != (widgets.hasPersistentContent) {
-            presentation.showingWidgets = widgets.hasPersistentContent
-        }
-        let compactWidgets = widgets.hasPersistentContent
-        if presentation.compactWidgets != compactWidgets { presentation.compactWidgets = compactWidgets }
-        if widgets.hasPersistentContent {
-            let camera: CGRect?
-            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea,
-                right.minX > left.maxX
-            {
-                camera = CGRect(
-                    x: left.maxX, y: screen.frame.maxY - geometry.topInset,
-                    width: right.minX - left.maxX, height: geometry.topInset)
-            } else {
-                camera = nil
-            }
-            // If the camera boundary is unavailable, stay entirely below its safe inset.
-            let fallbackBelowCamera = geometry.topInset > 0 && camera == nil
-            var safeFrame = screen.frame
-            if fallbackBelowCamera { safeFrame.size.height -= geometry.topInset }
-            let layout = NotchWidgetGeometry(
-                screen: safeFrame, topInset: fallbackBelowCamera ? 0 : geometry.topInset,
-                notchWidth: geometry.collapsed.width,
-                preferredSideWidth: widgets.persistentMusic ? 160 : 120,
-                cameraRect: camera, cameraPadding: 8)
-            if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
-            if presentation.widgetSideWidth != layout.sideWidth { presentation.widgetSideWidth = layout.sideWidth }
-            setFrame(layout.frame)
+        applyLayout(geometry, on: screen)
+        if widgets.hasPersistentContent || (widgets.showIdleBackground && widgets.hasVisibleContent) {
             if !panel.isVisible { panel.orderFrontRegardless() }
-        } else {
-            // Keep the hidden canvas laid out, without intercepting the menu bar.
-            setFrame(geometry.panel)
-            host.layoutSubtreeIfNeeded()
-            if widgets.showIdleBackground && widgets.hasVisibleContent {
-                if !panel.isVisible { panel.orderFrontRegardless() }
-            } else if panel.isVisible {
-                panel.orderOut(nil)
-            }
+        } else if panel.isVisible {
+            panel.orderOut(nil)
         }
     }
 
+    private func applyLayout(_ geometry: NotchGeometry, on screen: NSScreen) {
+        let camera: CGRect?
+        if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea,
+            right.minX > left.maxX
+        {
+            camera = CGRect(
+                x: left.maxX, y: screen.frame.maxY - geometry.topInset,
+                width: right.minX - left.maxX, height: geometry.topInset)
+        } else {
+            camera = nil
+        }
+        let fallbackBelowCamera = geometry.topInset > 0 && camera == nil
+        var safeFrame = screen.frame
+        if fallbackBelowCamera { safeFrame.size.height -= geometry.topInset }
+        let widgetsLayout = NotchWidgetGeometry(
+            screen: safeFrame, topInset: fallbackBelowCamera ? 0 : geometry.topInset,
+            notchWidth: geometry.collapsed.width,
+            preferredSideWidth: widgets.persistentMusic ? 160 : 120,
+            cameraRect: camera, cameraPadding: 8)
+        let layout = NotchTransitionGeometry(
+            expanded: geometry.panel,
+            collapsed: widgets.hasPersistentContent ? widgetsLayout.frame : geometry.collapsed)
+        if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
+        if presentation.compactWidgets != widgets.hasPersistentContent {
+            presentation.compactWidgets = widgets.hasPersistentContent
+        }
+        if presentation.cameraWidth != widgetsLayout.cameraWidth {
+            presentation.cameraWidth = widgetsLayout.cameraWidth
+        }
+        if presentation.widgetSideWidth != widgetsLayout.sideWidth {
+            presentation.widgetSideWidth = widgetsLayout.sideWidth
+        }
+        if presentation.expandedFrame != layout.expanded { presentation.expandedFrame = layout.expanded }
+        if presentation.compactFrame != layout.collapsed { presentation.compactFrame = layout.collapsed }
+        host.geometry = geometry
+        host.canvasFrame = layout.canvas
+        // One canvas for both states: finishing the spring never resizes the window.
+        setFrame(layout.canvas)
+    }
+
     private func expand(on screen: NSScreen, information: Bool = false) {
+        let reversingCollapse = collapseTask != nil
         collapseTask?.cancel(); collapseTask = nil
         receiptTask?.cancel(); receiptTask = nil
         if presentation.receivedFiles { presentation.receivedFiles = false }
         let geometry = geometry(on: screen)
-        if !presentation.visible || panel.frame != geometry.panel {
-            prepareExpansionLayout(geometry)
+        if (!presentation.visible && !reversingCollapse) || host.geometry?.panel != geometry.panel {
+            prepareExpansionLayout(geometry, on: screen)
         }
         if presentation.showingWidgets != information { presentation.showingWidgets = information }
         panel.ignoresMouseEvents = false
@@ -324,8 +331,8 @@ final class NotchPanelController {
         }
         hover.reset()
         let insidePanel =
-            presentation.visible && panel.frame == geometry.panel
-            && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)
+            presentation.visible && host.geometry?.panel == geometry.panel
+            && geometry.panel.insetBy(dx: -16, dy: -16).contains(pointer)
         guard geometry.isInTrigger(pointer) || insidePanel else {
             trace("compact: file outside trigger"); collapse(); return
         }

@@ -3,6 +3,34 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testTransitionKeepsActualPersistentWidthAndCameraOffset() {
+        let expanded = CGRect(x: 480, y: 720, width: 480, height: 180)
+        // A wide physical cutout plus two information regions can exceed 480pt.
+        let idle = CGRect(x: 440, y: 868, width: 560, height: 32)
+        let layout = NotchTransitionGeometry(expanded: expanded, collapsed: idle)
+        XCTAssertEqual(layout.canvas, CGRect(x: 440, y: 720, width: 560, height: 180))
+        XCTAssertEqual(layout.expanded, CGRect(x: 40, y: 0, width: 480, height: 180))
+        XCTAssertEqual(layout.collapsed, CGRect(x: 0, y: 0, width: 560, height: 32))
+        XCTAssertEqual(layout.canvas.minX + layout.collapsed.minX, idle.minX)
+        XCTAssertEqual(layout.canvas.maxY - layout.collapsed.minY, idle.maxY)
+    }
+
+    func testTransitionPreservesIdlePositionBelowUnknownCamera() {
+        let expanded = CGRect(x: -800, y: 620, width: 480, height: 180)
+        let idle = CGRect(x: -700, y: 740, width: 240, height: 28)
+        let layout = NotchTransitionGeometry(expanded: expanded, collapsed: idle)
+        XCTAssertEqual(layout.canvas, expanded)
+        XCTAssertEqual(layout.collapsed, CGRect(x: 100, y: 32, width: 240, height: 28))
+        XCTAssertEqual(layout.expanded.origin, .zero)
+    }
+
+    func testTransitionWithoutWidgetsStillClosesToOriginalNotch() {
+        let geometry = NotchGeometry(screen: CGRect(x: 0, y: 0, width: 1440, height: 900), topInset: 0)
+        let layout = NotchTransitionGeometry(expanded: geometry.panel, collapsed: geometry.collapsed)
+        XCTAssertEqual(layout.canvas, geometry.panel)
+        XCTAssertEqual(layout.collapsed, CGRect(x: 150, y: 0, width: 180, height: 28))
+    }
+
     func testMusicConnectionSeparatesPermissionFromPlayback() {
         XCTAssertEqual(MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.noTrack"), .ready)
         XCTAssertTrue(MusicConnectionState.ready.connected)

@@ -170,3 +170,10 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Replaced segmented quality, frame-rate, encoding-speed, clock, and Music selectors with native glass capsule buttons; selected options retain accessibility state.
 - Build 26: universal app build, formatting, localization (361 keys / 278 literal lookups), and diff checks passed. Signed Preview updated.
 - Native English dark-mode verification: General has no redundant startup state; denied-notification guidance remains visible. Video selectors and the scrollable help popover render correctly. Clock and Music selection rows render correctly. No compression or playback preferences changed during this check.
+
+### Persistent notch transition continuity — 2026-11-26
+
+- Closing previously animated to the bare notch size, then swapped the window to the wider persistent clock/Music layout after 220 ms.
+- Added shared transition geometry for expanded and actual persistent endpoints, including camera offsets and below-camera fallback. Both endpoints use one window canvas; completion no longer resizes it. Compact content crossfades in the same location and opening reverses the same geometry.
+- Updated native drop coordinates for the larger canvas and preserved interrupted closing animations when reopening. Kept the current display when finishing collapse.
+- Build 27: 17 NotchTests passed, including wide camera/persistent endpoints, offset displays and below-camera fallback. Universal build and signed Preview update succeeded. Native Preview launch and compact clock rendering checked; automated pointer actions did not trigger hover, so live animation continuity still needs visual acceptance.

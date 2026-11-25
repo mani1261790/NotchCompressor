@@ -234,12 +234,17 @@ struct DropPanel: View {
     @Namespace private var selection
     var body: some View {
         GeometryReader { proxy in
-            ZStack(alignment: .top) {
+            ZStack(alignment: .topLeading) {
                 if presentation.compactWidgets {
                     NotchWidgetsView(
                         widgets: widgets, cameraWidth: presentation.cameraWidth, sideWidth: presentation.widgetSideWidth
                     )
-                } else {
+                    .frame(width: presentation.compactFrame.width, height: presentation.compactFrame.height)
+                    .offset(x: presentation.compactFrame.minX, y: presentation.compactFrame.minY)
+                    .opacity(presentation.visible ? 0 : 1)
+                    .accessibilityHidden(presentation.visible)
+                }
+                Group {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: presentation.topInset)
                         ZStack {
@@ -270,13 +275,17 @@ struct DropPanel: View {
                             .offset(y: reduceMotion || presentation.visible ? 0 : -8)
                             .scaleEffect(reduceMotion || presentation.visible ? 1 : 0.97, anchor: .top)
                     }
+                    .frame(width: presentation.expandedFrame.width, height: presentation.expandedFrame.height)
+                    .offset(x: presentation.expandedFrame.minX, y: presentation.expandedFrame.minY)
+                    .allowsHitTesting(presentation.visible)
+                    .accessibilityHidden(!presentation.visible)
                 }
             }
-            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
             .background {
                 if presentation.visible || widgets.showIdleBackground { Color.black }
             }
-            .mask(alignment: .top) {
+            .mask(alignment: .topLeading) {
                 UnevenRoundedRectangle(
                     topLeadingRadius: 0,
                     bottomLeadingRadius: presentation.visible ? 26 : 10,
@@ -284,10 +293,12 @@ struct DropPanel: View {
                     topTrailingRadius: 0
                 )
                 .frame(
-                    width: presentation.visible || presentation.compactWidgets
-                        ? proxy.size.width : presentation.compactWidth,
-                    height: presentation.visible || presentation.compactWidgets
-                        ? proxy.size.height : presentation.compactHeight)
+                    width: presentation.visible ? presentation.expandedFrame.width : presentation.compactFrame.width,
+                    height: presentation.visible ? presentation.expandedFrame.height : presentation.compactFrame.height
+                )
+                .offset(
+                    x: presentation.visible ? presentation.expandedFrame.minX : presentation.compactFrame.minX,
+                    y: presentation.visible ? presentation.expandedFrame.minY : presentation.compactFrame.minY)
             }
             .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.88), value: presentation.visible)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: presentation.showingWidgets)
