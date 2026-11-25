@@ -346,3 +346,19 @@
 "audio.preserveSummary" = "Compress audio in M4A as AAC. Channel count, sample rate, artwork, chapters, and metadata are preserved.";
 "widgets.idleBackground" = "Show black notch background when idle";
 "widgets.idleHint" = "Nothing is shown while idle when clock and music are both off. Persistent information includes its black background.";
+
+"music.checking" = "Checking Music…";
+"music.permissionNeeded" = "Music permission required";
+"music.denied" = "Music access is blocked in macOS";
+"music.closed" = "Music is not running";
+"music.ready" = "Connected · No track playing";
+"music.playing" = "Connected · Playing";
+"music.paused" = "Connected · Paused";
+"music.connectedHint" = "Music access is allowed. Track information updates automatically; you do not need to reconnect.";
+"music.permissionSteps" = "Enable Music under “%@”, then return to this app.";
+"music.openPermissions" = "Open Automation settings";
+"music.openApp" = "Open Music";
+"music.allow" = "Allow Music access";
+"music.recheck" = "Check status again";
+"music.checked" = "Checked at %@";
+"widgets.permissionNeeded" = "Allow Music access in settings.";

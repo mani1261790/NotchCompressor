@@ -287,15 +287,67 @@ struct SettingsView: View {
                     Text(L10n.text("widgets.idleHint")).font(.caption).foregroundStyle(.secondary)
                     Text(L10n.text("widgets.hint")).font(.caption).foregroundStyle(.secondary)
                     if widgets.showMusic {
-                        Button {
-                            widgets.connect()
-                        } label: {
-                            Label(L10n.text("widgets.connect"), systemImage: "music.note")
-                        }.capsuleControl().disabled(widgets.connecting)
-                        if widgets.connecting { ProgressView().controlSize(.small) }
-                        if let key = widgets.statusKey {
-                            Text(L10n.text(key)).font(.caption).foregroundStyle(.secondary)
-                        }
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label(
+                                widgets.connection.title,
+                                systemImage: widgets.connection.connected
+                                    ? "checkmark.circle.fill"
+                                    : widgets.connection == .checking ? "arrow.triangle.2.circlepath" : "music.note"
+                            )
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(widgets.connection.connected ? Color.green : Color.primary)
+                            if widgets.connection.connected {
+                                Text(L10n.text("music.connectedHint")).font(.caption).foregroundStyle(.secondary)
+                                if let track = widgets.track {
+                                    Text([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
+                                        .font(.callout).lineLimit(2)
+                                }
+                            }
+                            if widgets.connection == .denied {
+                                Text(
+                                    L10n.text(
+                                        "music.permissionSteps",
+                                        Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+                                            ?? "NotchCompressor")
+                                )
+                                .font(.caption).foregroundStyle(.secondary)
+                                Button {
+                                    widgets.openMusicPermissionSettings()
+                                } label: {
+                                    Label(L10n.text("music.openPermissions"), systemImage: "arrow.up.forward.app")
+                                }.capsuleControl()
+                            } else if widgets.connection == .closed || widgets.connection == .ready {
+                                Button {
+                                    widgets.openMusic()
+                                } label: {
+                                    Label(L10n.text("music.openApp"), systemImage: "arrow.up.forward.app")
+                                }.capsuleControl()
+                            }
+                            if widgets.connecting {
+                                HStack {
+                                    ProgressView().controlSize(.small)
+                                    Text(L10n.text("music.checking")).font(.caption)
+                                }
+                            } else {
+                                Button {
+                                    widgets.connect()
+                                } label: {
+                                    Label(
+                                        L10n.text(
+                                            widgets.connection == .permissionNeeded ? "music.allow" : "music.recheck"),
+                                        systemImage: widgets.connection == .permissionNeeded
+                                            ? "hand.raised" : "arrow.clockwise")
+                                }.capsuleControl()
+                            }
+                            if let date = widgets.lastConnectionCheck, !widgets.connecting {
+                                Text(
+                                    L10n.text(
+                                        "music.checked",
+                                        date.formatted(.dateTime.hour().minute().second().locale(L10n.locale)))
+                                )
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }.padding(.vertical, 4)
                     }
                 } header: {
                     Label(L10n.text("widgets.title"), systemImage: "menubar.rectangle")

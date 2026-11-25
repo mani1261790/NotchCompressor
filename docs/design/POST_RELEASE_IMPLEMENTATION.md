@@ -130,3 +130,12 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Persistent compact rendering no longer mounts the hidden 148-point dashboard under the compact content. Clock-only side regions are 90 pt; music uses 120 pt. Expanded clock/music-only content is centered with settings overlaid at the edge. Black idle background is independently selectable and suppressed when no widgets have content.
 - Validation: universal build, Developer ID preview signing, 339 JA/EN keys and 11 notch tests. Native English/dark UI checked for Video/Image/Audio/Updates and notification-denied instructions. Open-settings action reached the actual Notifications pane and Preview's permission control; OS permission was not changed. Widget toggle dependencies checked and original values restored.
 - Remaining: first-install login registration, fresh permission prompt, JA/light visual review, physical compact/hover animations and single-widget rendering. Public distribution unchanged.
+
+### 2026-11-25: explicit Music connection state (build 21)
+
+- Replace ambiguous Connect action with explicit permission-needed, blocked, Music-closed, connected/no-track, playing and paused states.
+- Connected states explain that track updates are automatic; no repeat connection is necessary. Music-closed/no-track offers Open Music; denied offers Automation settings and actual app name; unrequested permission offers Allow Music access. Recheck leaves a completion timestamp.
+- Explicit recheck waits for in-flight polling/control instead of silently returning. Polling still cannot prompt or launch Music. Opening Music is an explicit user action.
+- The installed Preview's prior noTrack result already implied successful permission and player-state read; the original UI obscured that distinction.
+- Validation: 12 NotchTests including connection-state classification, 354 localization keys, universal build and signed Preview. Fresh authorization prompts/denied UI paths are not end-to-end verified.
+- Native UI acceptance: displayed Connected · No track playing and automatic-update explanation. Clicking Check status again completed and displayed Checked at 11:48:29 PM; screenshot visually reviewed. Existing Music permission was reused; no new permission granted and no playback changed.

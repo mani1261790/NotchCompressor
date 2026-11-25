@@ -22,6 +22,7 @@ final class NotchWidgetsController: ObservableObject {
     @Published private(set) var track: NowPlayingTrack?
     @Published private(set) var statusKey: String?
     @Published private(set) var connecting = false
+    @Published private(set) var lastConnectionCheck: Date?
     @Published private(set) var controlling = false
     @Published private(set) var reading = false
     private var playbackRevision = 0
@@ -53,7 +54,36 @@ final class NotchWidgetsController: ObservableObject {
         }
     }
 
-    func connect() { refresh(askPermission: true) }
+    var connection: MusicConnectionState {
+        MusicConnectionState(checking: connecting, playing: track?.playing, statusKey: statusKey)
+    }
+
+    func connect() {
+        guard showMusic, !connecting else { return }
+        connecting = true
+        Task {
+            // Explicit clicks wait for a poll rather than disappearing during it.
+            while reading || controlling {
+                do { try await Task.sleep(for: .milliseconds(50)) } catch { connecting = false; return }
+            }
+            guard showMusic, !sleeping else { connecting = false; return }
+            refresh(askPermission: true)
+        }
+    }
+
+    func openMusic() {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Music") else {
+            statusKey = "widgets.musicUnavailable"; return
+        }
+        NSWorkspace.shared.openApplication(at: url, configuration: .init()) { _, _ in }
+    }
+
+    func openMusicPermissionSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
+    }
 
     func togglePlayback() {
         guard !controlling, !sleeping, showMusic, track != nil,
@@ -80,12 +110,14 @@ final class NotchWidgetsController: ObservableObject {
     }
 
     private func refresh(askPermission: Bool = false) {
-        guard showMusic, !sleeping, !reading, !controlling else { return }
+        guard showMusic, !sleeping, !reading, !controlling, !connecting || askPermission else { return }
         guard
             let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first?
                 .processIdentifier
         else {
-            track = nil; statusKey = "widgets.openMusic"; return
+            track = nil; statusKey = "widgets.openMusic"
+            if askPermission { connecting = false; lastConnectionCheck = .now }
+            return
         }
         reading = true
         connecting = askPermission
@@ -95,7 +127,8 @@ final class NotchWidgetsController: ObservableObject {
             let result = await Task.detached(priority: .utility) {
                 MusicTrackReader.read(pid: pid, askPermission: askPermission, previous: previous)
             }.value
-            reading = false; connecting = false
+            reading = false
+            if askPermission { connecting = false; lastConnectionCheck = .now }
             guard showMusic, !sleeping else { return }
             guard revision == playbackRevision else {
                 // A poll started before the click must not restore the old icon.
@@ -119,7 +152,13 @@ private enum MusicTrackReader {
         guard let descriptor = target.aeDesc else { return .init(track: nil, statusKey: "widgets.musicUnavailable") }
         let permission = AEDeterminePermissionToAutomateTarget(
             descriptor, AEEventClass(typeWildCard), AEEventID(typeWildCard), askPermission)
-        guard permission == noErr else { return .init(track: nil, statusKey: "widgets.musicPermission") }
+        guard permission == noErr else {
+            let key =
+                permission == errAEEventWouldRequireUserConsent
+                ? "widgets.permissionNeeded"
+                : permission == errAEEventNotPermitted ? "widgets.musicPermission" : "widgets.musicUnavailable"
+            return .init(track: nil, statusKey: key)
+        }
         do {
             let state = try get(property: code("pPlS"), target: target).enumCodeValue
             guard [code("kPSP"), code("kPSp")].contains(state) else {

@@ -3,6 +3,20 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testMusicConnectionSeparatesPermissionFromPlayback() {
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.noTrack"), .ready)
+        XCTAssertTrue(MusicConnectionState.ready.connected)
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: false, statusKey: nil), .paused)
+        XCTAssertEqual(MusicConnectionState(checking: true, playing: true, statusKey: nil), .checking)
+        XCTAssertEqual(
+            MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.musicPermission"), .denied)
+        XCTAssertEqual(
+            MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.permissionNeeded"),
+            .permissionNeeded)
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.openMusic"), .closed)
+        XCTAssertFalse(MusicConnectionState.closed.connected)
+    }
+
     func testDropContentMatchesTargets() {
         let samples: [([String], NotchDropContent)] = [
             (["a.MOV", "b.mp4"], .video), (["a.png", "b.JPEG"], .image),

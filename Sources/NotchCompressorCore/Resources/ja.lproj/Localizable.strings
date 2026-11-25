@@ -346,3 +346,19 @@
 "audio.preserveSummary" = "M4A内の音声をAACで圧縮します。チャンネル数・サンプルレート・ジャケット・チャプター・メタデータを保持します。";
 "widgets.idleBackground" = "待機中もノッチの黒い背景を表示";
 "widgets.idleHint" = "時計と音楽がどちらもオフなら、待機中は何も表示しません。常時情報表示では文字の背景も表示されます。";
+
+"music.checking" = "Musicの状態を確認中…";
+"music.permissionNeeded" = "Musicへの操作許可が必要です";
+"music.denied" = "macOSでMusicへの操作が許可されていません";
+"music.closed" = "Musicが起動していません";
+"music.ready" = "連携済み・曲は再生されていません";
+"music.playing" = "連携済み・再生中";
+"music.paused" = "連携済み・一時停止中";
+"music.connectedHint" = "操作許可を確認できています。曲情報は自動で更新されるため、接続し直す必要はありません。";
+"music.permissionSteps" = "「%@」の中にある「Music（ミュージック）」をオンにして戻ってください。";
+"music.openPermissions" = "オートメーション設定を開く";
+"music.openApp" = "Musicを開く";
+"music.allow" = "Musicとの連携を許可する";
+"music.recheck" = "状態を再確認";
+"music.checked" = "確認完了：%@";
+"widgets.permissionNeeded" = "設定からMusicとの連携を許可してください。";
