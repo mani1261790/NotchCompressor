@@ -84,8 +84,7 @@ struct SettingsView: View {
                     }.pickerStyle(.segmented)
                     Text(queue.settings.quality.explanation)
                         .font(.callout)
-                    Text(L10n.text("settings.modeScope"))
-                        .font(.caption).foregroundStyle(.secondary)
+
                     if queue.settings.quality != .custom {
                         LabeledContent {
                             Text(queue.settings.quality.videoBudgetDescription)
@@ -165,10 +164,9 @@ struct SettingsView: View {
                     ) {
                         ForEach(VideoFrameRate.allCases) { rate in Text(rate.title).tag(rate) }
                     }.pickerStyle(.segmented)
-                    Text(
-                        L10n.text("settings.fpsHint")
-                    )
-                    .font(.caption).foregroundStyle(.secondary)
+                    DisclosureGroup(L10n.text("settings.explainMotion")) {
+                        Text(L10n.text("settings.fpsHint")).font(.callout).foregroundStyle(.secondary)
+                    }
                     Picker(
                         L10n.text("settings.videoSpeed"),
                         selection: Binding(
@@ -177,16 +175,21 @@ struct SettingsView: View {
                     ) {
                         ForEach(VideoEncodingSpeed.allCases) { speed in Text(speed.title).tag(speed) }
                     }.pickerStyle(.segmented)
-                    Text(L10n.text("settings.speedHint"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text(L10n.text("settings.speedScope"))
-                        .font(.caption).foregroundStyle(.secondary)
+                    DisclosureGroup(L10n.text("settings.explainSpeed")) {
+                        Text(L10n.text("settings.speedHint")).font(.callout).foregroundStyle(.secondary)
+                        Text(L10n.text("settings.speedScope")).font(.callout).foregroundStyle(.secondary)
+                    }
                 } header: {
                     Label(L10n.text("settings.speed"), systemImage: "speedometer")
                 }
             }
             if category == .images {
                 Section {
+                    HStack {
+                        Button(L10n.text("quality.compact")) { queue.settings.imageQuality = 70 }.capsuleControl()
+                        Button(L10n.text("quality.balanced")) { queue.settings.imageQuality = 85 }.capsuleControl()
+                        Button(L10n.text("quality.gentle")) { queue.settings.imageQuality = 95 }.capsuleControl()
+                    }
                     LabeledContent(
                         L10n.text("image.jpegQualityLabel"),
                         value: L10n.integer(Int(queue.settings.effectiveImageQuality)))
@@ -197,13 +200,33 @@ struct SettingsView: View {
                     )
                     .accessibilityLabel(L10n.text("image.jpegQualityLabel"))
                     Text(L10n.text("image.qualityHint")).font(.caption).foregroundStyle(.secondary)
-                    Text(L10n.text("image.pngLossless")).font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Text("JPEG")
+                }
+                Section {
+                    Text(L10n.text("image.pngLossless")).font(.callout)
+                    Text(L10n.text("image.pngExplanation")).font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Text("PNG")
+                }
+                Section {
+                    Label(L10n.text("image.preserveSummary"), systemImage: "checkmark.shield")
+                        .font(.callout)
+
                 } header: {
                     Label(L10n.text("media.image"), systemImage: "photo")
                 }
             }
             if category == .audio {
                 Section {
+                    HStack {
+                        Button(L10n.text("audio.voicePreset")) { queue.settings.standaloneAudioKbps = 96 }
+                            .capsuleControl()
+                        Button(L10n.text("quality.balanced")) { queue.settings.standaloneAudioKbps = 160 }
+                            .capsuleControl()
+                        Button(L10n.text("audio.musicPreset")) { queue.settings.standaloneAudioKbps = 256 }
+                            .capsuleControl()
+                    }
                     Picker(
                         L10n.text("audio.bitrate"),
                         selection: Binding(
@@ -213,6 +236,17 @@ struct SettingsView: View {
                         ForEach([64, 96, 128, 160, 192, 256], id: \.self) { rate in Text("\(rate) kbps").tag(rate) }
                     }
                     Text(L10n.text("audio.bitrateHint")).font(.caption).foregroundStyle(.secondary)
+                    LabeledContent(
+                        L10n.text("audio.minuteEstimate"),
+                        value: String(
+                            format: "%.2f MB", locale: L10n.locale,
+                            Double(queue.settings.effectiveStandaloneAudioKbps) * 60 / 8000))
+                    Text(L10n.text("audio.estimateHint")).font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Label(L10n.text("audio.bitrate"), systemImage: "waveform")
+                }
+                Section {
+                    Text(L10n.text("audio.preserveSummary")).font(.callout)
                 } header: {
                     Label(L10n.text("audio.files"), systemImage: "waveform")
                 }
@@ -247,6 +281,10 @@ struct SettingsView: View {
                     Toggle(L10n.text("widgets.clock"), isOn: $widgets.showClock).toggleStyle(.switch)
                     Toggle(L10n.text("widgets.music"), isOn: $widgets.showMusic).toggleStyle(.switch)
                     Toggle(L10n.text("widgets.alwaysVisible"), isOn: $widgets.alwaysVisible).toggleStyle(.switch)
+                        .disabled(!widgets.showClock && !widgets.showMusic)
+                    Toggle(L10n.text("widgets.idleBackground"), isOn: $widgets.showIdleBackground).toggleStyle(.switch)
+                        .disabled(widgets.alwaysVisible || (!widgets.showClock && !widgets.showMusic))
+                    Text(L10n.text("widgets.idleHint")).font(.caption).foregroundStyle(.secondary)
                     Text(L10n.text("widgets.hint")).font(.caption).foregroundStyle(.secondary)
                     if widgets.showMusic {
                         Button {
@@ -311,7 +349,31 @@ struct SettingsView: View {
                             set: { value in Task { await notifications.setEnabled(value) } })
                     )
                     .toggleStyle(.switch).disabled(notifications.changing)
-                    Text(notifications.status).font(.caption).foregroundStyle(.secondary)
+                    Label(
+                        notifications.status,
+                        systemImage: notifications.authorization == .denied ? "bell.slash" : "bell.badge"
+                    )
+                    .font(.callout)
+                    if notifications.authorization == .notDetermined {
+                        Button {
+                            Task { await notifications.setEnabled(true) }
+                        } label: {
+                            Label(L10n.text("notify.request"), systemImage: "bell.badge")
+                        }.capsuleControl(prominent: true).disabled(notifications.changing)
+                    } else if notifications.authorization == .denied {
+                        Text(
+                            L10n.text(
+                                "notify.settingsSteps",
+                                Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "NotchCompressor"
+                            )
+                        )
+                        .font(.callout).textSelection(.enabled)
+                        Button {
+                            notifications.openSettings()
+                        } label: {
+                            Label(L10n.text("notify.openSettings"), systemImage: "arrow.up.forward.app")
+                        }.capsuleControl(prominent: true)
+                    }
                 } header: {
                     Label(L10n.text("settings.notifications"), systemImage: "bell")
                 }

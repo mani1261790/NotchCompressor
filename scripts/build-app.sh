@@ -47,7 +47,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>NSHighResolutionCapable</key><true/>
 <key>NSAppleEventsUsageDescription</key><string>Show the current Apple Music track beside the notch when you enable music display.</string>
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/mani1261790/NotchCompressor/main/updates/appcast.xml</string>
-<key>SUEnableAutomaticChecks</key><false/>
+<key>SUEnableAutomaticChecks</key><true/>
 <key>SUAllowsAutomaticUpdates</key><false/>
 <key>SUSendProfileInfo</key><false/>
 <key>SUVerifyUpdateBeforeExtraction</key><true/>

@@ -6,6 +6,9 @@ import NotchCompressorCore
 @MainActor
 final class NotchWidgetsController: ObservableObject {
     static let shared = NotchWidgetsController()
+    @Published var showIdleBackground: Bool {
+        didSet { UserDefaults.standard.set(showIdleBackground, forKey: "notch.showIdleBackground") }
+    }
     @Published var alwaysVisible: Bool {
         didSet { UserDefaults.standard.set(alwaysVisible, forKey: "notch.alwaysVisible") }
     }
@@ -29,6 +32,7 @@ final class NotchWidgetsController: ObservableObject {
     var hasVisibleContent: Bool { showClock || (showMusic && track != nil) }
 
     private init() {
+        showIdleBackground = UserDefaults.standard.bool(forKey: "notch.showIdleBackground")
         alwaysVisible = UserDefaults.standard.bool(forKey: "notch.alwaysVisible")
         showClock =
             UserDefaults.standard.object(forKey: "notch.showClock") == nil

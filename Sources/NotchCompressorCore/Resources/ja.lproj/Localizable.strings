@@ -119,7 +119,7 @@
 "diagnostic.privacy" = "ファイル名・パス・ファイルの内容・生ログは含めていません。自動送信は行いません。";
 "notify.complete" = "圧縮が完了しました";
 "notify.setupError" = "通知を設定できませんでした。システム設定の「通知」でNotchCompressorを確認してください。";
-"notify.denied" = "macOSで通知が許可されていません。システム設定 → 通知 → NotchCompressorで許可してください。";
+"notify.denied" = "macOSで通知がオフになっています。";
 "notify.enabled" = "完了時は圧縮前後のサイズ、失敗時は対処方法を通知します。集中モードなどで表示されない場合があります。";
 "notify.disabled" = "オンにするとmacOSに通知の許可を求めます。ファイル名やパスは通知に表示しません。";
 "notify.sendError" = "通知を送れませんでした。処理結果は圧縮キューで確認できます。";
@@ -297,14 +297,14 @@
 "widgets.title" = "ノッチの表示";
 "widgets.clock" = "時計を表示";
 "widgets.music" = "Apple Musicの曲を表示";
-"widgets.hint" = "画面上部中央にカーソルを合わせると、時計や音楽を表示します。カーソルを離すと閉じます。「常時表示」をオンにすると、閉じている間も小さく表示します。ファイルのドラッグ中は圧縮の選択を優先します。";
+"widgets.hint" = "常時表示はメニューバーの高さのまま、カメラの左右に表示します。詳しい表示はホバー時だけ開きます。ファイルをドラッグすると圧縮の選択に切り替わります。";
 "widgets.connect" = "Apple Musicに接続";
 "widgets.openMusic" = "ミュージックを起動し、曲を再生してから接続してください。";
 "widgets.musicPermission" = "接続にはミュージックへのアクセス許可が必要です。拒否した場合は、システム設定の「プライバシーとセキュリティ」→「オートメーション」で許可できます。";
 "widgets.noTrack" = "再生中の曲はありません。";
 "widgets.musicUnavailable" = "曲の情報を取得できません。ミュージックの状態を確認してください。";
 
-"widgets.alwaysVisible" = "閉じている間も常時表示";
+"widgets.alwaysVisible" = "時計・曲情報をホバーせずに表示";
 "widgets.chooseContent" = "設定で時計や音楽を選べます。";
 
 "widgets.playing" = "再生中";
@@ -330,3 +330,19 @@
 "settings.summary.audio" = "音声ファイルの品質を調整します。";
 "settings.summary.saving" = "ドロップ先の動作と原本の保護について。";
 "settings.summary.updates" = "更新の確認と、困ったときのサポート。";
+
+"notify.notRequested" = "通知の許可がまだありません。完了・失敗をお知らせするには許可してください。";
+"notify.request" = "通知を許可する";
+"notify.openSettings" = "macOSの通知設定を開く";
+"notify.settingsSteps" = "「%@」を選び、「通知を許可」をオンにしてください。戻ると許可状態を自動で確認します。";
+"settings.explainMotion" = "フレームレートによる違い";
+"settings.explainSpeed" = "速度と画質の関係";
+"image.pngExplanation" = "画質を下げない方式のため、品質スライダーはありません。圧縮後に小さくならなければ原本を残します。";
+"image.preserveSummary" = "寸法・透過・色・メタデータを保持";
+"audio.voicePreset" = "音声・会話";
+"audio.musicPreset" = "音楽・高品質";
+"audio.minuteEstimate" = "1分あたりの目安（ステレオ）";
+"audio.estimateHint" = "音声部分の目安です。モノラルは約半分。元のビットレートが低い場合や、ジャケット画像の容量によって変わります。";
+"audio.preserveSummary" = "M4A内の音声をAACで圧縮します。チャンネル数・サンプルレート・ジャケット・チャプター・メタデータを保持します。";
+"widgets.idleBackground" = "待機中もノッチの黒い背景を表示";
+"widgets.idleHint" = "時計と音楽がどちらもオフなら、待機中は何も表示しません。常時情報表示では文字の背景も表示されます。";

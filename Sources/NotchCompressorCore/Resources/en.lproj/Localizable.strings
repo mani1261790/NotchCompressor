@@ -119,7 +119,7 @@
 "diagnostic.privacy" = "File names, paths, file content, and raw logs are excluded. Nothing is sent automatically.";
 "notify.complete" = "Compression complete";
 "notify.setupError" = "Could not configure notifications. Check NotchCompressor under Notifications in System Settings.";
-"notify.denied" = "Notifications are not allowed. Enable them in System Settings → Notifications → NotchCompressor.";
+"notify.denied" = "Notifications are turned off in macOS.";
 "notify.enabled" = "Notifications show the original and final sizes on completion, or recovery advice on failure. Focus settings may prevent them from appearing.";
 "notify.disabled" = "Turning this on requests notification permission from macOS. Notifications do not include file names or paths.";
 "notify.sendError" = "Could not send the notification. Check the compression queue for the result.";
@@ -297,14 +297,14 @@
 "widgets.title" = "Notch display";
 "widgets.clock" = "Show clock";
 "widgets.music" = "Show Apple Music track";
-"widgets.hint" = "Hover over the top center of your screen to see the clock and music. Move away to close it. Turn on Always show to keep compact information visible when closed. File drags take priority.";
+"widgets.hint" = "Persistent information stays at menu-bar height beside the camera. The detailed panel opens only on hover. Dragging files switches to compression targets.";
 "widgets.connect" = "Connect to Apple Music";
 "widgets.openMusic" = "Open Music and play a track, then connect.";
 "widgets.musicPermission" = "Connecting requires permission to access Music. If denied, allow it in System Settings → Privacy & Security → Automation.";
 "widgets.noTrack" = "No current track.";
 "widgets.musicUnavailable" = "Track information is unavailable. Check the Music app.";
 
-"widgets.alwaysVisible" = "Always show when closed";
+"widgets.alwaysVisible" = "Show clock and music without hovering";
 "widgets.chooseContent" = "Choose clock or music in Settings.";
 
 "widgets.playing" = "Playing";
@@ -330,3 +330,19 @@
 "settings.summary.audio" = "Choose the quality for audio files.";
 "settings.summary.saving" = "Drop behavior and how originals are protected.";
 "settings.summary.updates" = "Check for updates and get help.";
+
+"notify.notRequested" = "Notification permission has not been requested. Allow notifications to receive completion and failure alerts.";
+"notify.request" = "Allow notifications";
+"notify.openSettings" = "Open macOS notification settings";
+"notify.settingsSteps" = "Select “%@” and turn on Allow notifications. Permission is checked again when you return.";
+"settings.explainMotion" = "How frame rate affects motion";
+"settings.explainSpeed" = "How speed affects quality";
+"image.pngExplanation" = "PNG compression is lossless, so there is no quality slider. If the result is not smaller, the original is kept.";
+"image.preserveSummary" = "Preserve dimensions, transparency, color, and metadata";
+"audio.voicePreset" = "Speech";
+"audio.musicPreset" = "Music";
+"audio.minuteEstimate" = "Estimated size per minute (stereo)";
+"audio.estimateHint" = "Estimate for the audio only. Mono is about half. Lower source bitrates and artwork change the final size.";
+"audio.preserveSummary" = "Compress audio in M4A as AAC. Channel count, sample rate, artwork, chapters, and metadata are preserved.";
+"widgets.idleBackground" = "Show black notch background when idle";
+"widgets.idleHint" = "Nothing is shown while idle when clock and music are both off. Persistent information includes its black background.";

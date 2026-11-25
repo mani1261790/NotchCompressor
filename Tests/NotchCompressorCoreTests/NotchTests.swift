@@ -82,6 +82,19 @@ final class NotchTests: XCTestCase {
         XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: true, now: 4))
     }
 
+    func testCompactWidgetsKeepMenuBarHeightAtDifferentContentWidths() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        for width: CGFloat in [90, 120] {
+            let layout = NotchWidgetGeometry(
+                screen: screen, topInset: 32, notchWidth: 210,
+                preferredSideWidth: width)
+            XCTAssertEqual(layout.frame.height, 32)
+            XCTAssertEqual(layout.frame.midX, screen.midX)
+            XCTAssertEqual(layout.frame.maxY, screen.maxY)
+            XCTAssertEqual(layout.frame.width, 210 + 2 * width)
+        }
+    }
+
     func testWidgetsReserveCameraAndFitExternalDisplays() {
         for screen in [
             CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080),

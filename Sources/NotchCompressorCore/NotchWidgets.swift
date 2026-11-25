@@ -6,9 +6,9 @@ public struct NotchWidgetGeometry: Equatable {
     public let frame: CGRect
     public let cameraWidth: CGFloat
     public let sideWidth: CGFloat
-    public init(screen: CGRect, topInset: CGFloat, notchWidth: CGFloat) {
+    public init(screen: CGRect, topInset: CGFloat, notchWidth: CGFloat, preferredSideWidth: CGFloat = 150) {
         cameraWidth = topInset > 0 ? min(max(0, notchWidth), screen.width) : 0
-        sideWidth = min(150, max(0, (screen.width - cameraWidth) / 2))
+        sideWidth = min(max(0, preferredSideWidth), max(0, (screen.width - cameraWidth) / 2))
         let height = max(28, topInset)
         let gap: CGFloat = 0
         frame = CGRect(

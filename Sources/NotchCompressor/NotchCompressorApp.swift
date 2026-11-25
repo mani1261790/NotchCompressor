@@ -1,6 +1,7 @@
 import KeyboardShortcuts
 import AppKit
 import CoreServices
+import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 import NotchCompressorCore
@@ -9,6 +10,7 @@ import NotchCompressorCore
 final class AppState: ObservableObject {
     static let shared = AppState()
     let queue: JobQueue
+    let isNewInstallation: Bool
     private let activity: QueueActivity
     private let sleepMonitor: QueueSleepMonitor
     @Published var settingsPresented = false {
@@ -35,6 +37,9 @@ final class AppState: ObservableObject {
     private init() {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(Bundle.main.bundleIdentifier ?? "com.mani.NotchCompressor", isDirectory: true)
+        isNewInstallation =
+            !FileManager.default.fileExists(atPath: folder.appendingPathComponent("queue.json").path)
+            && UserDefaults.standard.persistentDomain(forName: Bundle.main.bundleIdentifier ?? "") == nil
         let queue = JobQueue(storage: folder.appendingPathComponent("queue.json"))
         self.queue = queue
         activity = QueueActivity(queue: queue)
@@ -175,6 +180,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if Bundle.main.bundleIdentifier == "com.mani.NotchCompressor",
+            AppState.shared.isNewInstallation,
+            !UserDefaults.standard.bool(forKey: "initialLoginSetupAttempted")
+        {
+            UserDefaults.standard.set(true, forKey: "initialLoginSetupAttempted")
+            // Existing installations and explicit system choices are never overwritten.
+            if SMAppService.mainApp.status == .notRegistered {
+                try? SMAppService.mainApp.register()
+            }
+        }
         controller = NotchPanelController()
         UpdateController.shared.start()
         TaskNotifications.shared.start(queue: AppState.shared.queue)
@@ -226,38 +241,39 @@ struct DropPanel: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: presentation.topInset)
-                    ZStack {
-                        if presentation.receivedFiles {
-                            VStack(spacing: 10) {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 30, weight: .medium)).foregroundStyle(.blue)
-                                Text(L10n.text("notch.received")).font(.callout.weight(.medium))
-                            }
-                            .transition(.opacity.combined(with: .scale(scale: reduceMotion ? 1 : 0.92)))
-                        } else if presentation.showingWidgets {
-                            NotchDashboardView(widgets: widgets).transition(.opacity)
-                        } else {
-                            VStack(spacing: 12) {
-                                HStack(spacing: 8) {
-                                    ForEach(presentation.content.modes) { mode in
-                                        DropZone(
-                                            mode: mode, content: presentation.content,
-                                            targeted: presentation.mode == mode, selection: selection)
-                                    }
-                                }
-                                Text(L10n.text("notch.dropHint"))
-                                    .font(.caption2).foregroundStyle(.white.opacity(0.65))
-                            }.transition(.opacity)
-                        }
-                    }.padding(14).frame(height: 148)
-                        .opacity(presentation.visible ? 1 : 0)
-                        .offset(y: reduceMotion || presentation.visible ? 0 : -8)
-                        .scaleEffect(reduceMotion || presentation.visible ? 1 : 0.97, anchor: .top)
-                }
                 if presentation.compactWidgets {
                     NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
+                } else {
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: presentation.topInset)
+                        ZStack {
+                            if presentation.receivedFiles {
+                                VStack(spacing: 10) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 30, weight: .medium)).foregroundStyle(.blue)
+                                    Text(L10n.text("notch.received")).font(.callout.weight(.medium))
+                                }
+                                .transition(.opacity.combined(with: .scale(scale: reduceMotion ? 1 : 0.92)))
+                            } else if presentation.showingWidgets {
+                                NotchDashboardView(widgets: widgets).transition(.opacity)
+                            } else {
+                                VStack(spacing: 12) {
+                                    HStack(spacing: 8) {
+                                        ForEach(presentation.content.modes) { mode in
+                                            DropZone(
+                                                mode: mode, content: presentation.content,
+                                                targeted: presentation.mode == mode, selection: selection)
+                                        }
+                                    }
+                                    Text(L10n.text("notch.dropHint"))
+                                        .font(.caption2).foregroundStyle(.white.opacity(0.65))
+                                }.transition(.opacity)
+                            }
+                        }.padding(14).frame(height: 148)
+                            .opacity(presentation.visible ? 1 : 0)
+                            .offset(y: reduceMotion || presentation.visible ? 0 : -8)
+                            .scaleEffect(reduceMotion || presentation.visible ? 1 : 0.97, anchor: .top)
+                    }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)

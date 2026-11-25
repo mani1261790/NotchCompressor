@@ -10,7 +10,7 @@ struct NotchWidgetsView: View {
                 if widgets.showClock {
                     NotchClockView(compact: true)
                 } else if let track = widgets.track, widgets.showMusic {
-                    PlaybackActivityView(playing: track.playing)
+                    AlbumArtworkView(data: track.artwork).frame(width: 22, height: 22)
                 }
             }.frame(maxWidth: .infinity)
             Color.clear.frame(width: cameraWidth)
@@ -45,6 +45,7 @@ struct NotchDashboardView: View {
     @ObservedObject var widgets: NotchWidgetsController
     var body: some View {
         HStack(spacing: 14) {
+            Spacer(minLength: 0)
             if widgets.showClock {
                 NotchClockView(compact: false)
             }
@@ -89,12 +90,16 @@ struct NotchDashboardView: View {
                         Label(L10n.text(widgets.statusKey ?? "widgets.noTrack"), systemImage: "music.note")
                             .font(.callout).foregroundStyle(.secondary).lineLimit(3)
                     }
-                }.frame(maxWidth: .infinity, alignment: .leading)
+                }.frame(
+                    maxWidth: widgets.showClock ? .infinity : 280, alignment: widgets.showClock ? .leading : .center)
             }
             if !widgets.showClock && !widgets.showMusic {
                 Text(L10n.text("widgets.chooseContent")).font(.callout).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 36)
+        .overlay(alignment: .trailing) {
             Button {
                 AppState.shared.presentQueue(settings: true)
             } label: {
@@ -158,7 +163,7 @@ struct NotchClockView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .center, spacing: 6) {
                 Text(context.date.formatted(.dateTime.hour().minute().second().locale(L10n.locale)))
                     .font(.system(size: compact ? 13 : 26, weight: .medium, design: .rounded))
                     .monospacedDigit()

@@ -232,7 +232,8 @@ final class NotchPanelController {
         if presentation.compactWidgets != compactWidgets { presentation.compactWidgets = compactWidgets }
         if widgets.alwaysVisible && widgets.hasVisibleContent {
             let layout = NotchWidgetGeometry(
-                screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width)
+                screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width,
+                preferredSideWidth: widgets.showMusic && widgets.track != nil ? 120 : 90)
             if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
             setFrame(layout.frame)
             if !panel.isVisible { panel.orderFrontRegardless() }
@@ -240,7 +241,11 @@ final class NotchPanelController {
             // Keep the hidden canvas laid out, without intercepting the menu bar.
             setFrame(geometry.panel)
             host.layoutSubtreeIfNeeded()
-            if panel.isVisible { panel.orderOut(nil) }
+            if widgets.showIdleBackground && widgets.hasVisibleContent {
+                if !panel.isVisible { panel.orderFrontRegardless() }
+            } else if panel.isVisible {
+                panel.orderOut(nil)
+            }
         }
     }
 
