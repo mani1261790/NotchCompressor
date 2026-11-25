@@ -148,7 +148,7 @@
 "ui.close" = "Close";
 "queue.missingEngine" = "The compression engine is missing. Reinstall the app.";
 "queue.dropChoice" = "Choose what to compress by where you drop";
-"queue.zones" = "Left: video · Center: both · Right: audio";
+"queue.zones" = "Left: video / image · Center: automatic · Right: audio";
 "queue.replaceHint" = "The original is replaced only after validation and a reduction in size.";
 "queue.clear" = "Clear finished tasks (keep files)";
 "queue.clearHelp" = "Only the history is cleared. File files are kept.";
@@ -167,7 +167,7 @@
 "queue.remove" = "Remove task (keep file)";
 "app.settings" = "Settings…";
 "app.checkUpdates" = "Check for Updates…";
-"app.zones" = "Left: video · Center: both · Right: audio";
+"app.zones" = "Left: video / image · Center: automatic · Right: audio";
 "app.replace" = "Smaller output replaces the original after validation";
 "app.quit" = "Quit NotchCompressor";
 "app.quitTitle" = "Cancel compression and quit?";
@@ -210,13 +210,13 @@
 "settings.speedHint" = "Both options use Mac hardware to encode HEVC. Faster encoding prioritizes speed, so quality and compression efficiency may differ even at the same target bitrate.";
 "settings.speedScope" = "Applies to Video only and Video and audio. It does not affect Audio only or output validation speed. Applies to newly added videos and has no effect on unsupported Macs.";
 "settings.speed" = "Processing speed";
-"settings.left" = "Left · Video only";
-"settings.center" = "Center · Video and audio";
-"settings.right" = "Right · Audio only";
+"settings.left" = "Left · Video / image";
+"settings.center" = "Center · Automatic";
+"settings.right" = "Right · Audio";
 "settings.videoCopyAudio" = "Video / image (keep video’s audio)";
 "settings.compressBoth" = "Automatic (video and audio for movies)";
 "settings.audioCopyVideo" = "Compress audio; keep video";
-"settings.targetHint" = "Choose what to compress using the drop location or Add menu. Tracks that are kept are copied without re-encoding, preserving their quality.";
+"settings.targetHint" = "Choose a drop location or use the Add menu. Drop images on the left or center, and audio files on the right or center. The center chooses compression for the file type; for videos, it compresses both video and audio. Unchanged video or audio tracks are copied without re-encoding.";
 "settings.target" = "What to compress";
 "settings.hevc" = "HEVC (H.265) · Mac hardware encoding";
 "settings.resolution" = "Resolution is preserved. Choose the frame rate under Processing speed. Existing settings and queued videos retain their previous frame rate behavior.";

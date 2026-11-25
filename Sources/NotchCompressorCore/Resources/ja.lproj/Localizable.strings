@@ -148,7 +148,7 @@
 "ui.close" = "閉じる";
 "queue.missingEngine" = "圧縮エンジンが不足しています。アプリを再インストールしてください。";
 "queue.dropChoice" = "ドロップする場所で、圧縮方法を選べます";
-"queue.zones" = "左：画質のみ　中央：画質＋音質　右：音質のみ";
+"queue.zones" = "左：映像・画像　中央：自動　右：音声";
 "queue.replaceHint" = "容量が減り、検証に成功した場合だけ元ファイルを置き換えます。";
 "queue.clear" = "終了した項目を消す（ファイルは残ります）";
 "queue.clearHelp" = "履歴だけを消します。ファイルは削除しません。";
@@ -167,7 +167,7 @@
 "queue.remove" = "キューから外す（ファイルは残ります）";
 "app.settings" = "設定…";
 "app.checkUpdates" = "アップデートを確認…";
-"app.zones" = "左：画質　中央：両方　右：音質";
+"app.zones" = "左：映像・画像　中央：自動　右：音声";
 "app.replace" = "容量が減り、検証に成功した場合に元ファイルを置き換え";
 "app.quit" = "NotchCompressorを終了";
 "app.quitTitle" = "圧縮を中止して終了しますか？";
@@ -210,13 +210,13 @@
 "settings.speedHint" = "どちらもMacのハードウェアでHEVCに変換します。「速度優先」は処理時間を優先するため、同じ目標ビットレートでも画質や圧縮効率が変わる場合があります。";
 "settings.speedScope" = "「画質のみ」「画質＋音質」に適用します。「音質のみ」と出力の検証速度には影響しません。次に追加する動画から反映され、対応していないMacでは効果がありません。";
 "settings.speed" = "処理速度";
-"settings.left" = "左・画質のみ";
-"settings.center" = "中央・画質＋音質";
-"settings.right" = "右・音質のみ";
+"settings.left" = "左・映像／画像";
+"settings.center" = "中央・自動";
+"settings.right" = "右・音声";
 "settings.videoCopyAudio" = "映像・画像（動画の音声は保持）";
 "settings.compressBoth" = "自動（動画は映像＋音声）";
 "settings.audioCopyVideo" = "音声を再圧縮／映像はそのまま";
-"settings.targetHint" = "圧縮する対象は、ドロップする位置か追加メニューで選びます。変更しない映像・音声は再圧縮せずコピーするため、その部分の品質は変わりません。";
+"settings.targetHint" = "ドロップする位置か追加メニューで選びます。画像は左か中央、音声ファイルは右か中央へ。中央ではファイルの種類に合わせて圧縮し、動画は映像と音声の両方を圧縮します。動画で変更しないトラックは再圧縮せず保持します。";
 "settings.target" = "何を圧縮するか";
 "settings.hevc" = "HEVC（H.265）・Macのハードウェアで変換";
 "settings.resolution" = "解像度は維持します。フレームレートは「処理速度」で選択できます。既存の設定・投入済み動画は従来のfps設定を保持します。";
