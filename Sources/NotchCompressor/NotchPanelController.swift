@@ -96,8 +96,15 @@ final class NotchPanelController {
     private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
     init() {
+        // Give GeometryReader a real, top-centered canvas on its first layout.
+        // Starting at .zero lets the first spring interpolate from the window origin.
+        let initialScreen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.main
+        let initialFrame =
+            initialScreen.map {
+                NotchGeometry(screen: $0.frame, topInset: $0.safeAreaInsets.top).panel
+            } ?? CGRect(x: 0, y: 0, width: 480, height: 148)
         panel = NSPanel(
-            contentRect: .zero, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            contentRect: initialFrame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         host = DropHostingView(rootView: DropPanel(presentation: presentation))
         panel.isOpaque = false
         panel.backgroundColor = .clear
@@ -154,7 +161,29 @@ final class NotchPanelController {
         guard panel.frame != frame else { return }
         // AppKit must see the final drop surface immediately. Animating the actual
         // window makes its tracking rectangle move under an ongoing Finder drag.
-        panel.setFrame(frame, display: true, animate: false)
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            panel.setFrame(frame, display: false, animate: false)
+            host.layoutSubtreeIfNeeded()
+        }
+    }
+
+    private func prepareExpansionLayout(_ geometry: NotchGeometry) {
+        // Commit the closed mask at the destination size before changing visible.
+        // Also covers switching displays or expanding from compact widgets.
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            host.geometry = geometry
+            presentation.topInset = geometry.topInset
+            presentation.compactWidth = geometry.collapsed.width
+            presentation.compactHeight = geometry.collapsed.height
+            presentation.compactWidgets = false
+            setFrame(geometry.panel)
+            host.layoutSubtreeIfNeeded()
+            host.displayIfNeeded()
+        }
     }
 
     private func trace(_ phase: String) {
@@ -205,7 +234,9 @@ final class NotchPanelController {
             setFrame(layout.frame)
             if !panel.isVisible { panel.orderFrontRegardless() }
         } else {
-            // No invisible window over the menu bar when optional information is off.
+            // Keep the hidden canvas laid out, without intercepting the menu bar.
+            setFrame(geometry.panel)
+            host.layoutSubtreeIfNeeded()
             if panel.isVisible { panel.orderOut(nil) }
         }
     }
@@ -215,17 +246,10 @@ final class NotchPanelController {
         receiptTask?.cancel(); receiptTask = nil
         if presentation.receivedFiles { presentation.receivedFiles = false }
         let geometry = geometry(on: screen)
-        host.geometry = geometry
-        if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
-        if presentation.compactWidth != geometry.collapsed.width {
-            presentation.compactWidth = geometry.collapsed.width
+        if !presentation.visible || panel.frame != geometry.panel {
+            prepareExpansionLayout(geometry)
         }
-        if presentation.compactHeight != geometry.collapsed.height {
-            presentation.compactHeight = geometry.collapsed.height
-        }
-        if presentation.compactWidgets { presentation.compactWidgets = false }
         if presentation.showingWidgets != information { presentation.showingWidgets = information }
-        setFrame(geometry.panel)
         panel.ignoresMouseEvents = false
         if !panel.isVisible { panel.orderFrontRegardless() }
         if !presentation.visible { presentation.visible = true }

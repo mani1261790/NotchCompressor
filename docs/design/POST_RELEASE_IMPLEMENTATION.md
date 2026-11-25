@@ -99,3 +99,10 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Corrected help text to reference dedicated image/audio settings and media-specific drop targets.
 - Build and localization checks passed. First visual review exposed truncated sidebar labels and cramped sheet presentation; shortened navigation names and moved to a separate window.
 - Final native UI verification: independent window opens; General, Video, Image, and Notch destinations switch correctly; full window renders without the sheet clipping; close returns to queue and reopen retains the selected destination. No preference values changed. Visual inspection was English/dark mode; Japanese/light mode and older-macOS rendering remain unverified.
+
+### 2026-11-25: first-hover animation origin (build 17)
+
+- User observed the first hover expanding from the upper-left, with later openings correctly centered.
+- Found the panel was initialized with a zero-size content rect and hidden without establishing its expanded canvas; initial size and visible state could be committed together.
+- Initialize the panel with a screen-top-centered canvas. Keep hidden layout prepared, and commit destination geometry/closed-mask layout with animations disabled before setting visible. Actual window movement remains unanimated to preserve native drag tracking.
+- Validation: 10 existing notch geometry/hover tests pass, universal release build and signed preview. These checks do not verify animation frames; first-hover visual acceptance still needs physical pointer input.
