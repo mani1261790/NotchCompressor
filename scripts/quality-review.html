@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圧縮品質のローカル比較</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:dark;background:#11151b;color:#eef2f7}
+*{box-sizing:border-box}body{margin:0}main{max-width:1160px;margin:auto;padding:24px}
+h1{font-size:25px;margin:0 0 12px}p{line-height:1.6;color:#b9c4d3}label{display:block;font-weight:600}
+button,select,textarea{font:inherit;color:inherit;background:#222c39;border:1px solid #526277;padding:10px 14px}
+button,select{border-radius:24px;min-height:44px}button{cursor:pointer}button:disabled{opacity:.5;cursor:wait}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #79dfcc;outline-offset:3px}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin:20px 0}.controls label{flex:1;min-width:210px}
+select{display:block;width:100%;margin-top:7px}.viewport{overflow:auto;background:#000;border:1px solid #526277;border-radius:12px;max-height:80vh}
+video{display:block;width:100%;height:auto}.viewport.native video{width:var(--native-width);max-width:none}
+.status{min-height:28px;font-variant-numeric:tabular-nums}#error{color:#ffb5b5}fieldset{border:1px solid #526277;border-radius:12px;padding:18px;margin:24px 0}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}textarea{width:100%;border-radius:10px;margin-top:8px;min-height:90px}
+.muted{font-size:13px}legend{padding:0 8px}button[aria-pressed=true]{background:#b8f3e5;color:#10271f}
+@media(max-width:600px){main{padding:16px}.checks{grid-template-columns:1fr}h1{font-size:22px}}
+</style>
+<main>
+<h1>圧縮品質の比較</h1>
+<p>元動画と圧縮後を同じ時刻で切り替えます。動画はこのMacから読み込み、外部へ送信しません。このページは評価用で、アプリの画面ではありません。</p>
+<p id="conditions" class="muted"></p>
+<div class="controls">
+ <label>比較する動画<select id="clip"></select></label>
+ <button id="switch">元動画と切り替え</button>
+ <button id="play">再生</button>
+ <button id="restart">最初から</button>
+ <button id="scale" aria-pressed="false">実寸で表示</button>
+</div>
+<p id="status" class="status" role="status" aria-live="off">読み込み中</p>
+<p id="error" role="alert"></p>
+<div id="viewport" class="viewport"><video id="video" controls playsinline preload="auto"></video></div>
+<p class="muted">実寸表示では映像1pxを画面の1 CSS pxで表示します。小さい画面では映像内をスクロールしてください。再生時のドロップ数はブラウザ側の値で、ファイルのフレーム欠落とは異なります。</p>
+<fieldset id="review"><legend>選択中の圧縮方式の確認結果</legend>
+<p id="review-label"></p><p class="muted">未確認は「未評価」のままにします。静止画だけで動きや音を合格にしないでください。</p>
+<div class="checks">
+ <label>小さい文字<select data-check="text"></select></label>
+ <label>色文字・細線<select data-check="detail"></select></label>
+ <label>動き・ちらつき<select data-check="motion"></select></label>
+ <label>音・映像との同期<select data-check="audio"></select></label>
+</div>
+<label style="margin-top:18px">気づいた点<textarea id="notes" placeholder="例：4秒付近のスクロール文字ににじみ"></textarea></label>
+</fieldset>
+<button id="export">確認結果を保存</button>
+<p class="muted">保存ボタンでJSONをダウンロードします。ページを閉じると未保存の記録は消えます。元動画を含むメディアは変更しません。</p>
+</main>
+<script id="data" type="application/json">__COMPARISON_DATA__</script>
+<script>
+'use strict';
+const data=JSON.parse(document.querySelector('#data').textContent);
+const v=document.querySelector('#video'), choose=document.querySelector('#clip');
+const status=document.querySelector('#status'), error=document.querySelector('#error');
+const checks=[...document.querySelectorAll('[data-check]')], notes=document.querySelector('#notes');
+const reviews={}, play=document.querySelector('#play');let current=0,lastCandidate=1,switchToken=0;
+const mb=n=>(n/1e6).toFixed(2)+' MB';
+data.clips.forEach((c,i)=>choose.add(new Option(c.label+' · '+mb(c.bytes),String(i))));
+checks.forEach(s=>['未評価','問題なし','問題あり'].forEach((label,i)=>s.add(new Option(label,['pending','pass','problem'][i]))));
+document.querySelector('#conditions').textContent=`${data.width}×${data.height} · 元動画 ${data.fps}fps · ${data.seconds.toFixed(2)}秒 · ${data.frameRatePolicy==='limit30'?'最大30fps':'元fps維持'} · 映像設定：${({gentle:'品質優先',balanced:'標準',compact:'容量優先'})[data.preset]||data.preset} · 音声コピーの比較（音声の再圧縮品質は対象外）`;
+document.querySelector('#viewport').style.setProperty('--native-width',data.width+'px');
+function capture(){if(current===0)return;const r={notes:notes.value};checks.forEach(s=>r[s.dataset.check]=s.value);reviews[data.clips[current].variant]=r;}
+function showReview(){const c=data.clips[current],r=reviews[c.variant]||{};document.querySelector('#review').disabled=current===0;document.querySelector('#review-label').textContent=current===0?'元動画を表示中です。圧縮後を選ぶと記録できます。':c.label;checks.forEach(s=>s.value=r[s.dataset.check]||'pending');notes.value=r.notes||'';}
+function refresh(){const q=v.getVideoPlaybackQuality();play.textContent=v.paused?'再生':'一時停止';status.textContent=`${data.clips[current].label} · ${v.currentTime.toFixed(2)} / ${Number.isFinite(v.duration)?v.duration.toFixed(2):'—'}秒 · 再生側ドロップ ${q.droppedVideoFrames}/${q.totalVideoFrames}`;}
+async function start(){try{await v.play();}catch(e){error.textContent='再生できませんでした。再生ボタンを押し直すか、対応するプレーヤーで確認してください。';}refresh();}
+function load(index){capture();const time=v.currentTime||0,resume=!v.paused;v.pause();current=index;if(index>0)lastCandidate=index;choose.value=String(index);showReview();error.textContent='';play.disabled=true;const token=++switchToken;v.onloadedmetadata=()=>{if(token!==switchToken)return;v.currentTime=Math.min(time,Math.max(0,v.duration-0.01));play.disabled=false;refresh();if(resume)start();};v.src=data.clips[index].file;v.load();refresh();}
+choose.onchange=()=>load(Number(choose.value));
+document.querySelector('#switch').onclick=()=>load(current===0?lastCandidate:0);
+document.querySelector('#switch').disabled=data.clips.length<2;
+play.onclick=()=>v.paused?start():v.pause();
+document.querySelector('#restart').onclick=()=>{v.currentTime=0;start();};
+document.querySelector('#scale').onclick=e=>{const on=document.querySelector('#viewport').classList.toggle('native');e.currentTarget.setAttribute('aria-pressed',String(on));e.currentTarget.textContent=on?'画面に合わせる':'実寸で表示';};
+['timeupdate','play','pause','ended','loadedmetadata'].forEach(event=>v.addEventListener(event,refresh));
+v.onerror=()=>{play.disabled=false;error.textContent='動画を読み込めません。このブラウザのコーデック対応とローカルサーバーを確認してください。';};
+document.querySelector('#export').onclick=()=>{capture();const report={schema:1,recordedAt:new Date().toISOString(),conditions:data,reviewer:'manual',reviews:data.clips.filter(c=>c.variant!=='source').map(c=>({variant:c.variant,file:c.file,...(reviews[c.variant]||{text:'pending',detail:'pending',motion:'pending',audio:'pending',notes:''})}))};const url=URL.createObjectURL(new Blob([JSON.stringify(report,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='quality-review.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+load(0);
+</script>
+</html>

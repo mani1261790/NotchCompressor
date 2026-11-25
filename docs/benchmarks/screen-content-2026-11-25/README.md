@@ -85,6 +85,18 @@ python3 scripts/compare-encoders.py .local-work/quality-fixture/screen-content.m
 
 別の自作無音AAC付きMOVを配布ビルド10のAudio onlyへ投入。実画面で削減なし・原本保持の完了表示と空キューを確認し、保存履歴では元／候補／保存サイズ2,604 bytes、`originalKept`。原本SHA-256も不変。実エンジンを通す回帰テストを追加し、開発用・配布用FFmpeg双方で通過した。詳細は[検証記録](../../VALIDATION.md)。無音の機能試験であり、人の声や音楽のAAC品質評価とは区別する。
 
+## ローカル比較ページ
+
+`scripts/make-quality-review.py`で比較結果フォルダーに`quality-review.html`を作成できる。元動画と候補の同時刻切り替え、実寸／画面に合わせる表示、再生・停止、方式別の評価メモ、JSON保存を用意した。外部サービスへの送信やメディア変更は行わない。出力済みページを上書きせず、失敗した試行は候補に含めない。
+
+```sh
+python3 scripts/make-quality-review.py .local-work/quality-comparison
+python3 -m http.server 8793 --bind 127.0.0.1 --directory .local-work/quality-comparison
+# http://127.0.0.1:8793/quality-review.html をブラウザで開く
+```
+
+実ブラウザで、HEVC再生→8.79秒で停止→元動画へ同時刻切り替え→HEVCへ復帰、実寸表示、メモ入力とJSON保存を確認。保存された6候補の判定がすべてpendingで、テストメモだけが保持されたことも検査した。このページの動作確認を画質・聴感評価の合格と混同しない。ページ再読み込みでは未保存の記録を消し、確認済みのように初期表示しない。
+
 ## 残る評価
 
 全候補の連続再生での動き・ちらつき・音の目視聴取、映像混在素材、別解像度やMacでの比較は未実施。このため段階4全体は未完了。品質指定の対応環境調査と内容解析方式の採否も引き続き評価する。ユーザーの素材待ちを再導入しない。
