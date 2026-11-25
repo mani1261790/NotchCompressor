@@ -172,7 +172,7 @@ final class NotchPanelController {
             if !panel.isVisible { panel.orderFrontRegardless() }
         } else {
             // No invisible window over the menu bar when optional information is off.
-            panel.orderOut(nil)
+            if panel.isVisible { panel.orderOut(nil) }
         }
     }
 
