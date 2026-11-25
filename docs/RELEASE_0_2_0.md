@@ -21,3 +21,5 @@ Previewの実操作記録は `docs/design/POST_RELEASE_IMPLEMENTATION.md` を参
 - https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.0
 - https://mani1261790.github.io/NotchCompressor/
 - https://raw.githubusercontent.com/mani1261790/NotchCompressor/main/updates/appcast.xml
+
+公開後確認: Sparkle公開フィードは候補とバイト一致し、署名検証に成功。GitHub Pagesは一時的な500エラー後の再実行 https://github.com/mani1261790/NotchCompressor/actions/runs/45649060374 で成功。公開された日英LPを認証なしで取得し、各言語の0.2.0 DMGへのリンクとAAC対応案内を確認した。更新インストール・再起動の実行確認とは区別する。
