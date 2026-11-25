@@ -562,3 +562,11 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 ## 2026-11-25 fps選択・3強度・無音声素材
 
 比較ツールにアプリ準拠のfps設定・映像ビットレート強度・候補選択を追加。30fps18試行、60fps標準／速度優先6試行、品質優先／容量優先6試行がすべて成功。30fps各方式の出力は360フレーム・等間隔を全フレーム確認。無音声コピーの1試行も成功し、出力に音声トラックがないことを確認。[数値・画像判断・測定制約](benchmarks/screen-content-2026-11-25/README.md)を保存。GitHub Issue #7の「利用者の素材待ち」を撤回し、残項目と記録先を更新。アプリの既定・配布物は変更していない。
+
+## 2026-11-25 音質のみで削減なしの実画面・実エンジン
+
+配布ビルド10の英語キューでAdd videos→Audio onlyから自作の2秒・無音AAC付きMOVを投入。完了欄に `Completed: 1 · 3 kB → 3 kB (No size change) · Originals kept without size reduction: 1` が表示され、タスクカードは残らないことを実画像とAXで確認。履歴はaudio／completed／originalKept、元・候補・保存サイズすべて2,604 bytes。投入前後のSHA-256は `7aa03ada46ec4cf94b21a13b159e5534fbd8f7cbcaadec230d7ada656b6d8ff1` で一致した。設定（既存gentle）や通知許可は変更していない。ローカル記録は `.local-work/next/audio-retained/app-result.json`。
+
+`testAudioOnlyWithoutSavingsKeepsOriginalAndCompletesQueue`を追加し、実エンジン→完了扱い→原本バイト・属性保持→キュー自動除外→削減0の完了文言→履歴復元→一時領域削除を通しで検査した。最初の素材は開発版FFmpegでメタデータ由来の8 bytes削減が発生し、正しく置換されたため「削減なし」の試験素材として不適切だった。生成時だけ`-fflags +bitexact`で版番号タグを省略し、出力が元以上になる素材へ修正。
+
+追加テストと既存3モードのパケット保持テストは、開発用FFmpeg 7.1.1・配布用9.0.1の双方で2件・失敗0・スキップ0。音質のみでは映像パケットを保持、画質のみでは音声パケットを保持することを既存テストで再確認した。swift-format検査も通過。これはAACの聴感品質の評価ではなく、安全性・結果表示の検証。アプリ本体の変更はない。

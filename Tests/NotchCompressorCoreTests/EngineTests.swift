@@ -282,6 +282,50 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["small.mp4"])
     }
 
+    @MainActor
+    func testAudioOnlyWithoutSavingsKeepsOriginalAndCompletesQueue() async throws {
+        let tools = try tools(), folder = try directory()
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent("silent-audio.mov")
+        // Omit the source muxer version tag so a re-encode cannot count removing
+        // that tag as savings. Silent AAC plus output metadata produces no saving.
+        _ = try await ProcessRunner().run(
+            executable: tools.ffmpeg,
+            arguments: [
+                "-nostdin", "-v", "error", "-n", "-f", "lavfi", "-i",
+                "color=size=64x64:rate=1:duration=2", "-f", "lavfi", "-i",
+                "anullsrc=r=48000:cl=stereo", "-t", "2", "-c:v", "h264_videotoolbox",
+                "-b:v", "32000", "-c:a", "aac", "-b:a", "32000", "-fflags", "+bitexact",
+                "-movflags", "+faststart", source.path,
+            ])
+        let original = try Data(contentsOf: source)
+        let fingerprint = try Fingerprint(source)
+        let storage = folder.appendingPathComponent("queue.json")
+        let queue = JobQueue(storage: storage, feedbackDuration: .seconds(60))
+        queue.settings.toolsDirectory = tools.ffmpeg.deletingLastPathComponent().path
+        XCTAssertEqual(queue.enqueue([source], mode: .audio), 1)
+        await queue.waitUntilIdle()
+        let job = try XCTUnwrap(queue.jobs.first)
+        XCTAssertEqual(job.phase, .completed, "\(job.message ?? "")")
+        let result = try XCTUnwrap(job.result)
+        XCTAssertEqual(result.effectiveOutcome, .originalKept)
+        XCTAssertGreaterThanOrEqual(try XCTUnwrap(result.candidateBytes), result.originalBytes)
+        XCTAssertEqual(result.outputBytes, result.originalBytes)
+        XCTAssertEqual(try Data(contentsOf: source), original)
+        XCTAssertEqual(try Fingerprint(source), fingerprint)
+        XCTAssertTrue(queue.displayedJobs.isEmpty)
+        XCTAssertEqual(queue.completionNotice?.savedBytes, 0)
+        XCTAssertEqual(queue.completionNotice?.originalKeptCount, 1)
+        XCTAssertTrue(queue.completionNotice?.text.contains(L10n.text("completion.retained", "1")) == true)
+        let restored = JobQueue(storage: storage)
+        XCTAssertEqual(restored.jobs.first?.result?.effectiveOutcome, .originalKept)
+        XCTAssertTrue(restored.displayedJobs.isEmpty)
+        XCTAssertFalse(
+            try FileManager.default.contentsOfDirectory(atPath: folder.path).contains {
+                $0.hasPrefix(".notchcompressor-")
+            })
+    }
+
     func testReplacementPreservesNameAndPermissions() throws {
         let folder = try directory()
         defer { try? FileManager.default.removeItem(at: folder) }
