@@ -121,7 +121,7 @@ let dragging = false, progress = 0, paused = false, timer;
 function expand(open) {
   island.classList.toggle('expanded', open); zones.hidden = !open;
   file.setAttribute('aria-expanded', String(open));
-  if (!open) zones.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));
+  if (!open) zones.querySelectorAll('button').forEach(b=>b.setAttribute('data-active','false'));
 }
 function updateProgress() {
   if(progress===100 && document.activeElement===pause)demo.querySelector('.demo-reset').focus({preventScroll:true});
@@ -150,7 +150,9 @@ function start(mode) {
 }
 file.addEventListener('click',()=>{
   if(suppressClick){suppressClick=false;return;}
-  expand(!island.classList.contains('expanded'));
+  const open=!island.classList.contains('expanded');
+  expand(open);
+  if(open)zones.querySelector('[data-mode="both"]').focus({preventScroll:true});
 });
 // A pointer gesture keeps the sample under the finger/mouse and works on touch
 // devices too. It never accepts a real file or relies on browser drag ghosts.
@@ -182,7 +184,7 @@ file.addEventListener('pointermove',event=>{
   const r=demo.getBoundingClientRect();
   expand(event.clientX>=r.left && event.clientX<=r.right && event.clientY>=r.top && event.clientY<r.top+r.height*.36);
   const zone=zoneAt(event.clientX,event.clientY);
-  zones.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===zone)));
+  zones.querySelectorAll('button').forEach(b=>b.setAttribute('data-active',String(b===zone)));
 });
 function endGesture(event,cancelled=false){
   if(!gesture || gesture.id!==event.pointerId)return;
@@ -201,4 +203,18 @@ demo.addEventListener('drop',event=>event.preventDefault());
 zones.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>start(button.dataset.mode)));
 pause.addEventListener('click',()=>{paused=!paused;updateProgress();});
 demo.querySelector('.demo-reset').addEventListener('click',()=>{clearInterval(timer);suppressClick=false;queue.hidden=true;file.hidden=false;expand(false);file.focus();});
-demo.addEventListener('keydown',event=>{if(event.key==='Escape'){if(gesture)endGesture({pointerId:gesture.id},true);expand(false);file.focus();}});
+demo.addEventListener('keydown',event=>{
+  if(event.key==='Escape' && !file.hidden){
+    event.preventDefault();
+    if(gesture)endGesture({pointerId:gesture.id},true);
+    expand(false);file.focus({preventScroll:true});
+  }
+});
+zones.addEventListener('keydown',event=>{
+  if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+  const buttons=[...zones.querySelectorAll('button')];
+  const index=buttons.indexOf(document.activeElement);
+  if(index<0)return;
+  event.preventDefault();
+  buttons[(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length].focus({preventScroll:true});
+});
