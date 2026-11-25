@@ -39,7 +39,8 @@ function expand(open) {
 function updateProgress() {
   if(progress===100 && document.activeElement===pause)demo.querySelector('.demo-reset').focus({preventScroll:true});
   meter.value = progress;
-  demo.querySelector('.demo-job').hidden = progress === 100;
+  demo.querySelector('.demo-card').hidden = progress === 100;
+  demo.querySelector('.demo-gear').hidden = progress === 100;
   demo.querySelector('.demo-empty').hidden = progress !== 100;
   meter.hidden = progress === 100;
   const stateText = progress === 100
@@ -48,7 +49,12 @@ function updateProgress() {
   // Announce state changes, not each 160 ms progress tick. The labeled native
   // progress element remains available when someone wants the current value.
   if(status.textContent !== stateText)status.textContent = stateText;
-  percent.textContent = progress === 100 ? '' : ' · ' + progress + '%';
+  percent.textContent = progress === 100 ? '' : progress + '%';
+  demo.querySelector('.demo-phase').textContent = ja ? (paused ? '一時停止中' : '圧縮中') : (paused ? 'Paused' : 'Compressing');
+  demo.querySelector('.demo-counts').textContent = ja ? `実行中 ${!paused && progress<100 ? 1:0}件 · 一時停止 ${paused ? 1:0}件 · 待機 0件` : `Running: ${!paused && progress<100 ? 1:0} · Paused: ${paused ? 1:0} · Waiting: 0`;
+  demo.querySelector('.demo-remove').hidden = !paused || progress===100;
+  demo.querySelector('.demo-paused-hint').hidden = !paused || progress===100;
+  demo.querySelector('.demo-pin').textContent = paused ? '≡' : '⌖';
   pause.hidden = progress === 100;
   pause.textContent = paused ? '▶' : 'Ⅱ';
   pause.setAttribute('aria-label', ja ? (paused ? '再開' : '一時停止') : (paused ? 'Resume' : 'Pause'));
@@ -56,7 +62,12 @@ function updateProgress() {
 function start(mode) {
   const focusControls=zones.contains(document.activeElement);
   clearInterval(timer); expand(false); dragging=false; file.hidden=true; queue.hidden=false;
-  demo.querySelector('.demo-mode').textContent = zones.querySelector(`[data-mode="${mode}"]`).textContent;
+  demo.querySelector('.demo-mode').textContent = zones.querySelector(`[data-mode="${mode}"]`).getAttribute('aria-label') + ' · 430.3 MB';
+  const settings=demo.querySelector('.demo-settings');
+  settings.open=false;
+  settings.querySelector('p').textContent=ja
+    ? '標準 · ' + (mode==='audio' ? '映像はそのまま' : '映像 HEVC') + ' · ' + (mode==='video' ? '音声はそのまま' : '音声 AAC')
+    : 'Balanced · ' + (mode==='audio' ? 'Keep video' : 'HEVC video') + ' · ' + (mode==='video' ? 'Keep audio' : 'AAC audio');
   progress=0;paused=false;updateProgress();
   if(focusControls)pause.focus({preventScroll:true});
   timer=setInterval(()=>{if(paused)return;progress=Math.min(100,progress+2);updateProgress();if(progress===100)clearInterval(timer);},160);
@@ -115,7 +126,9 @@ demo.addEventListener('dragover',event=>{event.preventDefault();event.dataTransf
 demo.addEventListener('drop',event=>event.preventDefault());
 zones.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>start(button.dataset.mode)));
 pause.addEventListener('click',()=>{paused=!paused;updateProgress();});
-demo.querySelector('.demo-reset').addEventListener('click',()=>{clearInterval(timer);suppressClick=false;queue.hidden=true;file.hidden=false;expand(false);file.focus();});
+function resetDemo(){clearInterval(timer);suppressClick=false;queue.hidden=true;file.hidden=false;expand(false);file.focus({preventScroll:true});}
+demo.querySelector('.demo-reset').addEventListener('click',resetDemo);
+demo.querySelector('.demo-remove').addEventListener('click',()=>{if(paused)resetDemo();});
 demo.addEventListener('keydown',event=>{
   if(event.key==='Escape' && !file.hidden){
     event.preventDefault();
@@ -131,3 +144,5 @@ zones.addEventListener('keydown',event=>{
   event.preventDefault();
   buttons[(index+(event.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length].focus({preventScroll:true});
 });
+
+demo.querySelector('.demo-gear').addEventListener('click',()=>{const details=demo.querySelector('.demo-settings');details.open=!details.open;if(!demo.querySelector('.demo-card').hidden)details.querySelector('summary').focus({preventScroll:true});});
