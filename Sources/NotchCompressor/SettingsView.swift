@@ -7,284 +7,499 @@ import NotchCompressorCore
 struct SettingsView: View {
     @ObservedObject var queue: JobQueue
     @ObservedObject private var updates = UpdateController.shared
-    @Environment(\.dismiss) private var dismiss
     @State private var loginStatus = SMAppService.mainApp.status
     @ObservedObject private var notifications = TaskNotifications.shared
     @State private var message: String?
     @State private var loginDetails: String?
     @State private var showingDiagnostics = false
-    @State private var category: SettingsCategory = .compression
+    @ObservedObject private var widgets = NotchWidgetsController.shared
+    @State private var category: SettingsCategory = .general
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Label(L10n.text("ui.settings"), systemImage: "slider.horizontal.3").font(.title2.weight(.semibold))
-                Spacer()
-                IconControl(title: L10n.text("settings.close"), symbol: "checkmark", prominent: true) { dismiss() }
-                    .keyboardShortcut(.defaultAction)
-            }.padding(24)
-            Picker(L10n.text("settings.category"), selection: $category) {
-                ForEach(SettingsCategory.allCases) { category in
-                    Text(L10n.text(category.rawValue)).tag(category)
+        HStack(spacing: 0) {
+            List(selection: $category) {
+                Section(L10n.text("settings.application")) {
+                    navigationRow(.general)
+                    navigationRow(.notch)
+                }
+                Section(L10n.text("settings.compression")) {
+                    navigationRow(.compression)
+                    navigationRow(.images)
+                    navigationRow(.audio)
+                    navigationRow(.saving)
+                }
+                Section {
+                    navigationRow(.updates)
                 }
             }
-            .pickerStyle(.segmented).labelsHidden().padding(.horizontal, 24).padding(.bottom, 12)
-            Form {
-                if category == .compression {
-                    Section {
-                        Picker(L10n.text("settings.quality"), selection: $queue.settings.quality) {
-                            ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
-                        }.pickerStyle(.segmented)
-                        Text(queue.settings.quality.explanation)
-                            .font(.callout)
-                        Text(L10n.text("settings.modeScope"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if queue.settings.quality != .custom {
-                            LabeledContent {
-                                Text(queue.settings.quality.videoBudgetDescription)
-                            } label: {
-                                Label(L10n.text("settings.video"), systemImage: "video")
+            .listStyle(.sidebar)
+            .scrollContentBackground(.hidden)
+            .frame(width: 210)
+            .modifier(SettingsSidebarSurface())
+            .padding(10)
+            Divider()
+
+            VStack(spacing: 0) {
+                HStack(spacing: 12) {
+                    Image(systemName: category.symbol)
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(.blue)
+                        .frame(width: 48, height: 48)
+                        .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.text(category.rawValue)).font(.title2.weight(.semibold))
+                        Text(category.summary).font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                    SettingsHelpButton(title: L10n.text(category.rawValue)) { settingsHelp }
+                }.padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 8)
+                settingsForm
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .frame(minWidth: 760, idealWidth: 820, minHeight: 580, idealHeight: 650)
+        .task {
+            loginStatus = SMAppService.mainApp.status; await notifications.refresh()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            loginStatus = SMAppService.mainApp.status
+            Task { await notifications.refresh() }
+        }
+        .sheet(isPresented: $showingDiagnostics) { DiagnosticsView(queue: queue) }
+    }
+
+    private func navigationRow(_ item: SettingsCategory) -> some View {
+        Label(L10n.text(item.rawValue), systemImage: item.symbol)
+            .padding(.vertical, 5)
+            .tag(item)
+    }
+
+    private var settingsForm: some View {
+        Form {
+            if category == .compression {
+                Section {
+                    GlassChoicePicker(
+                        title: L10n.text("settings.quality"), selection: $queue.settings.quality,
+                        values: CompressionQuality.allCases, label: { $0.title })
+                    Text(queue.settings.quality.explanation)
+                        .font(.callout)
+
+                    if queue.settings.quality != .custom {
+                        LabeledContent {
+                            Text(queue.settings.quality.videoBudgetDescription)
+                        } label: {
+                            Label(L10n.text("settings.video"), systemImage: "video")
+                        }
+                        LabeledContent {
+                            Text(
+                                L10n.text(
+                                    "settings.audioTarget", L10n.integer(queue.settings.quality.audioBitrate / 1000)
+                                ))
+                        } label: {
+                            Label(L10n.text("settings.audio"), systemImage: "waveform")
+                        }
+
+                    }
+                    if queue.settings.quality == .custom {
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent(
+                                L10n.text("settings.videoBitrate"),
+                                value: L10n.text(
+                                    "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent))
+                            )
+                            .monospacedDigit()
+                            Slider(
+                                value: Binding(
+                                    get: { Double(queue.settings.effectiveVideoPercent) },
+                                    set: { queue.settings.videoPercent = Int($0) }), in: 10...100, step: 1
+                            )
+                            .accessibilityLabel(L10n.text("settings.videoPercent"))
+                            .accessibilityValue(
+                                L10n.text(
+                                    "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent)))
+                        }
+                        VStack(alignment: .leading, spacing: 8) {
+                            LabeledContent(
+                                L10n.text("settings.audioBitrate"),
+                                value: L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps))
+                            )
+                            .monospacedDigit()
+                            Slider(
+                                value: Binding(
+                                    get: { Double(queue.settings.effectiveAudioKbps) },
+                                    set: { queue.settings.audioKbps = Int($0) }), in: 32...256, step: 8
+                            )
+                            .accessibilityLabel(L10n.text("settings.audioBitrate"))
+                            .accessibilityValue(
+                                L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps)))
+                        }
+                    }
+
+                } header: {
+                    Label(L10n.text("settings.compression"), systemImage: "slider.horizontal.3")
+                }
+                Section {
+                    GlassChoicePicker(
+                        title: L10n.text("settings.fps"),
+                        selection: Binding(
+                            get: { queue.settings.effectiveVideoFrameRate },
+                            set: { queue.settings.videoFrameRate = $0 }),
+                        values: VideoFrameRate.allCases, label: { $0.title })
+
+                    GlassChoicePicker(
+                        title: L10n.text("settings.videoSpeed"),
+                        selection: Binding(
+                            get: { queue.settings.effectiveVideoEncodingSpeed },
+                            set: { queue.settings.videoEncodingSpeed = $0 }),
+                        values: VideoEncodingSpeed.allCases, label: { $0.title })
+
+                } header: {
+                    Label(L10n.text("settings.speed"), systemImage: "speedometer")
+                }
+            }
+            if category == .images {
+                Section {
+                    HStack {
+                        Button(L10n.text("quality.compact")) { queue.settings.imageQuality = 70 }.capsuleControl()
+                        Button(L10n.text("quality.balanced")) { queue.settings.imageQuality = 85 }.capsuleControl()
+                        Button(L10n.text("quality.gentle")) { queue.settings.imageQuality = 95 }.capsuleControl()
+                    }
+                    LabeledContent(
+                        L10n.text("image.jpegQualityLabel"),
+                        value: L10n.integer(Int(queue.settings.effectiveImageQuality)))
+                    Slider(
+                        value: Binding(
+                            get: { queue.settings.effectiveImageQuality }, set: { queue.settings.imageQuality = $0 }
+                        ), in: 10...100, step: 1
+                    )
+                    .accessibilityLabel(L10n.text("image.jpegQualityLabel"))
+                } header: {
+                    Text("JPEG")
+                }
+                Section {
+                    Text(L10n.text("image.pngLossless")).font(.callout)
+                } header: {
+                    Text("PNG")
+                }
+                Section {
+                    Label(L10n.text("image.preserveSummary"), systemImage: "checkmark.shield")
+                        .font(.callout)
+
+                } header: {
+                    Label(L10n.text("media.image"), systemImage: "photo")
+                }
+            }
+            if category == .audio {
+                Section {
+                    HStack {
+                        Button(L10n.text("audio.voicePreset")) { queue.settings.standaloneAudioKbps = 96 }
+                            .capsuleControl()
+                        Button(L10n.text("quality.balanced")) { queue.settings.standaloneAudioKbps = 160 }
+                            .capsuleControl()
+                        Button(L10n.text("audio.musicPreset")) { queue.settings.standaloneAudioKbps = 256 }
+                            .capsuleControl()
+                    }
+                    Picker(
+                        L10n.text("audio.bitrate"),
+                        selection: Binding(
+                            get: { queue.settings.effectiveStandaloneAudioKbps },
+                            set: { queue.settings.standaloneAudioKbps = $0 })
+                    ) {
+                        ForEach([64, 96, 128, 160, 192, 256], id: \.self) { rate in Text("\(rate) kbps").tag(rate) }
+                    }
+                    LabeledContent(
+                        L10n.text("audio.minuteEstimate"),
+                        value: String(
+                            format: "%.2f MB", locale: L10n.locale,
+                            Double(queue.settings.effectiveStandaloneAudioKbps) * 60 / 8000))
+                } header: {
+                    Label(L10n.text("audio.bitrate"), systemImage: "waveform")
+                }
+                Section {
+                    Text(L10n.text("audio.preserveSummary")).font(.callout)
+                } header: {
+                    Label(L10n.text("audio.files"), systemImage: "waveform")
+                }
+            }
+            if category == .saving {
+                Section {
+                    LabeledContent(L10n.text("settings.left"), value: L10n.text("settings.videoCopyAudio"))
+                    LabeledContent(L10n.text("settings.center"), value: L10n.text("settings.compressBoth"))
+                    LabeledContent(L10n.text("settings.right"), value: L10n.text("settings.audioCopyVideo"))
+                    Text(L10n.text("settings.targetHint"))
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Label(L10n.text("settings.target"), systemImage: "square.split.2x1")
+                }
+                Section {
+                    LabeledContent(L10n.text("settings.video"), value: L10n.text("settings.hevc"))
+                    Text(L10n.text("settings.resolution"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    LabeledContent(L10n.text("settings.audio"), value: L10n.text("settings.aac"))
+                    Text(
+                        L10n.text("settings.lossy")
+                    )
+                    .font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("settings.preserve"))
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Label(L10n.text("settings.codecs"), systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
+            if category == .notch {
+                Section {
+                    GlassChoicePicker(
+                        title: L10n.text("widgets.clock"), selection: $widgets.clockDisplay,
+                        values: NotchWidgetDisplay.allCases, label: { $0.title })
+                    GlassChoicePicker(
+                        title: L10n.text("widgets.music"), selection: $widgets.musicDisplay,
+                        values: NotchWidgetDisplay.allCases, label: { $0.title })
+                    Toggle(L10n.text("widgets.idleBackground"), isOn: $widgets.showIdleBackground).toggleStyle(.switch)
+                        .disabled(!widgets.showClock && !widgets.showMusic)
+                    if widgets.showMusic {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Label(
+                                widgets.connection.title,
+                                systemImage: widgets.connection.connected
+                                    ? "checkmark.circle.fill"
+                                    : widgets.connection == .checking ? "arrow.triangle.2.circlepath" : "music.note"
+                            )
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(widgets.connection.connected ? Color.green : Color.primary)
+                            if widgets.connection.connected {
+                                Text(L10n.text("music.connectedHint")).font(.caption).foregroundStyle(.secondary)
+                                if let track = widgets.track {
+                                    Text([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
+                                        .font(.callout).lineLimit(2)
+                                }
                             }
-                            LabeledContent {
+                            if widgets.connection == .denied {
                                 Text(
                                     L10n.text(
-                                        "settings.audioTarget", L10n.integer(queue.settings.quality.audioBitrate / 1000)
-                                    ))
-                            } label: {
-                                Label(L10n.text("settings.audio"), systemImage: "waveform")
-                            }
-
-                        }
-                        if queue.settings.quality == .custom {
-                            VStack(alignment: .leading, spacing: 8) {
-                                LabeledContent(
-                                    L10n.text("settings.videoBitrate"),
-                                    value: L10n.text(
-                                        "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent))
+                                        "music.permissionSteps",
+                                        Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String
+                                            ?? "NotchCompressor")
                                 )
-                                .monospacedDigit()
-                                Slider(
-                                    value: Binding(
-                                        get: { Double(queue.settings.effectiveVideoPercent) },
-                                        set: { queue.settings.videoPercent = Int($0) }), in: 10...100, step: 1
-                                )
-                                .accessibilityLabel(L10n.text("settings.videoPercent"))
-                                .accessibilityValue(
-                                    L10n.text(
-                                        "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent)))
-                                Text(L10n.text("settings.videoHint"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            VStack(alignment: .leading, spacing: 8) {
-                                LabeledContent(
-                                    L10n.text("settings.audioBitrate"),
-                                    value: L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps))
-                                )
-                                .monospacedDigit()
-                                Slider(
-                                    value: Binding(
-                                        get: { Double(queue.settings.effectiveAudioKbps) },
-                                        set: { queue.settings.audioKbps = Int($0) }), in: 32...256, step: 8
-                                )
-                                .accessibilityLabel(L10n.text("settings.audioBitrate"))
-                                .accessibilityValue(
-                                    L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps)))
-                                Text(L10n.text("settings.audioHint"))
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                            Text(L10n.text("settings.percentHint"))
                                 .font(.caption).foregroundStyle(.secondary)
-                        }
-                        Text(L10n.text("settings.nextOnly"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup(L10n.text("settings.autoDetails")) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                if queue.settings.quality != .custom {
-                                    Text(L10n.text("settings.autoHint"))
-                                    Text(L10n.text("settings.formula"))
+                                Button {
+                                    widgets.openMusicPermissionSettings()
+                                } label: {
+                                    Label(L10n.text("music.openPermissions"), systemImage: "arrow.up.forward.app")
+                                }.capsuleControl()
+                            } else if widgets.connection == .closed || widgets.connection == .ready {
+                                Button {
+                                    widgets.openMusic()
+                                } label: {
+                                    Label(L10n.text("music.openApp"), systemImage: "arrow.up.forward.app")
+                                }.capsuleControl()
+                            }
+                            if widgets.connecting {
+                                HStack {
+                                    ProgressView().controlSize(.small)
+                                    Text(L10n.text("music.checking")).font(.caption)
                                 }
-                                Text(L10n.text("settings.bitrateExplanation"))
-                            }.font(.caption).foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Label(L10n.text("settings.compression"), systemImage: "slider.horizontal.3")
-                    }
-                    Section {
-                        Picker(
-                            L10n.text("settings.fps"),
-                            selection: Binding(
-                                get: { queue.settings.effectiveVideoFrameRate },
-                                set: { queue.settings.videoFrameRate = $0 })
-                        ) {
-                            ForEach(VideoFrameRate.allCases) { rate in Text(rate.title).tag(rate) }
-                        }.pickerStyle(.segmented)
-                        Text(
-                            L10n.text("settings.fpsHint")
-                        )
-                        .font(.caption).foregroundStyle(.secondary)
-                        Picker(
-                            L10n.text("settings.videoSpeed"),
-                            selection: Binding(
-                                get: { queue.settings.effectiveVideoEncodingSpeed },
-                                set: { queue.settings.videoEncodingSpeed = $0 })
-                        ) {
-                            ForEach(VideoEncodingSpeed.allCases) { speed in Text(speed.title).tag(speed) }
-                        }.pickerStyle(.segmented)
-                        Text(L10n.text("settings.speedHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text(L10n.text("settings.speedScope"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Label(L10n.text("settings.speed"), systemImage: "speedometer")
-                    }
-                    Section {
-                        LabeledContent(L10n.text("settings.left"), value: L10n.text("settings.videoCopyAudio"))
-                        LabeledContent(L10n.text("settings.center"), value: L10n.text("settings.compressBoth"))
-                        LabeledContent(L10n.text("settings.right"), value: L10n.text("settings.audioCopyVideo"))
-                        Text(L10n.text("settings.targetHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Label(L10n.text("settings.target"), systemImage: "square.split.2x1")
-                    }
-                    Section {
-                        LabeledContent(L10n.text("settings.video"), value: L10n.text("settings.hevc"))
-                        Text(L10n.text("settings.resolution"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        LabeledContent(L10n.text("settings.audio"), value: L10n.text("settings.aac"))
-                        Text(
-                            L10n.text("settings.lossy")
-                        )
-                        .font(.caption).foregroundStyle(.secondary)
-                        Text(L10n.text("settings.preserve"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Label(L10n.text("settings.codecs"), systemImage: "arrow.triangle.2.circlepath")
-                    }
-                }
-                if category == .general {
-                    Section {
-                        KeyboardShortcuts.Recorder(L10n.text("app.openQueue"), name: .showCompressionQueue)
-                        Text(L10n.text("settings.shortcutHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Label(L10n.text("settings.shortcut"), systemImage: "keyboard")
-                    }
-                    Section {
-                        Toggle(
-                            L10n.text("settings.login"),
-                            isOn: Binding(
-                                get: { loginStatus == .enabled || loginStatus == .requiresApproval }, set: updateLogin)
-                        )
-                        .toggleStyle(.switch)
-                        Text(L10n.text("settings.loginHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        Text(
-                            loginStatus == .enabled
-                                ? L10n.text("settings.enabled")
-                                : loginStatus == .requiresApproval
-                                    ? L10n.text("settings.approval") : L10n.text("settings.disabled")
-                        )
-                        .font(.caption)
-                        if loginStatus == .requiresApproval {
-                            Button {
-                                SMAppService.openSystemSettingsLoginItems()
-                            } label: {
-                                Label(L10n.text("settings.loginItems"), systemImage: "arrow.up.forward.app")
-                            }.capsuleControl()
-                        }
-                        if let message { Text(message).font(.callout).foregroundStyle(.orange) }
-                        if let loginDetails {
-                            DisclosureGroup(L10n.text("details.technical")) {
-                                Text(loginDetails).font(.caption).textSelection(.enabled)
+                            } else {
+                                Button {
+                                    widgets.connect()
+                                } label: {
+                                    Label(
+                                        L10n.text(
+                                            widgets.connection == .permissionNeeded ? "music.allow" : "music.recheck"),
+                                        systemImage: widgets.connection == .permissionNeeded
+                                            ? "hand.raised" : "arrow.clockwise")
+                                }.capsuleControl()
                             }
-                        }
-                    } header: {
-                        Label(L10n.text("settings.startup"), systemImage: "power")
-                    }
-                    Section {
-                        Toggle(
-                            L10n.text("settings.notify"),
-                            isOn: Binding(
-                                get: { notifications.enabled },
-                                set: { value in Task { await notifications.setEnabled(value) } })
-                        )
-                        .toggleStyle(.switch).disabled(notifications.changing)
-                        Text(notifications.status).font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Label(L10n.text("settings.notifications"), systemImage: "bell")
-                    }
-                }
-                if category == .compression {
-                    Section {
-                        Label(L10n.text("app.replace"), systemImage: "checkmark.shield")
-                        Text(L10n.text("settings.saveHint"))
-                            .font(.callout).foregroundStyle(.secondary)
-                    } header: {
-                        Text(L10n.text("settings.save"))
-                    }
-                }
-                if category == .updates {
-                    Section {
-                        Toggle(
-                            L10n.text("settings.autoUpdate"),
-                            isOn: Binding(
-                                get: { updates.automaticallyChecks }, set: { updates.automaticallyChecks = $0 })
-                        )
-                        .toggleStyle(.switch)
-                        Button(L10n.text("app.checkUpdates")) { updates.check() }
-                            .capsuleControl()
-                            .disabled(!updates.canCheck || queue.isBusy)
-                        Text(L10n.text("settings.updateHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                        if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
-                        if let details = updates.technicalDetails {
-                            DisclosureGroup(L10n.text("details.technical")) {
-                                Text(details).font(.caption).textSelection(.enabled)
+                            if let date = widgets.lastConnectionCheck, !widgets.connecting {
+                                Text(
+                                    L10n.text(
+                                        "music.checked",
+                                        date.formatted(.dateTime.hour().minute().second().locale(L10n.locale)))
+                                )
+                                .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                             }
-                        }
-                    } header: {
-                        Label(L10n.text("settings.updates"), systemImage: "arrow.down.circle")
+                        }.padding(.vertical, 4)
                     }
-                    Section {
-                        Button {
-                            showingDiagnostics = true
-                        } label: {
-                            Label(L10n.text("settings.diagnostics"), systemImage: "stethoscope")
-                        }.capsuleControl()
-                        Text(L10n.text("settings.supportHint"))
-                            .font(.caption).foregroundStyle(.secondary)
-                    } header: {
-                        Text(L10n.text("settings.support"))
-                    }
-                    Section {
-                        LabeledContent(
-                            L10n.text("settings.version"),
-                            value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-                                ?? L10n.text("app.development"))
-                        Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later\nSparkle 2.10.1 · MIT")
-                            .font(.caption).foregroundStyle(.secondary)
-                        Button {
-                            if let url = Bundle.main.resourceURL?.appendingPathComponent("Licenses") {
-                                NSWorkspace.shared.open(url)
-                            }
-                        } label: {
-                            Label(L10n.text("settings.licenses"), systemImage: "doc.text")
-                        }.capsuleControl()
-                    } header: {
-                        Text(L10n.text("settings.about"))
-                    }
+                } header: {
+                    Label(L10n.text("widgets.title"), systemImage: "menubar.rectangle")
                 }
-            }.formStyle(.grouped)
-                .id(category)
-        }.frame(width: 560, height: 620)
-            .task {
-                loginStatus = SMAppService.mainApp.status; await notifications.refresh()
             }
-            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                loginStatus = SMAppService.mainApp.status
-                Task { await notifications.refresh() }
+            if category == .general {
+                Section {
+                    KeyboardShortcuts.Recorder(L10n.text("app.openQueue"), name: .showCompressionQueue)
+                } header: {
+                    Label(L10n.text("settings.shortcut"), systemImage: "keyboard")
+                }
+                Section {
+                    Toggle(
+                        L10n.text("settings.login"),
+                        isOn: Binding(
+                            get: { loginStatus == .enabled || loginStatus == .requiresApproval }, set: updateLogin)
+                    )
+                    .toggleStyle(.switch)
+                    if loginStatus == .requiresApproval {
+                        Label(L10n.text("settings.approval"), systemImage: "exclamationmark.circle")
+                            .font(.callout)
+                        Button {
+                            SMAppService.openSystemSettingsLoginItems()
+                        } label: {
+                            Label(L10n.text("settings.loginItems"), systemImage: "arrow.up.forward.app")
+                        }.capsuleControl()
+                    }
+                    if let message { Text(message).font(.callout).foregroundStyle(.orange) }
+                    if let loginDetails {
+                        DisclosureGroup(L10n.text("details.technical")) {
+                            Text(loginDetails).font(.caption).textSelection(.enabled)
+                        }
+                    }
+                } header: {
+                    Label(L10n.text("settings.startup"), systemImage: "power")
+                }
+                Section {
+                    Toggle(
+                        L10n.text("settings.notify"),
+                        isOn: Binding(
+                            get: { notifications.enabled },
+                            set: { value in Task { await notifications.setEnabled(value) } })
+                    )
+                    .toggleStyle(.switch).disabled(notifications.changing)
+                    if !notifications.status.isEmpty,
+                        notifications.status != L10n.text("notify.enabled"),
+                        notifications.status != L10n.text("notify.disabled")
+                    {
+                        Label(
+                            notifications.status,
+                            systemImage: notifications.authorization == .denied ? "bell.slash" : "bell.badge"
+                        )
+                        .font(.callout)
+                    }
+                    if notifications.authorization == .notDetermined {
+                        Button {
+                            Task { await notifications.setEnabled(true) }
+                        } label: {
+                            Label(L10n.text("notify.request"), systemImage: "bell.badge")
+                        }.capsuleControl(prominent: true).disabled(notifications.changing)
+                    } else if notifications.authorization == .denied {
+                        Text(
+                            L10n.text(
+                                "notify.settingsSteps",
+                                Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "NotchCompressor"
+                            )
+                        )
+                        .font(.callout).textSelection(.enabled)
+                        Button {
+                            notifications.openSettings()
+                        } label: {
+                            Label(L10n.text("notify.openSettings"), systemImage: "arrow.up.forward.app")
+                        }.capsuleControl(prominent: true)
+                    }
+                } header: {
+                    Label(L10n.text("settings.notifications"), systemImage: "bell")
+                }
             }
-            .sheet(isPresented: $showingDiagnostics) { DiagnosticsView(queue: queue) }
+            if category == .saving {
+                Section {
+                    Label(L10n.text("app.replace"), systemImage: "checkmark.shield")
+                    Text(L10n.text("settings.saveHint"))
+                        .font(.callout).foregroundStyle(.secondary)
+                } header: {
+                    Text(L10n.text("settings.save"))
+                }
+            }
+            if category == .updates {
+                Section {
+                    Toggle(
+                        L10n.text("settings.autoUpdate"),
+                        isOn: Binding(
+                            get: { updates.automaticallyChecks }, set: { updates.automaticallyChecks = $0 })
+                    )
+                    .toggleStyle(.switch)
+                    Button(L10n.text("app.checkUpdates")) { updates.check() }
+                        .capsuleControl()
+                        .disabled(!updates.canCheck || queue.isBusy)
+                    Text(L10n.text("settings.updateHint"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let status = updates.status { Text(status).font(.caption).foregroundStyle(.secondary) }
+                    if let details = updates.technicalDetails {
+                        DisclosureGroup(L10n.text("details.technical")) {
+                            Text(details).font(.caption).textSelection(.enabled)
+                        }
+                    }
+                } header: {
+                    Label(L10n.text("settings.updates"), systemImage: "arrow.down.circle")
+                }
+                Section {
+                    Button {
+                        showingDiagnostics = true
+                    } label: {
+                        Label(L10n.text("settings.diagnostics"), systemImage: "stethoscope")
+                    }.capsuleControl()
+                    Text(L10n.text("settings.supportHint"))
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: {
+                    Text(L10n.text("settings.support"))
+                }
+                Section {
+                    LabeledContent(
+                        L10n.text("settings.version"),
+                        value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+                            ?? L10n.text("app.development"))
+                    Text("NotchCompressor · Apache 2.0\nFFmpeg 9.0.1 · LGPL 2.1 or later\nSparkle 2.10.1 · MIT")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button {
+                        if let url = Bundle.main.resourceURL?.appendingPathComponent("Licenses") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    } label: {
+                        Label(L10n.text("settings.licenses"), systemImage: "doc.text")
+                    }.capsuleControl()
+                } header: {
+                    Text(L10n.text("settings.about"))
+                }
+            }
+        }.formStyle(.grouped)
+            .id(category)
+    }
+
+    @ViewBuilder private var settingsHelp: some View {
+        switch category {
+        case .compression:
+            helpTopic(
+                "settings.quality",
+                [
+                    queue.settings.quality.explanation,
+                    L10n.text("settings.modeScope"), L10n.text("settings.nextOnly"),
+                ])
+            helpTopic(
+                "settings.autoDetails",
+                [
+                    L10n.text("settings.autoHint"), L10n.text("settings.formula"),
+                    L10n.text("settings.bitrateExplanation"), L10n.text("settings.videoHint"),
+                    L10n.text("settings.audioHint"), L10n.text("settings.percentHint"),
+                ])
+            helpTopic("settings.fps", [L10n.text("settings.fpsHint")])
+            helpTopic("settings.videoSpeed", [L10n.text("settings.speedHint"), L10n.text("settings.speedScope")])
+        case .images:
+            helpTopic("image.jpegQualityLabel", [L10n.text("image.qualityHint")])
+            Text(L10n.text("image.pngExplanation"))
+        case .audio:
+            helpTopic("audio.bitrate", [L10n.text("audio.bitrateHint")])
+            Text(L10n.text("audio.estimateHint"))
+        case .notch: Text(L10n.text("widgets.displayHint"))
+        case .general:
+            helpTopic("settings.startup", [L10n.text("settings.loginHint")])
+            helpTopic("settings.shortcut", [L10n.text("settings.shortcutHint")])
+        case .saving: Text(L10n.text("settings.saveHint"))
+        case .updates: Text(L10n.text("settings.updateHint"))
+        }
+    }
+
+    private func helpTopic(_ title: String, _ paragraphs: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text(title)).font(.headline)
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, text in Text(text) }
+        }
     }
 
     private func updateLogin(_ enabled: Bool) {
@@ -302,8 +517,70 @@ struct SettingsView: View {
 }
 
 private enum SettingsCategory: String, CaseIterable, Identifiable {
-    case compression = "settings.compression"
     case general = "settings.general"
-    case updates = "settings.updatesSupport"
+    case notch = "widgets.title"
+    case compression = "settings.video"
+    case images = "media.image"
+    case audio = "media.audio"
+    case saving = "settings.savingBehavior"
+    case updates = "settings.updates"
     var id: Self { self }
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .notch: "menubar.rectangle"
+        case .compression: "video"
+        case .images: "photo"
+        case .audio: "waveform"
+        case .saving: "checkmark.shield"
+        case .updates: "arrow.down.circle"
+        }
+    }
+    var summary: String {
+        switch self {
+        case .general: L10n.text("settings.summary.general")
+        case .notch: L10n.text("settings.summary.notch")
+        case .compression: L10n.text("settings.summary.video")
+        case .images: L10n.text("settings.summary.images")
+        case .audio: L10n.text("settings.summary.audio")
+        case .saving: L10n.text("settings.summary.saving")
+        case .updates: L10n.text("settings.summary.updates")
+        }
+    }
+}
+
+private struct SettingsSidebarSurface: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+}
+
+private struct SettingsHelpButton<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: () -> Content
+    @State private var presented = false
+
+    var body: some View {
+        Button {
+            presented.toggle()
+        } label: {
+            Image(systemName: "info.circle").font(.system(size: 15))
+                .frame(width: 28, height: 28).contentShape(Circle())
+        }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .accessibilityLabel(L10n.text("settings.helpFor", title))
+        .help(L10n.text("settings.helpFor", title))
+        .popover(isPresented: $presented) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(L10n.text("settings.helpFor", title)).font(.title3.weight(.semibold))
+                    content()
+                }.font(.callout).padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(width: 380).frame(maxHeight: 480)
+        }
+    }
 }

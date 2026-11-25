@@ -105,8 +105,8 @@ public struct Toolchain: Equatable, Sendable {
 }
 
 public enum InputFile {
-    public static func validate(_ url: URL) throws -> Int64 {
-        guard url.isFileURL, ["mov", "mp4", "m4v"].contains(url.pathExtension.lowercased()) else {
+    public static func validate(_ url: URL, extensions: [String] = ["mov", "mp4", "m4v"]) throws -> Int64 {
+        guard url.isFileURL, extensions.contains(url.pathExtension.lowercased()) else {
             throw CompressionError.localized(.init("error.extension"))
         }
         let values = try url.resourceValues(forKeys: [

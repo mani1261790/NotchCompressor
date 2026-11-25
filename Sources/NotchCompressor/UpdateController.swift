@@ -25,6 +25,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     }
 
     func start() {
+        guard Bundle.main.bundleIdentifier == "com.mani.NotchCompressor" else { return }
         do { try controller.updater.start() } catch {
             status = L10n.text("update.error"); technicalDetails = error.localizedDescription
         }
@@ -43,7 +44,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     }
 
     func updater(_ updater: SPUUpdater, mayPerform updateCheck: SPUUpdateCheck) throws {
-        guard !AppState.shared.queue.isBusy else {
+        guard !AppState.shared.isBusy else {
             throw NSError(
                 domain: "NotchCompressor.Updates", code: 1,
                 userInfo: [NSLocalizedDescriptionKey: L10n.text("update.busy")])
@@ -54,10 +55,10 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
         untilInvokingBlock installHandler: @escaping () -> Void
     ) -> Bool {
         installing = true
-        guard AppState.shared.queue.isBusy else { return false }
+        guard AppState.shared.isBusy else { return false }
         status = L10n.text("update.waiting")
         deferredInstall = Task { @MainActor [weak self] in
-            while AppState.shared.queue.isBusy {
+            while AppState.shared.isBusy {
                 do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             }
             guard !Task.isCancelled else { return }

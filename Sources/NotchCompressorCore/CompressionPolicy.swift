@@ -2,6 +2,14 @@ import Foundation
 
 public enum CompressionMode: String, CaseIterable, Identifiable, Codable, Sendable {
     case video, both, audio
+    public var selectionTitle: String {
+        switch self {
+        case .video: L10n.text("input.visual")
+        case .both: L10n.text("input.auto")
+        case .audio: L10n.text("media.audio")
+        }
+    }
+    public var selectionSymbol: String { self == .video ? "photo.on.rectangle" : symbol }
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -85,6 +93,10 @@ public enum VideoFrameRate: String, Codable, CaseIterable, Identifiable, Sendabl
 
 public struct CompressionSettings: Codable, Equatable, Sendable {
     public var quality: CompressionQuality
+    public var standaloneAudioKbps: Int?
+    public var effectiveStandaloneAudioKbps: Int { min(256, max(64, standaloneAudioKbps ?? 160)) }
+    public var imageQuality: Double?
+    public var effectiveImageQuality: Double { min(100, max(10, imageQuality ?? 85)) }
     public var toolsDirectory: String?
     public var videoPercent: Int?
     public var audioKbps: Int?

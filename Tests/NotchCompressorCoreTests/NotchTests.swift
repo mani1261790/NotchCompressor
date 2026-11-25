@@ -3,6 +3,70 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testTransitionKeepsActualPersistentWidthAndCameraOffset() {
+        let expanded = CGRect(x: 480, y: 720, width: 480, height: 180)
+        // A wide physical cutout plus two information regions can exceed 480pt.
+        let idle = CGRect(x: 440, y: 868, width: 560, height: 32)
+        let layout = NotchTransitionGeometry(expanded: expanded, collapsed: idle)
+        XCTAssertEqual(layout.canvas, CGRect(x: 440, y: 720, width: 560, height: 180))
+        XCTAssertEqual(layout.expanded, CGRect(x: 40, y: 0, width: 480, height: 180))
+        XCTAssertEqual(layout.collapsed, CGRect(x: 0, y: 0, width: 560, height: 32))
+        XCTAssertEqual(layout.canvas.minX + layout.collapsed.minX, idle.minX)
+        XCTAssertEqual(layout.canvas.maxY - layout.collapsed.minY, idle.maxY)
+    }
+
+    func testTransitionPreservesIdlePositionBelowUnknownCamera() {
+        let expanded = CGRect(x: -800, y: 620, width: 480, height: 180)
+        let idle = CGRect(x: -700, y: 740, width: 240, height: 28)
+        let layout = NotchTransitionGeometry(expanded: expanded, collapsed: idle)
+        XCTAssertEqual(layout.canvas, expanded)
+        XCTAssertEqual(layout.collapsed, CGRect(x: 100, y: 32, width: 240, height: 28))
+        XCTAssertEqual(layout.expanded.origin, .zero)
+    }
+
+    func testTransitionWithoutWidgetsStillClosesToOriginalNotch() {
+        let geometry = NotchGeometry(screen: CGRect(x: 0, y: 0, width: 1440, height: 900), topInset: 0)
+        let layout = NotchTransitionGeometry(expanded: geometry.panel, collapsed: geometry.collapsed)
+        XCTAssertEqual(layout.canvas, geometry.panel)
+        XCTAssertEqual(layout.collapsed, CGRect(x: 150, y: 0, width: 180, height: 28))
+    }
+
+    func testMusicConnectionSeparatesPermissionFromPlayback() {
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.noTrack"), .ready)
+        XCTAssertTrue(MusicConnectionState.ready.connected)
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: false, statusKey: nil), .paused)
+        XCTAssertEqual(MusicConnectionState(checking: true, playing: true, statusKey: nil), .checking)
+        XCTAssertEqual(
+            MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.musicPermission"), .denied)
+        XCTAssertEqual(
+            MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.permissionNeeded"),
+            .permissionNeeded)
+        XCTAssertEqual(MusicConnectionState(checking: false, playing: nil, statusKey: "widgets.openMusic"), .closed)
+        XCTAssertFalse(MusicConnectionState.closed.connected)
+    }
+
+    func testIndependentWidgetDisplayMigration() {
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: false, legacyAlways: true), .off)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: true, legacyAlways: false), .hover)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: nil, legacyEnabled: true, legacyAlways: true), .always)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: "off", legacyEnabled: true, legacyAlways: true), .off)
+        XCTAssertEqual(NotchWidgetDisplay(savedValue: "hover", legacyEnabled: true, legacyAlways: true), .hover)
+    }
+    func testDropContentMatchesTargets() {
+        let samples: [([String], NotchDropContent)] = [
+            (["a.MOV", "b.mp4"], .video), (["a.png", "b.JPEG"], .image),
+            (["a.m4a"], .audio), (["a.png", "b.mov"], .automatic),
+            (["a.pdf"], .automatic), ([], .automatic),
+        ]
+        for (names, expected) in samples {
+            let content = NotchDropContent(urls: names.map { URL(fileURLWithPath: "/" + $0) })
+            XCTAssertEqual(content, expected)
+            XCTAssertNil(content.mode(for: nil))
+            for mode in CompressionMode.allCases {
+                XCTAssertEqual(content.mode(for: mode), content == .video ? mode : content.singleMode)
+            }
+        }
+    }
     func testOuterScreenEdgeKeepsDropTargetAndApproachOpensBeforeTop() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let second = CGRect(x: 1920, y: -81, width: 1080, height: 1920)
@@ -67,6 +131,64 @@ final class NotchTests: XCTestCase {
         XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: true, now: 4))
     }
 
+    func testCompactWidgetsKeepMenuBarHeightAtDifferentContentWidths() {
+        let screen = CGRect(x: 0, y: 0, width: 1512, height: 982)
+        for width: CGFloat in [90, 120] {
+            let layout = NotchWidgetGeometry(
+                screen: screen, topInset: 32, notchWidth: 210,
+                preferredSideWidth: width)
+            XCTAssertEqual(layout.frame.height, 32)
+            XCTAssertEqual(layout.frame.midX, screen.midX)
+            XCTAssertEqual(layout.frame.maxY, screen.maxY)
+            XCTAssertEqual(layout.frame.width, 210 + 2 * width)
+        }
+    }
+
+    func testPersistentContentNeverIntersectsCameraIncludingOffsetScreens() {
+        for screen in [
+            CGRect(x: 0, y: 0, width: 1512, height: 982),
+            CGRect(x: -1728, y: 100, width: 1728, height: 1117),
+        ] {
+            for offset: CGFloat in [-40, 0, 40] {
+                let camera = CGRect(
+                    x: screen.midX + offset - 110, y: screen.maxY - 38,
+                    width: 220, height: 38)
+                for width: CGFloat in [120, 160] {
+                    let layout = NotchWidgetGeometry(
+                        screen: screen, topInset: 38, notchWidth: 180,
+                        preferredSideWidth: width, cameraRect: camera, cameraPadding: 8)
+                    XCTAssertEqual(layout.frame.midX, camera.midX)
+                    XCTAssertLessThanOrEqual(layout.leftRegion.maxX, camera.minX - 8)
+                    XCTAssertGreaterThanOrEqual(layout.rightRegion.minX, camera.maxX + 8)
+                    XCTAssertFalse(layout.leftRegion.intersects(camera))
+                    XCTAssertFalse(layout.rightRegion.intersects(camera))
+                    XCTAssertTrue(screen.contains(layout.frame))
+                }
+            }
+        }
+    }
+
+    func testWidgetsReserveCameraAndFitExternalDisplays() {
+        for screen in [
+            CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080),
+        ] {
+            let notch = NotchWidgetGeometry(screen: screen, topInset: 32, notchWidth: 210)
+            XCTAssertEqual(notch.cameraWidth, 210)
+            XCTAssertEqual(notch.frame.midX, screen.midX)
+            XCTAssertEqual(notch.frame.maxY, screen.maxY)
+            XCTAssertEqual(notch.frame.width, 2 * notch.sideWidth + notch.cameraWidth)
+            XCTAssertTrue(screen.contains(notch.frame))
+            let external = NotchWidgetGeometry(screen: screen, topInset: 0, notchWidth: 0)
+            XCTAssertEqual(external.cameraWidth, 0)
+            XCTAssertEqual(external.frame.maxY, screen.maxY)
+            XCTAssertTrue(screen.contains(external.frame))
+        }
+        let narrow = NotchWidgetGeometry(
+            screen: CGRect(x: 0, y: 0, width: 200, height: 300), topInset: 32, notchWidth: 210)
+        XCTAssertEqual(narrow.frame.width, 200)
+        XCTAssertGreaterThanOrEqual(narrow.sideWidth, 0)
+    }
+
     func testCollapsedFrameFitsNotchAndRemainsAtScreenTop() {
         let screen = CGRect(x: -1512, y: 200, width: 1512, height: 982)
         let geometry = NotchGeometry(screen: screen, topInset: 32, notchWidth: 210)
@@ -94,4 +216,29 @@ final class NotchTests: XCTestCase {
             }
         }
     }
+    func testHoverNeedsDwellAndKeepsExpandedContentReachable() {
+        var hover = NotchHoverState()
+        hover.update(insideTrigger: true, insidePanel: false, now: 1)
+        hover.update(insideTrigger: true, insidePanel: false, now: 1.1)
+        XCTAssertFalse(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: false, now: 1.12)
+        hover.update(insideTrigger: true, insidePanel: false, now: 2)
+        XCTAssertFalse(hover.expanded, "A pass over the menu bar must not open the panel")
+        hover.update(insideTrigger: true, insidePanel: false, now: 2.2)
+        XCTAssertTrue(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: true, now: 3)
+        XCTAssertTrue(hover.expanded, "Moving from the notch into its content keeps it open")
+        hover.update(insideTrigger: false, insidePanel: false, now: 4)
+        hover.update(insideTrigger: false, insidePanel: false, now: 4.1)
+        XCTAssertTrue(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: true, now: 4.2)
+        hover.update(insideTrigger: false, insidePanel: false, now: 5)
+        hover.update(insideTrigger: false, insidePanel: false, now: 5.3)
+        XCTAssertFalse(hover.expanded)
+        hover.update(insideTrigger: true, insidePanel: false, now: 6)
+        hover.update(insideTrigger: true, insidePanel: false, now: 6.2)
+        hover.reset()
+        XCTAssertFalse(hover.expanded, "A file drag takes priority over information")
+    }
+
 }

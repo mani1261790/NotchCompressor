@@ -20,6 +20,6 @@ jobs:
       - name: Localization catalogs
         run: python3 scripts/check-localization.py
       - name: Unit tests
-        run: swift test
+        run: bash scripts/test.sh
       - name: Rehearse distribution (no Apple credentials)
         run: bash scripts/distribute.sh rehearse

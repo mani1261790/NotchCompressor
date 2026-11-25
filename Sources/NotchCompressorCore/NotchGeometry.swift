@@ -79,3 +79,22 @@ public struct NotchGeometry {
         return .audio
     }
 }
+
+/// Both endpoints share one window, even when persistent widgets exceed the expanded width.
+/// Local rectangles use SwiftUI's top-left coordinate system.
+public struct NotchTransitionGeometry {
+    public let canvas: CGRect
+    public let expanded: CGRect
+    public let collapsed: CGRect
+
+    public init(expanded: CGRect, collapsed: CGRect) {
+        let canvas = expanded.union(collapsed)
+        self.canvas = canvas
+        self.expanded = CGRect(
+            x: expanded.minX - canvas.minX, y: canvas.maxY - expanded.maxY,
+            width: expanded.width, height: expanded.height)
+        self.collapsed = CGRect(
+            x: collapsed.minX - canvas.minX, y: canvas.maxY - collapsed.maxY,
+            width: collapsed.width, height: collapsed.height)
+    }
+}

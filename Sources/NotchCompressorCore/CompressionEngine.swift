@@ -85,29 +85,31 @@ public struct CompressionEngine: Sendable {
         try Task.checkCancellation()
         update(.probing, 0, nil)
         let source = input.resolvingSymlinksInPath()
+        let candidateKind: MediaKind =
+            ["jpg", "jpeg", "png", "heic", "heif"].contains(source.pathExtension.lowercased())
+            ? .image : (source.pathExtension.lowercased() == "m4a" ? .audio : .video)
+        if let expected = MediaInputContext.expectedKind, expected != candidateKind {
+            throw CompressionError.localized(.init("error.mediaMismatch"))
+        }
+        if candidateKind == .audio {
+            return try await AudioCompressionEngine().compress(
+                input: source, mode: mode, settings: settings, update: update)
+        }
+        if candidateKind == .image {
+            return try await ImageCompressionEngine().compress(
+                input: source, mode: mode, settings: settings, update: update)
+        }
         let tools = try Toolchain.discover(directory: settings.toolsDirectory)
         _ = try InputFile.validate(source)
         let fingerprint = try Fingerprint(source)
         let media = try await probe(source, tools: tools)
         try await CompressionControl.current?.checkpoint()
         let plan = try CompressionPlan(media: media, mode: mode, settings: settings)
-        let folder = source.deletingLastPathComponent()
-        guard FileManager.default.isWritableFile(atPath: folder.path) else {
-            throw CompressionError.localized(.init("error.folder"))
-        }
-        let capacity = try DiskSpaceIssue.availableCapacity(in: folder)
         let estimated =
             max(Double(media.size), media.duration * Double(plan.videoBitrate + 256_000) / 8) * 1.2 + 64 * 1024 * 1024
-        if let capacity, Double(capacity) < estimated {
-            throw DiskSpaceIssue(
-                availableBytes: max(0, capacity),
-                requiredBytes: Int64(min(estimated.rounded(.up), Double(Int64.max - 1024))))
-        }
-        let staging = folder.appendingPathComponent(".notchcompressor-" + UUID().uuidString, isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: staging, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: staging) }
-        let output = staging.appendingPathComponent("output." + source.pathExtension.lowercased())
+        let transaction = try OutputTransaction(source: source, estimatedBytes: estimated, expected: fingerprint)
+        defer { transaction.cleanUp() }
+        let output = transaction.output
         try await Self.recoverAfterSleep(control: CompressionControl.current) { retrying in
             guard try Fingerprint(source) == fingerprint else {
                 throw CompressionError.localized(.init("error.changedRetry"))
@@ -145,19 +147,7 @@ public struct CompressionEngine: Sendable {
         guard try Fingerprint(source) == fingerprint else {
             throw CompressionError.localized(.init("error.changedRetry"))
         }
-        if let control = CompressionControl.current {
-            while true {
-                try await control.checkpoint()
-                if let result = try control.commit({
-                    try Self.finalizeVerifiedOutput(
-                        output, original: source, expected: fingerprint, note: plan.note, noteMessage: plan.noteMessage)
-                }) {
-                    return result
-                }
-            }
-        }
-        return try Self.finalizeVerifiedOutput(
-            output, original: source, expected: fingerprint, note: plan.note, noteMessage: plan.noteMessage)
+        return try await transaction.commit(note: plan.note, noteMessage: plan.noteMessage)
     }
 
     /// Retry only the encode/validate stage, once, when it crossed a system sleep.

@@ -6,7 +6,9 @@ import UserNotifications
 @MainActor
 final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCenterDelegate {
     static let shared = TaskNotifications()
-    @Published private(set) var enabled = UserDefaults.standard.bool(forKey: "taskNotificationsEnabled")
+    @Published private(set) var enabled =
+        (UserDefaults.standard.object(forKey: "taskNotificationsEnabled") as? Bool) ?? true
+    @Published private(set) var authorization: UNAuthorizationStatus = .notDetermined
     @Published private(set) var changing = false
     @Published private(set) var status = ""
     private var subscriptions = Set<AnyCancellable>()
@@ -37,8 +39,9 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
             return
         }
         do {
-            enabled = try await center.requestAuthorization(options: [.alert])
-            UserDefaults.standard.set(enabled, forKey: "taskNotificationsEnabled")
+            enabled = true
+            UserDefaults.standard.set(true, forKey: "taskNotificationsEnabled")
+            _ = try await center.requestAuthorization(options: [.alert])
             await refresh()
         } catch {
             status = L10n.text("notify.setupError")
@@ -47,12 +50,25 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
 
     func refresh() async {
         let settings = await center.notificationSettings()
-        if settings.authorizationStatus == .denied {
+        authorization = settings.authorizationStatus
+        if settings.authorizationStatus == .notDetermined {
+            status = L10n.text("notify.notRequested")
+        } else if settings.authorizationStatus == .denied {
             status = L10n.text("notify.denied")
         } else if enabled {
             status = L10n.text("notify.enabled")
         } else {
             status = L10n.text("notify.disabled")
+        }
+    }
+
+    func openSettings() {
+        // Open Notifications, not a privacy pane which accepts dropped app icons.
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") else {
+            return
+        }
+        if !NSWorkspace.shared.open(url) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
         }
     }
 

@@ -24,7 +24,7 @@ export SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
 "$source_dir/configure" --prefix="$prefix" --cc="$(xcrun -f clang)" \
   --disable-autodetect --disable-network --disable-doc --disable-debug \
   --disable-ffplay --disable-shared --enable-static --disable-gpl --disable-nonfree \
-  --disable-x86asm --enable-videotoolbox --enable-audiotoolbox \
+  --disable-x86asm --enable-videotoolbox --enable-audiotoolbox --enable-zlib \
   --extra-cflags=-mmacosx-version-min=14.0 --extra-ldflags=-mmacosx-version-min=14.0
 make -j "$(sysctl -n hw.activecpu)"
 make install

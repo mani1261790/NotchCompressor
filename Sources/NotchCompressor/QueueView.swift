@@ -39,7 +39,7 @@ struct QueueView: View {
                         Button {
                             app.chooseVideos(mode: mode)
                         } label: {
-                            Label(mode.title, systemImage: mode.symbol)
+                            Label(mode.selectionTitle, systemImage: mode.selectionSymbol)
                         }
                     }
                 } label: {
@@ -64,7 +64,7 @@ struct QueueView: View {
                     Menu {
                         Picker(L10n.text("queue.execution"), selection: $queue.execution) {
                             ForEach(QueueExecution.allCases) { mode in Text(mode.title).tag(mode) }
-                        }
+                        }.pickerStyle(.inline).labelsHidden()
                     } label: {
                         HStack(spacing: 6) {
                             Label(queue.execution.title, systemImage: "slider.horizontal.3")
@@ -72,9 +72,16 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel(L10n.text("queue.executionValue", queue.execution.title))
                     Spacer()
-                    IconControl(title: L10n.text("queue.help"), symbol: "info") {
+                    Button {
                         showingQueueHelp.toggle()
+                    } label: {
+                        Image(systemName: "info.circle").font(.system(size: 14))
+                            .foregroundStyle(.secondary).frame(width: 28, height: 28)
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
+                    .help(L10n.text("queue.help"))
+                    .accessibilityLabel(L10n.text("queue.help"))
                     .popover(isPresented: $showingQueueHelp) {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.text("queue.help")).font(.headline)
@@ -99,6 +106,26 @@ struct QueueView: View {
                     Spacer()
                     IconControl(title: L10n.text("queue.dismissResult"), symbol: "xmark") { queue.dismissCompletion() }
                 }.padding(.horizontal, 24).padding(.vertical, 12)
+            }
+            if app.importingCount > 0 {
+                ProgressView(L10n.text("input.inspecting")).controlSize(.small).padding()
+            }
+            if !app.rejectedInputs.isEmpty {
+                HStack(alignment: .top) {
+                    DisclosureGroup(L10n.text("input.rejected", L10n.integer(app.rejectedInputs.count))) {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(Array(app.rejectedInputs.enumerated()), id: \.offset) { _, rejection in
+                                    VStack(alignment: .leading) {
+                                        Text(rejection.url.lastPathComponent).fontWeight(.medium)
+                                        Text(rejection.reason.text).foregroundStyle(.secondary)
+                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }.font(.caption).textSelection(.enabled)
+                        }.frame(maxHeight: 120)
+                    }
+                    IconControl(title: L10n.text("ui.close"), symbol: "xmark") { app.rejectedInputs = [] }
+                }.padding(.horizontal, 24).padding(.vertical, 8)
             }
             if let error = app.dropError {
                 HStack {
@@ -128,7 +155,7 @@ struct QueueView: View {
                     Text(L10n.text("queue.dropChoice")).font(.headline)
                     HStack(spacing: 24) {
                         ForEach(CompressionMode.allCases) { mode in
-                            Label(mode.title, systemImage: mode.symbol).font(.callout)
+                            Label(mode.selectionTitle, systemImage: mode.selectionSymbol).font(.callout)
                         }
                     }.foregroundStyle(.secondary)
                     Text(L10n.text("queue.zones")).font(.caption).foregroundStyle(.secondary)
@@ -158,7 +185,6 @@ struct QueueView: View {
                 }
             }.padding(16)
         }
-        .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
     }
     private func card(_ job: CompressionJob) -> some View {
         JobRow(job: job, queue: queue, draggingID: $draggingJobID)
@@ -187,12 +213,12 @@ private struct JobRow: View {
                             .help(job.input.lastPathComponent)
                         ViewThatFits(in: .horizontal) {
                             HStack(spacing: 6) {
-                                Label(job.mode.title, systemImage: job.mode.symbol)
+                                Label(job.modeTitle, systemImage: job.modeSymbol)
                                 Text("·").accessibilityHidden(true)
                                 InputFileSize(url: job.input)
                             }.fixedSize()
                             VStack(alignment: .leading, spacing: 3) {
-                                Label(job.mode.title, systemImage: job.mode.symbol)
+                                Label(job.modeTitle, systemImage: job.modeSymbol)
                                 InputFileSize(url: job.input)
                             }
                         }.font(.caption).foregroundStyle(.secondary)
@@ -235,7 +261,9 @@ private struct JobRow: View {
                     }
                 }.fixedSize()
             }
-            if job.phase == .encoding || job.phase == .paused {
+            if job.effectiveMediaKind == .image && job.phase == .encoding {
+                ProgressView().controlSize(.small)
+            } else if job.effectiveMediaKind != .image && (job.phase == .encoding || job.phase == .paused) {
                 HStack(spacing: 12) {
                     ProgressView(value: job.progress)
                     Text(L10n.text("queue.percent", L10n.integer(Int(job.progress * 100))))
@@ -277,7 +305,7 @@ private struct JobRow: View {
                 }.capsuleControl()
             }
             DisclosureGroup(L10n.text("queue.compressionDetails")) {
-                Text(job.settings.summary(for: job.mode))
+                Text(job.settingsSummary)
                     .font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
