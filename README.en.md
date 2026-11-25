@@ -27,7 +27,7 @@ The published app and DMG are Developer ID signed and notarized by Apple. No qua
 
 The app supports Japanese and English. The two DMGs have different installer instructions but contain the same app. The interface follows the macOS per-app language preference; restart the app after changing it.
 
-Alpha.1 does not support automatic updates: install 0.1.0 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are on for new installations. Existing preferences are preserved.
+Alpha.1 does not support automatic updates: install the latest version manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are on for new installations. Existing preferences are preserved.
 
 If alpha.2 stays open after you choose Install and Relaunch, close Settings and choose Quit NotchCompressor from the app menu. The update will finish and relaunch the app. This issue is fixed in 0.1.0.
 
