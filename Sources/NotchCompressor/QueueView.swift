@@ -14,14 +14,16 @@ struct QueueView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(L10n.text("queue.title")).font(.title2.weight(.semibold))
-                    Text(
-                        !queue.displayedJobs.isEmpty
-                            ? L10n.text(
-                                "queue.counts", L10n.integer(queue.runningCount), L10n.integer(queue.pausedIDs.count),
-                                L10n.integer(queue.waitingJobs.count))
-                            : L10n.text("queue.dragHint")
-                    )
-                    .font(.callout).foregroundStyle(.secondary)
+                    if queue.pendingCount > 0 {
+                        Text(
+                            L10n.text(
+                                "queue.counts", L10n.integer(queue.runningCount),
+                                L10n.integer(queue.pausedIDs.count), L10n.integer(queue.waitingJobs.count))
+                        )
+                        .font(.callout).foregroundStyle(.secondary)
+                    } else if queue.displayedJobs.isEmpty {
+                        Text(L10n.text("queue.dragHint")).font(.callout).foregroundStyle(.secondary)
+                    }
                     let attentionCount = queue.displayedJobs.filter { $0.phase.isFinished }.count
                     if attentionCount > 0 {
                         Label(
@@ -259,6 +261,9 @@ private struct JobRow: View {
                 Text(L10n.text("queue.pausedHint"))
                     .font(.caption).foregroundStyle(.secondary)
             }
+            if let message = job.displayMessage {
+                Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            }
             if job.diskSpaceIssue != nil {
                 Button {
                     NSWorkspace.shared.open(job.input.resolvingSymlinksInPath().deletingLastPathComponent())
@@ -281,9 +286,6 @@ private struct JobRow: View {
                 DisclosureGroup(L10n.text("details.technical")) {
                     Text(details).font(.caption).textSelection(.enabled)
                 }
-            }
-            if let message = job.displayMessage {
-                Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
 
         }
