@@ -1,0 +1,116 @@
+{
+  "scope": "Audio-only signal/timing checks; no listening verdict. Document input provenance separately.",
+  "encoder": "ffmpeg version 9.0.1 Copyright (c) 2000-2026 the FFmpeg developers",
+  "decoder": "ffmpeg version 7.1.1 Copyright (c) 2000-2025 the FFmpeg developers",
+  "original_bytes": 37426808,
+  "original_sha256": "fa6cc44a029687b344c6385003e1b7b623d0667d6c00d9242b81c48f19c8df1e",
+  "source_audio_bps": 188426,
+  "source_channels": 2,
+  "source_unchanged": true,
+  "source_signal": {
+    "samples_per_channel": 861184,
+    "peak": 0.5967962741851807,
+    "pilot_channel_rms": [
+      [
+        0.1246343138049994,
+        0.0
+      ],
+      [
+        0.0,
+        0.12502851527264752
+      ]
+    ]
+  },
+  "trials": [
+    {
+      "preset": "gentle",
+      "target_bps": 128000,
+      "output_bytes": 37221394,
+      "output_audio_bps": 96921,
+      "encode_seconds": 0.5390386250801384,
+      "validation_seconds": 1.6691361251287162,
+      "checks": {
+        "video_packets_and_timestamps_unchanged": true,
+        "channels_preserved": true,
+        "duration_within_50ms": true,
+        "no_gross_audio_dropouts": true
+      },
+      "passed": true,
+      "missing_active_20ms_bins": [],
+      "signal": {
+        "samples_per_channel": 861184,
+        "peak": 0.5938706994056702,
+        "pilot_channel_rms": [
+          [
+            0.12703026191400968,
+            0.0
+          ],
+          [
+            0.0,
+            0.12499000588437752
+          ]
+        ]
+      }
+    },
+    {
+      "preset": "balanced",
+      "target_bps": 96000,
+      "output_bytes": 37174347,
+      "output_audio_bps": 75963,
+      "encode_seconds": 0.5222802918870002,
+      "validation_seconds": 1.6894673330243677,
+      "checks": {
+        "video_packets_and_timestamps_unchanged": true,
+        "channels_preserved": true,
+        "duration_within_50ms": true,
+        "no_gross_audio_dropouts": true
+      },
+      "passed": true,
+      "missing_active_20ms_bins": [],
+      "signal": {
+        "samples_per_channel": 861184,
+        "peak": 0.6032142639160156,
+        "pilot_channel_rms": [
+          [
+            0.12692258994570937,
+            0.0
+          ],
+          [
+            0.0,
+            0.12499008789422535
+          ]
+        ]
+      }
+    },
+    {
+      "preset": "compact",
+      "target_bps": 64000,
+      "output_bytes": 37126584,
+      "output_audio_bps": 54686,
+      "encode_seconds": 0.43542458303272724,
+      "validation_seconds": 1.6516413330100477,
+      "checks": {
+        "video_packets_and_timestamps_unchanged": true,
+        "channels_preserved": true,
+        "duration_within_50ms": true,
+        "no_gross_audio_dropouts": true
+      },
+      "passed": true,
+      "missing_active_20ms_bins": [],
+      "signal": {
+        "samples_per_channel": 861184,
+        "peak": 0.6186183094978333,
+        "pilot_channel_rms": [
+          [
+            0.1414942551405631,
+            0.0
+          ],
+          [
+            0.0,
+            0.12498787488311043
+          ]
+        ]
+      }
+    }
+  ]
+}

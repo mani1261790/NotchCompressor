@@ -1,0 +1,8 @@
+{
+  "scope": "Original Japanese synthetic speech, not a microphone recording or music. Keep generated media local.",
+  "voice": "Eddy (Japanese (Japan))",
+  "rate": 185,
+  "text": "これは、動画を圧縮した後の音声を確認するための文章です。小さな声や、さしすせそ、ぱぴぷぺぽの聞こえ方を比べます。画面の文字を読みながら、最初から最後まで音が途切れないか確認してください。",
+  "preamble": "880 Hz, 100 ms, left at 0 s and right at 1 s; speech starts at 2 s, dual mono",
+  "seconds": 17.937375
+}

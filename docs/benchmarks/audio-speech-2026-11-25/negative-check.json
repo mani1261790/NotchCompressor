@@ -1,0 +1,7 @@
+{
+  "expected": "detect 1 second muted at 6 to 7 seconds",
+  "detected_active_bins": 36,
+  "first_detected_seconds": 6.0200000000000005,
+  "last_detected_seconds": 6.72,
+  "passed": true
+}
