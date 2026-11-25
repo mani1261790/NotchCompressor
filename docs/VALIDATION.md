@@ -434,3 +434,11 @@ CompressionControlに成功したsystemSleep停止の世代番号を追加。手
 08:59:42に出力検証へ移行し、検証中のスリープは行わず09:00:06にcompleted/replaced。503,675,460→430,302,338バイト。圧縮終盤の原本SHA-256は試験前と一致、全出力検証後の置換成功とUIの空キューを確認した。今回は自動再試行を要する失敗が発生しておらず、自動再試行経路の実機合格証拠にはしない。また前回の破損が検証中のスリープだけに起因すると断定できない。検証中だけの実スリープと、実際の復旧経路は次の確認対象。
 
 証拠は `.local-work/next/native-acceptance/sleep-build7-observations.jsonl`、`sleep-build7-events.log`、`sleep-build7-processes-before.txt`、`sleep-build7-before.sha256`。公開物にテスト素材を含めない。
+
+## 2026-11-25 ビルド7：検証中だけの実スリープ
+
+sleep-build7/validation.mov（合成動画の別コピー503,675,460バイト）を映像＋音声で開始。09:05:55のvalidating移行をキュー保存状態で検出しpmset sleepnowを実行、09:06:00のSoftware Sleepを電源ログで確認。検証FFmpeg PID46070はTとなり、停止中の入力SHA-256は試験前と一致した。
+
+09:06:24からMaintenance Sleep、09:21:54にDarkWake、09:22:05に再スリープ、09:30:13にUserActivity AssertionによるWakeを記録。通常復帰まで約24分で、明示的な復帰タイマーは設定していない。09:30:14にvalidatingへ戻り、UIでも検証継続を確認、09:30:44にcompleted/replaced（503,675,460→430,380,716バイト）。完了後の空キューも画面で確認。
+
+圧縮中だけ・検証中だけの両試験で正常復帰したが、前回のHEVC参照フレーム失敗は再現せず、自動再試行経路は実スリープでは未確認。原因を特定済みとはしない。再試行経路は制御した失敗を用いた実エンジン検証を追加する。証拠は `.local-work/next/native-acceptance/sleep-build7-validation-observations.jsonl`、`sleep-build7-validation-events.log`、`sleep-build7-validation-before.sha256`。
