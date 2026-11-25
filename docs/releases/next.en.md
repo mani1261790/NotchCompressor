@@ -4,6 +4,7 @@
 
 These notes describe development work. The version and download links will be finalized after distribution checks. Alpha.2 remains the currently published version.
 
+- Simplify queue rows around file names, sizes, progress, and individual controls, with optional details collapsed. Group settings into Compression, General, and Updates & Support. Waiting-file reorder areas use a hand cursor.
 - Keep the original and complete normally when compression does not reduce file size. Notifications and results explain that no reduction was made.
 - Track system-sleep pauses separately from manual pauses. Waking the Mac does not resume tasks you paused manually.
 - Choose between preserving source frame timing and limiting output to 30 fps. New settings preserve source timing; existing settings and queued tasks keep their previous behavior.

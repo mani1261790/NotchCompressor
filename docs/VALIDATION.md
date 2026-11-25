@@ -584,3 +584,15 @@ GitHub v0.1.0は現在もdraftで、対象コミットa0b52cb、7成果物を添
 ## 2026-11-25 AAC再圧縮の信号検査
 
 日本語の合成読み上げと左右の同期目印を含む素材を自作し、音質のみの3強度を配布版FFmpegで比較。全体デコード検証、映像パケット／時刻保持、チャンネル数、長さ、元ファイル保持が成功。大きな音声欠落0、意図的な1秒消音の負例では活動区間36個を検出。[音声の比較記録](benchmarks/audio-speech-2026-11-25/README.md)へ測定条件と制約を記載。これは聴取評価の完了ではない。
+
+## 2026-11-25 新UI実装後の全体回帰確認
+
+対象main: `fa0d47f675b3bd0f6522d19f26def657dd188317`。通常の `swift test` は81件中12件が実メディア試験のためskip。続けて以下を実行し、内包FFmpeg 9.0.1による実圧縮を含む81件すべてが成功（skipなし、38.352秒）。
+
+```sh
+NOTCH_MEDIA_TESTS=1 NOTCH_FFMPEG_DIR=/Applications/NotchCompressor.app/Contents/MacOS swift test
+bash scripts/format.sh check
+python3 scripts/check-localization.py
+```
+
+整形チェックと日英263キー／リテラル参照217件の検査も成功。実圧縮・原本保持・3モード・停止／再開・並列キュー・スリープ後の条件付き再試行等の回帰確認であり、新UIの実ドラッグ、カーソルの目視、アクセシビリティ、通知の実表示の代替ではない。ログはローカル `.local-work/next/regression-bundled-current.log`。新UIは公証済みビルド10には未収録。
