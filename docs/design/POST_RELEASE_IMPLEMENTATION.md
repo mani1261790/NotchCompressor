@@ -35,3 +35,5 @@ CUAはMacのロックを検出し実画面を取得できなかったため、�
 ## MacのDynamic Island
 
 [AppleのWidgetKit戦略](https://developer.apple.com/documentation/widgetkit/developing-a-widgetkit-strategy/)はmacOS 27.3以降のネイティブLive Activitiesを案内している。一方、実機のOS27.3に対しインストール済みSDKは27.2で、ActivityKit.ActivityとWidgetKit.DynamicIslandはmacOS unavailable。既存SDKでavailabilityを回避しない。[#42](https://github.com/mani1261790/NotchCompressor/issues/42)で対応SDKと機種の検証を追跡する。自前の受け取りパネルとシステムLive Activityは別に扱う。
+
+追加検証: 94テスト（実メディア込み）が成功。配布アプリ内の画像補助プロセスでPNGを圧縮し、展開後の画素列が元と一致した。検証コピーは `.local-work/next/media-preview-build12/NotchCompressor Preview.app`（bundle ID `com.mani.NotchCompressor.preview`）。履歴保存先をbundle ID単位に分離し、検証コピーではSparkleを開始しない。インストール済み正式版は0.1.0/build11を維持。CIも補助プロセスをビルド・指定するtest.sh経由へ統一する。
