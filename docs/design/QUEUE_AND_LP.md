@@ -179,3 +179,9 @@ LPブランチ990968bで、160msごとの進捗更新をlive regionから分離�
 LPブランチ1bce791で、サンプルをEnter／クリックで展開すると中央の両方モードへフォーカスを移動。左右キーでモード間を移動し、Escapeで閉じてサンプルへ戻す。圧縮開始後のEscapeは非表示のサンプルへフォーカスを送らない。圧縮モードは実行ボタンなので、toggleを意味するaria-pressedを除去し、ドラッグ中の視覚強調にはdata-activeを使用する。
 
 ブラウザでEnter→中央、右キー→音声、Escape→サンプル・閉状態、Enter→中央→Enterで開始を確認。完了後はジョブが非表示となり、フォーカスがリセットボタンへ移ることを確認。画像 `.local-work/next/lp-keyboard-complete.png`。構文・差分検査成功。
+
+## 英語LPの768px・1440px確認
+
+最新LP 1bce791で768×1024を設定し、英語のタイトル・導入説明・ダウンロード・デモを実表示確認。Enterで中央へ移動→左キー→EnterでVideo onlyを開始し、88%でPause、Resume表示と名前付き進捗を確認。Light/AutoとDarkの両方で文字・ボタン・進捗の表示を確認し、documentWidth=viewportWidth=768で横はみ出しなし。DMGリンクはen.dmgであり、未公開のため取得試験は行っていない。
+
+1440×900ではスクロール後のMac枠と説明の横並びを確認。following=true、documentWidth=viewportWidth=1440。画面幅・外観の試験設定はリセットしAutoに戻した。画像: `.local-work/next/lp-en-tablet-dark.png`、`lp-en-desktop.png`。実タッチ端末・全ページの厳密なコントラスト測定・公開後の導入導線確認は別項目。
