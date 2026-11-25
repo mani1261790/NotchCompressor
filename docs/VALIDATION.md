@@ -424,3 +424,13 @@ CompressionControlに成功したsystemSleep停止の世代番号を追加。手
 `NOTCH_MEDIA_TESTS=1 bash scripts/test.sh` は78件成功・失敗0・skipなし。うちSleepTests 9件で世代、再試行上限、通常の手動停止、復帰後の手動停止待機、キャンセル、対象外エラーを確認。実FFmpeg/VideoToolboxの通常処理回帰も含む。ログは `.local-work/next/sleep-recovery-tests.log`。書式検査と日英254キーの整合検査も成功。
 
 この結果は修正版の実スリープ復旧を証明しない。ビルド6の実スリープでの破損原因の切り分け、修正版の自動再試行・最終出力・原本保護・通知の実機確認が必要。配布中のバイナリと下書き資産はこの修正をまだ含まない。
+
+## 2026-11-25 ビルド7：圧縮中だけの実スリープ
+
+修正868a327にビルド番号7を設定してreleaseビルドし、Developer ID署名を実行。空キューのビルド6を終了後、Applicationsのアプリを更新し、build number 7・deep/strict署名検証を確認。公証と配布草稿の差替はまだ行っていない。
+
+検証専用コピーsleep-build7/video.mov（503,675,460バイト）を英語UIの追加メニューから映像＋音声で開始。08:57:44にSoftware Sleep、08:57:48にDarkWake、08:57:59にHID ActivityのFullWakeを電源ログで確認。FFmpeg PID42459はTからRへ戻り、UIでも38%の進捗を確認。復帰直後のCUAは一度ロック中と返したが、その後の再取得では操作可能であり、継続的なロック状態とは扱わない。
+
+08:59:42に出力検証へ移行し、検証中のスリープは行わず09:00:06にcompleted/replaced。503,675,460→430,302,338バイト。圧縮終盤の原本SHA-256は試験前と一致、全出力検証後の置換成功とUIの空キューを確認した。今回は自動再試行を要する失敗が発生しておらず、自動再試行経路の実機合格証拠にはしない。また前回の破損が検証中のスリープだけに起因すると断定できない。検証中だけの実スリープと、実際の復旧経路は次の確認対象。
+
+証拠は `.local-work/next/native-acceptance/sleep-build7-observations.jsonl`、`sleep-build7-events.log`、`sleep-build7-processes-before.txt`、`sleep-build7-before.sha256`。公開物にテスト素材を含めない。
