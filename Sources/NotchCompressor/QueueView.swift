@@ -203,6 +203,15 @@ private struct JobRow: View {
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
+                .accessibilityElement(children: .combine)
+                .accessibilityActions {
+                    if let previous = reorderNeighbor(offset: -1) {
+                        Button(L10n.text("queue.moveEarlier")) { queue.moveQueued(job.id, to: previous) }
+                    }
+                    if let next = reorderNeighbor(offset: 1) {
+                        Button(L10n.text("queue.moveLater")) { queue.moveQueued(job.id, to: next) }
+                    }
+                }
                 .modifier(
                     QueueDragSource(
                         jobID: job.id, enabled: queue.canReorder(job.id), draggingID: $draggingID))
@@ -285,6 +294,11 @@ private struct JobRow: View {
             }
 
         }
+    }
+    private func reorderNeighbor(offset: Int) -> UUID? {
+        let ids = queue.queuedJobs.map(\.id)
+        guard let index = ids.firstIndex(of: job.id), ids.indices.contains(index + offset) else { return nil }
+        return ids[index + offset]
     }
     private func bytes(_ count: Int64) -> String { L10n.bytes(count) }
 }

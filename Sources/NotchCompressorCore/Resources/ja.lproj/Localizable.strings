@@ -264,3 +264,6 @@
 "queue.needsAttention" = "要確認 %@件";
 "queue.sizeUnknown" = "容量未取得";
 "queue.inputSize" = "入力ファイルの容量：%@";
+
+"queue.moveEarlier" = "一つ前へ移動";
+"queue.moveLater" = "一つ後ろへ移動";

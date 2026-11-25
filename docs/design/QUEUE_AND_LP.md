@@ -153,3 +153,9 @@ release/0.1.0-site作業ツリーへ実装。Mac画面内はサンプル動画�
 Swiftビルド・整形・SchedulingTests 15件が成功。Developer ID署名したローカル試験ビルドで3ファイル追加→先頭3%で停止→待機2件の個別除外→停止タスク除外→空キューを確認。3素材のSHA-256は全て試験前と一致。通常のインストール済みビルド10に戻した。
 
 CUAで待機カードを上へドラッグしたところ、infoログには `queue drag began` と `queue drop entered accepted=true` が記録されたが、`queue drop committed` はなく、順序変更も起きなかった。開始・受け取りの入口は動いたが、ドロップ確定は未確認。ログ調査では `log show --info` が必要で、既定レベルでイベントが出ないことをドラッグ未開始の証拠にしない。実入力の完了まで調査を継続する。
+
+## 支援技術向けの並べ替え操作（2026-11-25）
+
+ファイル情報を一つのアクセシビリティ要素にまとめ、Appleの[accessibilityActions](https://developer.apple.com/documentation/swiftui/view/accessibilityactions(_:))で「一つ前へ移動／一つ後ろへ移動」を追加。画面上の追加ボタンや優先度設定は作らない。`queuedJobs`の隣接カードだけを移動先とし、先頭・末尾では不可能な方向を提示しない。実行中／停止処理中にはアクションを提示せず、呼出時にも既存`moveQueued`が両カードの移動可否を再検証する。日英両方の名前を追加した。
+
+Swiftビルド・整形・日英265キーの検査・SchedulingTestsとLocalizationTestsの18件が成功。VoiceOverの実操作や支援技術からのアクション呼出はまだ未確認。ドラッグ確定の実入力確認も独立した残件であり、この追加をもってドラッグ確認済みとはしない。

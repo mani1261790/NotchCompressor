@@ -264,3 +264,6 @@
 "queue.needsAttention" = "Needs attention: %@";
 "queue.sizeUnknown" = "Size unavailable";
 "queue.inputSize" = "Input size: %@";
+
+"queue.moveEarlier" = "Move earlier";
+"queue.moveLater" = "Move later";
