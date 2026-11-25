@@ -261,3 +261,6 @@
 "settings.general" = "一般";
 "settings.updatesSupport" = "更新とサポート";
 "queue.percent" = "%@%%";
+"queue.needsAttention" = "要確認 %@件";
+"queue.sizeUnknown" = "容量未取得";
+"queue.inputSize" = "入力ファイルの容量：%@";

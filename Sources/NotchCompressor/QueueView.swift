@@ -15,13 +15,21 @@ struct QueueView: View {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(L10n.text("queue.title")).font(.title2.weight(.semibold))
                     Text(
-                        queue.pendingCount > 0
+                        !queue.displayedJobs.isEmpty
                             ? L10n.text(
                                 "queue.counts", L10n.integer(queue.runningCount), L10n.integer(queue.pausedIDs.count),
                                 L10n.integer(queue.waitingJobs.count))
                             : L10n.text("queue.dragHint")
                     )
                     .font(.callout).foregroundStyle(.secondary)
+                    let attentionCount = queue.displayedJobs.filter { $0.phase.isFinished }.count
+                    if attentionCount > 0 {
+                        Label(
+                            L10n.text("queue.needsAttention", L10n.integer(attentionCount)),
+                            systemImage: "exclamationmark.circle"
+                        )
+                        .font(.caption).foregroundStyle(.orange)
+                    }
                 }
                 Spacer()
                 Menu {
@@ -181,8 +189,17 @@ private struct JobRow: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
                             .help(job.input.lastPathComponent)
-                        Label(job.mode.title, systemImage: job.mode.symbol)
-                            .font(.caption).foregroundStyle(.secondary)
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 6) {
+                                Label(job.mode.title, systemImage: job.mode.symbol)
+                                Text("·").accessibilityHidden(true)
+                                InputFileSize(url: job.input)
+                            }.fixedSize()
+                            VStack(alignment: .leading, spacing: 3) {
+                                Label(job.mode.title, systemImage: job.mode.symbol)
+                                InputFileSize(url: job.input)
+                            }
+                        }.font(.caption).foregroundStyle(.secondary)
                         Text(queue.cancelling.contains(job.id) ? L10n.text("queue.stopping") : job.phase.title)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(job.phase == .failed ? Color.orange : Color.secondary)

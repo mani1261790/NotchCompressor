@@ -261,3 +261,6 @@
 "settings.general" = "General";
 "settings.updatesSupport" = "Updates & Support";
 "queue.percent" = "%@%%";
+"queue.needsAttention" = "Needs attention: %@";
+"queue.sizeUnknown" = "Size unavailable";
+"queue.inputSize" = "Input size: %@";
