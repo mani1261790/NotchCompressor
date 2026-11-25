@@ -29,6 +29,8 @@ The published app and DMG are Developer ID signed and notarized by Apple. No qua
 
 Alpha.1 does not support automatic updates: install alpha.2 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are off by default.
 
+If alpha.2 stays open after you choose Install and Relaunch, close Settings and choose Quit NotchCompressor from the app menu. The update will finish and relaunch the app. This issue is fixed in the next version.
+
 ### Preview limitations
 
 Some interactions still need real-device verification, including Finder drops after the Mission Control fix, additional displays, full-screen apps, login launch, and first launch after download. Representative screen recordings still need quality review. See the [validation record (Japanese)](docs/VALIDATION.md).
@@ -38,7 +40,7 @@ Some interactions still need real-device verification, including Finder drops af
 Development builds include these changes; the published alpha.2 does not:
 
 - Keep the original when compressed output is the same size or larger. Discard temporary output and report completion without size reduction.
-- Pause active processing for system sleep, then remove only the sleep pause on wake. Tasks paused manually stay paused. If the destination is inaccessible, show recovery advice. Display sleep alone does not pause processing. Actual system sleep/wake testing remains outstanding.
+- Pause active processing for system sleep, then remove only the sleep pause on wake. Tasks paused manually stay paused. If the destination is inaccessible, show recovery advice. Display sleep alone does not pause processing. Development builds have passed actual Mac sleep/wake checks during encoding and validation, including preservation of manual pauses.
 - Preserve the original frame timing by default for new settings, including variable frame rates. An explicit **Up to 30 fps** option uses evenly spaced frames. Existing settings and queued tasks retain their previous frame rate behavior. Audio-only compression continues to copy video unchanged.
 - Provide Japanese and English interfaces, selected using the macOS per-app language preference, with English as the fallback. Separate installer languages are being prepared. Real-device layout and dependency-dialog checks remain outstanding.
 

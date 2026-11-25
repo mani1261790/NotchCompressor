@@ -496,3 +496,7 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 ビルド9対象コミット067621eのCI run45521562767がsuccess。v0.1.0下書きの7添付物をdist/0.1.0-build9の成果物へ差し替え、対象コミットと説明も更新した。認証付き再ダウンロードを `.local-work/next/build9-draft-download/` に保存し、SHA256SUMS自体のローカル一致と、記載された6成果物のハッシュ一致を確認した。Releaseは下書きで、公開フィードは変更していない。
 
 ビルド9に長い合成動画を追加し、4%で一時停止。Running:0 / Paused:1の画面から設定を開き、Check for UpdatesがdisabledであることをAXで確認。設定を閉じ、停止したタスクを個別除外して空キューへ戻った。原本のSHA-256は開始前と一致。短い試験動画は停止操作より先に正常完了したため、長い動画で確認し直した。更新取得後にタスクが増えた場合のインストール延期は別途必要。
+
+## 2026-11-25 Finderから中央ノッチへの実投入
+
+ビルド9実行中、ユーザーがFinderの合成試験動画third.movをノッチ中央へドラッグした。10:05:59にfiles=true、10:06:00にexpanded: file inside trigger、native destination、10:06:03にcompactをログで確認。永続キューには新しいbothモードのcompleted/replaced結果（25,282,034→21,712,660 bytes、progress=1）が保存され、実画面は空キューへ戻った。証跡は `.local-work/next/native-acceptance/finder-notch-build9-result.json`。中央への単一ファイル投入の確認であり、左右・同時複数・複数ディスプレイはこの結果から推定しない。
