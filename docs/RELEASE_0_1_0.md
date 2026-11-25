@@ -96,3 +96,5 @@ ZIPから展開したアプリのbuild=11、version=0.1.0、日英リソース�
 [PR #39](https://github.com/mani1261790/NotchCompressor/pull/39)に `release/0.1.0-site` のLPとREADMEをまとめた。Lunamoのテンプレートと画面内デモを含む最新版が対象。mainとのmerge-tree検査は衝突なし、HTML3ページのローカル参照31件とフラグメント検査は成功。PRはdraftであり、マージ・公開は未実施。
 
 v0.1.0公開→匿名ダウンロード照合→PR #39の内容確認とマージ→GitHub Pages公開表示と導入導線の確認、の順を守る。mainへのsite変更はPagesを自動デプロイするため、未公開DMGのままマージしない。過去の個別cherry-pick手順より、このPRにまとまった最新コミット群を優先する。
+
+PR #39のCI run45541721846も成功。整形・翻訳キー検査・単体テスト・配布リハーサルが完了した。PRはdraft、Release v0.1.0もdraftを維持する。CI成功は手元でのドラッグ確定、通知の目視、延期中の再ログイン検証、品質の主観評価の完了を意味しない。
