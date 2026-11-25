@@ -13,38 +13,29 @@ A macOS app built with SwiftUI that compresses screen recordings dropped near th
 
 The drop panel expands only while you drag files toward it. Drop multiple videos together, or add more while compression is running. Open the queue from the menu bar to check progress, or use its **+** button to add videos and choose a mode.
 
-**Successful compression replaces the original file.** The app writes temporary output and validates it by decoding the entire result before replacing the original at the same location. It preserves the MOV/MP4/M4V container extension. Failed or cancelled tasks, and tasks whose original file changed during processing, do not replace the original. After replacement, the uncompressed original is no longer available. In the currently published alpha.2, output can be larger than the original.
+**Only smaller output that passes validation replaces the original.** The app writes temporary output and decodes the entire result before replacing the original at the same location, preserving the MOV/MP4/M4V container. Failure, cancellation, no size reduction, or a changed original keeps the original. After replacement, the uncompressed original is no longer available; keep a separate copy if needed.
 
-## Install the Apple Silicon preview
+## Install on Apple Silicon
 
 Requires macOS 14 or later and Apple Silicon.
 
-1. Download `NotchCompressor-0.1.0-alpha.2-arm64.dmg` from the [alpha.2 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.1.0-alpha.2).
+1. Download `NotchCompressor-0.1.0-arm64-en.dmg` from the [0.1.0 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.1.0).
 2. Open the DMG and drag `NotchCompressor.app` to Applications.
 3. Open the app from Applications. It runs in the menu bar and near the notch.
 
 The published app and DMG are Developer ID signed and notarized by Apple. No quarantine-removal command is needed. Release assets include `SHA256SUMS.txt` for checksum verification.
 
-**Alpha.2 has a Japanese interface and installer.** The English interface described below is under development and has not been released yet.
+The app supports Japanese and English. The two DMGs have different installer instructions but contain the same app. The interface follows the macOS per-app language preference; restart the app after changing it.
 
-Alpha.1 does not support automatic updates: install alpha.2 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are off by default.
+Alpha.1 does not support automatic updates: install 0.1.0 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are off by default.
 
-If alpha.2 stays open after you choose Install and Relaunch, close Settings and choose Quit NotchCompressor from the app menu. The update will finish and relaunch the app. This issue is fixed in the next version.
+If alpha.2 stays open after you choose Install and Relaunch, close Settings and choose Quit NotchCompressor from the app menu. The update will finish and relaunch the app. This issue is fixed in 0.1.0.
 
-### Preview limitations
+## Frame rate
 
-Some interactions still need real-device verification, including Finder drops after the Mission Control fix, additional displays, full-screen apps, login launch, and first launch after download. Representative screen recordings still need quality review. See the [validation record (Japanese)](docs/VALIDATION.md).
+New settings preserve source frame timing, including variable frame rates. **Up to 30 fps** uses evenly spaced frames. Existing settings and queued tasks retain their previous behavior. Audio-only compression copies video unchanged.
 
-## Next version — not yet released
-
-Development builds include these changes; the published alpha.2 does not:
-
-- Keep the original when compressed output is the same size or larger. Discard temporary output and report completion without size reduction.
-- Pause active processing for system sleep, then remove only the sleep pause on wake. Tasks paused manually stay paused. If the destination is inaccessible, show recovery advice. Display sleep alone does not pause processing. Development builds have passed actual Mac sleep/wake checks during encoding and validation, including preservation of manual pauses.
-- Preserve the original frame timing by default for new settings, including variable frame rates. An explicit **Up to 30 fps** option uses evenly spaced frames. Existing settings and queued tasks retain their previous frame rate behavior. Audio-only compression continues to copy video unchanged.
-- Provide Japanese and English interfaces, selected using the macOS per-app language preference, with English as the fallback. Separate installer languages are being prepared. Real-device layout and dependency-dialog checks remain outstanding.
-
-The sections below describe the published alpha.2.
+See the [validation record (Japanese)](docs/VALIDATION.md) for tested environments and outstanding checks. Quality and size savings depend on the recording.
 
 ## Configure compression
 
@@ -60,9 +51,9 @@ A 50% video bitrate does not guarantee half the file size. If the original video
 | Balanced | About 65% of original bitrate | AAC 96 kbps |
 | Smaller files | About 45% of original bitrate | AAC 64 kbps |
 
-The presets compare resolution × fps (up to 30) × a coefficient (0.09, 0.06, or 0.035) with the original-bitrate ceiling, use the lower value, and bound it to 150 kbps–12 Mbps. These percentages are not file-size reduction targets.
+The presets compare resolution × selected output fps × a coefficient (0.09, 0.06, or 0.035) with the original-bitrate ceiling, use the lower value, and bound it to 150 kbps–12 Mbps. These percentages are not file-size reduction targets.
 
-All presets use the same codecs: hardware HEVC (H.265) for video and AAC for audio. Video resolution is preserved. In alpha.2, video above 30 fps is generally reduced to 30 fps when re-encoded. Unchanged tracks are copied without re-encoding. Custom replaces the automatic video calculation with the chosen percentage. Re-encoding is lossy; lost quality cannot be recovered.
+All presets use the same codecs: hardware HEVC (H.265) for video and AAC for audio. Video resolution is preserved. Choose whether to preserve source frame timing or limit output to 30 fps. Unchanged tracks are copied without re-encoding. Custom replaces the automatic video calculation with the chosen percentage. Re-encoding is lossy; lost quality cannot be recovered.
 
 ### Hardware encoding and speed
 
@@ -80,7 +71,7 @@ A synthetic-video test on an M2 reduced encoding time by about 36%. This is not 
 
 There is no global pause button. Added videos start when resources are available. Paused tasks retain their execution slot and exclusive access to their original file; resume or remove them to free that slot. Scheduling may start a compatible audio-only task ahead of a waiting video task when that is the available resource.
 
-Completed tasks leave the visible queue. The menu bar shows active, paused, or attention-needed counts. A completion summary shows before/after sizes and the difference for eight seconds, grouping consecutive completions. Alpha.2 reports increases when output grows.
+Completed tasks leave the visible queue. The menu bar shows active, paused, or attention-needed counts. A completion summary shows before/after sizes and the difference for eight seconds, grouping consecutive completions. When output is not smaller, the result explains that the original was kept.
 
 ## Login, notifications, and background processing
 
@@ -90,7 +81,7 @@ Notifications are off by default. Enable completion/failure notifications and gr
 
 Low-space errors show available space, estimated required space, and the shortfall when known. Compression needs room for temporary output alongside the original. Free space on the same disk, or move the original video to a disk with enough space and add it again. Moving between folders on the same disk does not free space. The app does not delete unrelated files.
 
-Switching apps, closing the queue window, locking the screen, or turning off the display does not cancel compression. Active processing suppresses App Nap and idle sleep without preventing display sleep. The assertion is released when every task is paused or work finishes. In alpha.2, continuation after closing the lid, manual sleep, logout, restart, or quitting is not guaranteed. Keep the Mac awake with its lid open for long jobs. Quitting with unfinished work asks for confirmation and waits for cancellation.
+Switching apps, closing the queue window, locking the screen, or turning off the display does not cancel compression. Active processing suppresses App Nap and idle sleep without preventing display sleep. The assertion is released when every task is paused or work finishes. System sleep pauses processing; waking removes only that sleep pause. Manually paused tasks stay paused. If the destination becomes inaccessible, the original is kept and recovery advice is shown. After logout, restart, or quitting, unfinished tasks must restart from the beginning. Quitting with unfinished work asks for confirmation and waits for cancellation.
 
 ## Supported files and recovery
 
