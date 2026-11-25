@@ -370,3 +370,5 @@
 
 "music.startUnavailable" = "Choose a track in Music to start playback.";
 "music.startHint" = "Resume playback, or play the first library track if nothing can be resumed.";
+
+"settings.helpFor" = "About %@";

@@ -162,3 +162,11 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - If a screen reports a top cutout inset but no usable auxiliary bounds, persistent information falls below the top safe inset rather than guessing cutout width.
 - NSHostingView no longer resizes the panel from content intrinsic size; DropPanel ignores SwiftUI's automatic safe-area inset because the controller explicitly reserves the camera space.
 - 14 geometry/hover tests pass, including slot exclusion for offset screens/cameras and different slot widths. Physical notch hardware visual acceptance is still pending; geometry tests are not hardware verification.
+
+### Settings help and glass selectors — 2026-11-26
+
+- Consolidated explanatory disclosure groups and supporting copy into a per-page info popover. Permission and error guidance remains visible.
+- Removed redundant enabled/disabled labels for startup and notifications.
+- Replaced segmented quality, frame-rate, encoding-speed, clock, and Music selectors with native glass capsule buttons; selected options retain accessibility state.
+- Build 26: universal app build, formatting, localization (361 keys / 278 literal lookups), and diff checks passed. Signed Preview updated.
+- Native English dark-mode verification: General has no redundant startup state; denied-notification guidance remains visible. Video selectors and the scrollable help popover render correctly. Clock and Music selection rows render correctly. No compression or playback preferences changed during this check.

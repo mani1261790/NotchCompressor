@@ -87,3 +87,38 @@ extension View {
             .modifier(GlassCapsuleSurface())
     }
 }
+
+/// Explicit native glass buttons rather than AppKit's flat segmented picker.
+struct GlassChoicePicker<Value: Hashable>: View {
+    let title: String
+    @Binding var selection: Value
+    let values: [Value]
+    let label: (Value) -> String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.callout.weight(.medium))
+            if #available(macOS 26.0, *) {
+                GlassEffectContainer(spacing: 6) { choices }
+            } else {
+                choices
+            }
+        }.padding(.vertical, 4)
+    }
+
+    private var choices: some View {
+        HStack(spacing: 6) {
+            ForEach(values, id: \.self) { value in
+                Button {
+                    selection = value
+                } label: {
+                    Text(label(value)).lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(maxWidth: .infinity).padding(.vertical, 3)
+                }
+                .capsuleControl(prominent: selection == value)
+                .accessibilityLabel(title + ": " + label(value))
+                .accessibilityAddTraits(selection == value ? .isSelected : [])
+            }
+        }
+    }
+}

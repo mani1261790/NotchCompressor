@@ -52,6 +52,7 @@ struct SettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     Spacer(minLength: 0)
+                    SettingsHelpButton(title: L10n.text(category.rawValue)) { settingsHelp }
                 }.padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 8)
                 settingsForm
             }
@@ -79,9 +80,9 @@ struct SettingsView: View {
         Form {
             if category == .compression {
                 Section {
-                    Picker(L10n.text("settings.quality"), selection: $queue.settings.quality) {
-                        ForEach(CompressionQuality.allCases) { quality in Text(quality.title).tag(quality) }
-                    }.pickerStyle(.segmented)
+                    GlassChoicePicker(
+                        title: L10n.text("settings.quality"), selection: $queue.settings.quality,
+                        values: CompressionQuality.allCases, label: { $0.title })
                     Text(queue.settings.quality.explanation)
                         .font(.callout)
 
@@ -118,8 +119,6 @@ struct SettingsView: View {
                             .accessibilityValue(
                                 L10n.text(
                                     "settings.originalPercent", L10n.integer(queue.settings.effectiveVideoPercent)))
-                            Text(L10n.text("settings.videoHint"))
-                                .font(.caption).foregroundStyle(.secondary)
                         }
                         VStack(alignment: .leading, spacing: 8) {
                             LabeledContent(
@@ -135,50 +134,27 @@ struct SettingsView: View {
                             .accessibilityLabel(L10n.text("settings.audioBitrate"))
                             .accessibilityValue(
                                 L10n.text("settings.kbps", L10n.integer(queue.settings.effectiveAudioKbps)))
-                            Text(L10n.text("settings.audioHint"))
-                                .font(.caption).foregroundStyle(.secondary)
                         }
-                        Text(L10n.text("settings.percentHint"))
-                            .font(.caption).foregroundStyle(.secondary)
                     }
-                    Text(L10n.text("settings.nextOnly"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    DisclosureGroup(L10n.text("settings.autoDetails")) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if queue.settings.quality != .custom {
-                                Text(L10n.text("settings.autoHint"))
-                                Text(L10n.text("settings.formula"))
-                            }
-                            Text(L10n.text("settings.bitrateExplanation"))
-                        }.font(.caption).foregroundStyle(.secondary)
-                    }
+
                 } header: {
                     Label(L10n.text("settings.compression"), systemImage: "slider.horizontal.3")
                 }
                 Section {
-                    Picker(
-                        L10n.text("settings.fps"),
+                    GlassChoicePicker(
+                        title: L10n.text("settings.fps"),
                         selection: Binding(
                             get: { queue.settings.effectiveVideoFrameRate },
-                            set: { queue.settings.videoFrameRate = $0 })
-                    ) {
-                        ForEach(VideoFrameRate.allCases) { rate in Text(rate.title).tag(rate) }
-                    }.pickerStyle(.segmented)
-                    DisclosureGroup(L10n.text("settings.explainMotion")) {
-                        Text(L10n.text("settings.fpsHint")).font(.callout).foregroundStyle(.secondary)
-                    }
-                    Picker(
-                        L10n.text("settings.videoSpeed"),
+                            set: { queue.settings.videoFrameRate = $0 }),
+                        values: VideoFrameRate.allCases, label: { $0.title })
+
+                    GlassChoicePicker(
+                        title: L10n.text("settings.videoSpeed"),
                         selection: Binding(
                             get: { queue.settings.effectiveVideoEncodingSpeed },
-                            set: { queue.settings.videoEncodingSpeed = $0 })
-                    ) {
-                        ForEach(VideoEncodingSpeed.allCases) { speed in Text(speed.title).tag(speed) }
-                    }.pickerStyle(.segmented)
-                    DisclosureGroup(L10n.text("settings.explainSpeed")) {
-                        Text(L10n.text("settings.speedHint")).font(.callout).foregroundStyle(.secondary)
-                        Text(L10n.text("settings.speedScope")).font(.callout).foregroundStyle(.secondary)
-                    }
+                            set: { queue.settings.videoEncodingSpeed = $0 }),
+                        values: VideoEncodingSpeed.allCases, label: { $0.title })
+
                 } header: {
                     Label(L10n.text("settings.speed"), systemImage: "speedometer")
                 }
@@ -199,13 +175,11 @@ struct SettingsView: View {
                         ), in: 10...100, step: 1
                     )
                     .accessibilityLabel(L10n.text("image.jpegQualityLabel"))
-                    Text(L10n.text("image.qualityHint")).font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Text("JPEG")
                 }
                 Section {
                     Text(L10n.text("image.pngLossless")).font(.callout)
-                    Text(L10n.text("image.pngExplanation")).font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Text("PNG")
                 }
@@ -235,13 +209,11 @@ struct SettingsView: View {
                     ) {
                         ForEach([64, 96, 128, 160, 192, 256], id: \.self) { rate in Text("\(rate) kbps").tag(rate) }
                     }
-                    Text(L10n.text("audio.bitrateHint")).font(.caption).foregroundStyle(.secondary)
                     LabeledContent(
                         L10n.text("audio.minuteEstimate"),
                         value: String(
                             format: "%.2f MB", locale: L10n.locale,
                             Double(queue.settings.effectiveStandaloneAudioKbps) * 60 / 8000))
-                    Text(L10n.text("audio.estimateHint")).font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Label(L10n.text("audio.bitrate"), systemImage: "waveform")
                 }
@@ -278,15 +250,14 @@ struct SettingsView: View {
             }
             if category == .notch {
                 Section {
-                    Picker(L10n.text("widgets.clock"), selection: $widgets.clockDisplay) {
-                        ForEach(NotchWidgetDisplay.allCases) { mode in Text(mode.title).tag(mode) }
-                    }.pickerStyle(.segmented)
-                    Picker(L10n.text("widgets.music"), selection: $widgets.musicDisplay) {
-                        ForEach(NotchWidgetDisplay.allCases) { mode in Text(mode.title).tag(mode) }
-                    }.pickerStyle(.segmented)
+                    GlassChoicePicker(
+                        title: L10n.text("widgets.clock"), selection: $widgets.clockDisplay,
+                        values: NotchWidgetDisplay.allCases, label: { $0.title })
+                    GlassChoicePicker(
+                        title: L10n.text("widgets.music"), selection: $widgets.musicDisplay,
+                        values: NotchWidgetDisplay.allCases, label: { $0.title })
                     Toggle(L10n.text("widgets.idleBackground"), isOn: $widgets.showIdleBackground).toggleStyle(.switch)
                         .disabled(!widgets.showClock && !widgets.showMusic)
-                    Text(L10n.text("widgets.displayHint")).font(.caption).foregroundStyle(.secondary)
                     if widgets.showMusic {
                         VStack(alignment: .leading, spacing: 10) {
                             Label(
@@ -357,8 +328,6 @@ struct SettingsView: View {
             if category == .general {
                 Section {
                     KeyboardShortcuts.Recorder(L10n.text("app.openQueue"), name: .showCompressionQueue)
-                    Text(L10n.text("settings.shortcutHint"))
-                        .font(.caption).foregroundStyle(.secondary)
                 } header: {
                     Label(L10n.text("settings.shortcut"), systemImage: "keyboard")
                 }
@@ -369,16 +338,9 @@ struct SettingsView: View {
                             get: { loginStatus == .enabled || loginStatus == .requiresApproval }, set: updateLogin)
                     )
                     .toggleStyle(.switch)
-                    Text(L10n.text("settings.loginHint"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    Text(
-                        loginStatus == .enabled
-                            ? L10n.text("settings.enabled")
-                            : loginStatus == .requiresApproval
-                                ? L10n.text("settings.approval") : L10n.text("settings.disabled")
-                    )
-                    .font(.caption)
                     if loginStatus == .requiresApproval {
+                        Label(L10n.text("settings.approval"), systemImage: "exclamationmark.circle")
+                            .font(.callout)
                         Button {
                             SMAppService.openSystemSettingsLoginItems()
                         } label: {
@@ -402,11 +364,16 @@ struct SettingsView: View {
                             set: { value in Task { await notifications.setEnabled(value) } })
                     )
                     .toggleStyle(.switch).disabled(notifications.changing)
-                    Label(
-                        notifications.status,
-                        systemImage: notifications.authorization == .denied ? "bell.slash" : "bell.badge"
-                    )
-                    .font(.callout)
+                    if !notifications.status.isEmpty,
+                        notifications.status != L10n.text("notify.enabled"),
+                        notifications.status != L10n.text("notify.disabled")
+                    {
+                        Label(
+                            notifications.status,
+                            systemImage: notifications.authorization == .denied ? "bell.slash" : "bell.badge"
+                        )
+                        .font(.callout)
+                    }
                     if notifications.authorization == .notDetermined {
                         Button {
                             Task { await notifications.setEnabled(true) }
@@ -495,6 +462,46 @@ struct SettingsView: View {
             .id(category)
     }
 
+    @ViewBuilder private var settingsHelp: some View {
+        switch category {
+        case .compression:
+            helpTopic(
+                "settings.quality",
+                [
+                    queue.settings.quality.explanation,
+                    L10n.text("settings.modeScope"), L10n.text("settings.nextOnly"),
+                ])
+            helpTopic(
+                "settings.autoDetails",
+                [
+                    L10n.text("settings.autoHint"), L10n.text("settings.formula"),
+                    L10n.text("settings.bitrateExplanation"), L10n.text("settings.videoHint"),
+                    L10n.text("settings.audioHint"), L10n.text("settings.percentHint"),
+                ])
+            helpTopic("settings.fps", [L10n.text("settings.fpsHint")])
+            helpTopic("settings.videoSpeed", [L10n.text("settings.speedHint"), L10n.text("settings.speedScope")])
+        case .images:
+            helpTopic("image.jpegQualityLabel", [L10n.text("image.qualityHint")])
+            Text(L10n.text("image.pngExplanation"))
+        case .audio:
+            helpTopic("audio.bitrate", [L10n.text("audio.bitrateHint")])
+            Text(L10n.text("audio.estimateHint"))
+        case .notch: Text(L10n.text("widgets.displayHint"))
+        case .general:
+            helpTopic("settings.startup", [L10n.text("settings.loginHint")])
+            helpTopic("settings.shortcut", [L10n.text("settings.shortcutHint")])
+        case .saving: Text(L10n.text("settings.saveHint"))
+        case .updates: Text(L10n.text("settings.updateHint"))
+        }
+    }
+
+    private func helpTopic(_ title: String, _ paragraphs: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.text(title)).font(.headline)
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, text in Text(text) }
+        }
+    }
+
     private func updateLogin(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -548,6 +555,32 @@ private struct SettingsSidebarSurface: ViewModifier {
             content.glassEffect(.regular, in: RoundedRectangle(cornerRadius: 16))
         } else {
             content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+}
+
+private struct SettingsHelpButton<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: () -> Content
+    @State private var presented = false
+
+    var body: some View {
+        Button {
+            presented.toggle()
+        } label: {
+            Image(systemName: "info.circle").font(.system(size: 15))
+                .frame(width: 28, height: 28).contentShape(Circle())
+        }
+        .buttonStyle(.plain).foregroundStyle(.secondary)
+        .accessibilityLabel(L10n.text("settings.helpFor", title))
+        .help(L10n.text("settings.helpFor", title))
+        .popover(isPresented: $presented) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Text(L10n.text("settings.helpFor", title)).font(.title3.weight(.semibold))
+                    content()
+                }.font(.callout).padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(width: 380).frame(maxHeight: 480)
         }
     }
 }

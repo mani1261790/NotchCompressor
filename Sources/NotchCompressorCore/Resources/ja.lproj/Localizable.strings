@@ -370,3 +370,5 @@
 
 "music.startUnavailable" = "Musicで曲を選んで再生してください。";
 "music.startHint" = "前の再生を再開します。再開できなければライブラリの最初の曲を再生します。";
+
+"settings.helpFor" = "%@について";
