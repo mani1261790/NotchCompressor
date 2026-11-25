@@ -189,7 +189,7 @@
 "app.openQueue" = "圧縮キューを開く";
 "settings.close" = "設定を閉じる";
 "settings.quality" = "品質と容量";
-"settings.modeScope" = "この品質設定は動画に適用します。「映像・画像」なら映像だけ、「音声」なら音声だけを圧縮します。画像の品質は下の項目で調整できます。";
+"settings.modeScope" = "動画内の映像と音声に適用します。画像や音声ファイルは、サイドバーの各項目で個別に設定できます。";
 "settings.video" = "映像";
 "settings.audio" = "音声";
 "settings.autoHint" = "映像は解像度・fps・元のビットレートから自動調整します。上の割合まで必ず使うわけではなく、容量の削減率でもありません。";
@@ -216,7 +216,7 @@
 "settings.videoCopyAudio" = "映像・画像（動画の音声は保持）";
 "settings.compressBoth" = "自動（動画は映像＋音声）";
 "settings.audioCopyVideo" = "音声を再圧縮／映像はそのまま";
-"settings.targetHint" = "ドロップする位置か追加メニューで選びます。画像は左か中央、音声ファイルは右か中央へ。中央ではファイルの種類に合わせて圧縮し、動画は映像と音声の両方を圧縮します。動画で変更しないトラックは再圧縮せず保持します。";
+"settings.targetHint" = "動画だけをドラッグしたときは、この3領域から選べます。画像・音声ファイル・種類が混在する場合は、種類に合った1つの領域を表示します。変更しない動画トラックは再圧縮せず保持します。";
 "settings.target" = "何を圧縮するか";
 "settings.hevc" = "HEVC（H.265）・Macのハードウェアで変換";
 "settings.resolution" = "解像度は維持します。フレームレートは「処理速度」で選択できます。既存の設定・投入済み動画は従来のfps設定を保持します。";
@@ -320,3 +320,13 @@
 "widgets.play" = "再生";
 "widgets.pause" = "一時停止";
 "widgets.controlFailed" = "再生状態を変更できませんでした";
+
+"settings.application" = "アプリ";
+"settings.savingBehavior" = "保存と動作";
+"settings.summary.general" = "起動・通知・ショートカットを設定します。";
+"settings.summary.notch" = "ノッチに表示する情報を選びます。";
+"settings.summary.video" = "画質・音質と処理速度を調整します。";
+"settings.summary.images" = "JPEGの品質とPNGの圧縮方法を確認します。";
+"settings.summary.audio" = "音声ファイルの品質を調整します。";
+"settings.summary.saving" = "ドロップ先の動作と原本の保護について。";
+"settings.summary.updates" = "更新の確認と、困ったときのサポート。";

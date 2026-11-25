@@ -6,7 +6,7 @@ struct CapsuleControlStyle: ViewModifier {
     @ViewBuilder func body(content: Content) -> some View {
         if #available(macOS 26.0, *) {
             if prominent {
-                content.buttonStyle(.glass).buttonBorderShape(.capsule).tint(.accentColor)
+                content.buttonStyle(.glassProminent).buttonBorderShape(.capsule).tint(.accentColor)
             } else {
                 content.buttonStyle(.glass).buttonBorderShape(.capsule)
             }

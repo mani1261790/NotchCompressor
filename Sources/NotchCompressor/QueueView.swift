@@ -178,7 +178,6 @@ struct QueueView: View {
                 }
             }.padding(16)
         }
-        .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
     }
     private func card(_ job: CompressionJob) -> some View {
         JobRow(job: job, queue: queue, draggingID: $draggingJobID)

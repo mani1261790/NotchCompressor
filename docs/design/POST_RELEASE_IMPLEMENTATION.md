@@ -90,3 +90,12 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Explicit play/pause uses Music's hook/PlPs command, never launches Music, and never prompts for automation permission during polling or playback. Command failures are visible next to playback controls.
 - Checked: 10 NotchTests pass, 315 JA/EN localization keys, universal release build and Developer ID preview signing. Music command/artwork rendering and physical hover/drop acceptance still require real UI verification; compilation does not establish those outcomes.
 - Preview remains separate from the public 0.1.0 application and Sparkle feed.
+
+### 2026-11-25: settings navigation and Liquid Glass (build 16)
+
+- Replaced the three-tab modal settings sheet with an independent, resizable settings window. The compression queue remains available while settings are open.
+- Native NavigationSplitView/sidebar separates General, Notch, Video, Image, Audio, Saving, and Updates. Each destination has a short purpose statement. Existing setting bindings and persistence are retained.
+- Uses native macOS 26 navigation and Liquid Glass action controls; primary capsule actions now use glassProminent. Grouped Form content remains readable rather than applying glass to every row. Older macOS retains native fallback controls.
+- Corrected help text to reference dedicated image/audio settings and media-specific drop targets.
+- Build and localization checks passed. First visual review exposed truncated sidebar labels and cramped sheet presentation; shortened navigation names and moved to a separate window.
+- Final native UI verification: independent window opens; General, Video, Image, and Notch destinations switch correctly; full window renders without the sheet clipping; close returns to queue and reopen retains the selected destination. No preference values changed. Visual inspection was English/dark mode; Japanese/light mode and older-macOS rendering remain unverified.

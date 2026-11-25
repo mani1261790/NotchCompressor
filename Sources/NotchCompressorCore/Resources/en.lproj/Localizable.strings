@@ -189,7 +189,7 @@
 "app.openQueue" = "Open Compression Queue";
 "settings.close" = "Close settings";
 "settings.quality" = "Quality and size";
-"settings.modeScope" = "These quality presets apply to videos. Video / image compresses only video; Audio compresses only audio. Adjust image quality below.";
+"settings.modeScope" = "These settings apply to video and its audio track. Choose Images or Audio in the sidebar to configure other files.";
 "settings.video" = "Video";
 "settings.audio" = "Audio";
 "settings.autoHint" = "The video bitrate is adjusted using resolution, frame rate, and the original bitrate. The percentage above is a ceiling, not a guaranteed bitrate or reduction in file size.";
@@ -216,7 +216,7 @@
 "settings.videoCopyAudio" = "Video / image (keep video’s audio)";
 "settings.compressBoth" = "Automatic (video and audio for movies)";
 "settings.audioCopyVideo" = "Compress audio; keep video";
-"settings.targetHint" = "Choose a drop location or use the Add menu. Drop images on the left or center, and audio files on the right or center. The center chooses compression for the file type; for videos, it compresses both video and audio. Unchanged video or audio tracks are copied without re-encoding.";
+"settings.targetHint" = "Video-only drags offer these three targets. Images, audio files, and mixed batches show one target suited to their type. Unchanged video tracks are copied without re-encoding.";
 "settings.target" = "What to compress";
 "settings.hevc" = "HEVC (H.265) · Mac hardware encoding";
 "settings.resolution" = "Resolution is preserved. Choose the frame rate under Processing speed. Existing settings and queued videos retain their previous frame rate behavior.";
@@ -320,3 +320,13 @@
 "widgets.play" = "Play";
 "widgets.pause" = "Pause";
 "widgets.controlFailed" = "Could not change playback";
+
+"settings.application" = "Application";
+"settings.savingBehavior" = "Saving & behavior";
+"settings.summary.general" = "Manage startup, notifications, and shortcuts.";
+"settings.summary.notch" = "Choose what appears at the top of your screen.";
+"settings.summary.video" = "Balance video quality, audio quality, and speed.";
+"settings.summary.images" = "Set JPEG quality and review lossless PNG compression.";
+"settings.summary.audio" = "Choose the quality for audio files.";
+"settings.summary.saving" = "Drop behavior and how originals are protected.";
+"settings.summary.updates" = "Check for updates and get help.";

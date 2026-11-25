@@ -11,7 +11,11 @@ final class AppState: ObservableObject {
     let queue: JobQueue
     private let activity: QueueActivity
     private let sleepMonitor: QueueSleepMonitor
-    @Published var settingsPresented = false
+    @Published var settingsPresented = false {
+        didSet {
+            if settingsPresented { presentSettings() } else { settingsWindow?.close() }
+        }
+    }
     @Published var dropError: String?
     @Published private(set) var importingCount = 0
     private var importTask: Task<Void, Never>?
@@ -26,6 +30,7 @@ final class AppState: ObservableObject {
         for task in tasks { await task.value }
     }
     private var window: NSWindow?
+    private var settingsWindow: NSWindow?
 
     private init() {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -36,7 +41,28 @@ final class AppState: ObservableObject {
         sleepMonitor = QueueSleepMonitor(queue: queue)
     }
 
+    private func presentSettings() {
+        if settingsWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 840, height: 650),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable],
+                backing: .buffered, defer: false)
+            window.title = L10n.text("ui.settings")
+            window.minSize = NSSize(width: 780, height: 580)
+            window.isReleasedWhenClosed = false
+            window.contentView = NSHostingView(
+                rootView: SettingsView(queue: queue) { [weak self] in
+                    self?.settingsPresented = false
+                })
+            window.center()
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
     func presentQueue(settings: Bool = false) {
+        if settings { settingsPresented = true; return }
         if window == nil {
             let view = QueueView(queue: queue, app: self)
             let window = NSWindow(
@@ -51,7 +77,6 @@ final class AppState: ObservableObject {
         }
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-        settingsPresented = settings
     }
 
     func receiveFiles(_ urls: [URL], mode: CompressionMode) {
