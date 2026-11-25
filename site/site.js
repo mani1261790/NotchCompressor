@@ -44,8 +44,8 @@ function updateProgress() {
   demo.querySelector('.demo-empty').hidden = progress !== 100;
   meter.hidden = progress === 100;
   const stateText = progress === 100
-    ? (ja ? 'デモ完了 — 実際の動画は変更していません。' : 'Demo complete — no real video was changed.')
-    : (ja ? (paused ? '一時停止中' : '圧縮中（デモ）') : (paused ? 'Paused' : 'Compressing (demo)'));
+    ? (ja ? '圧縮完了' : 'Compression complete')
+    : (ja ? (paused ? '一時停止中' : '圧縮中') : (paused ? 'Paused' : 'Compressing'));
   // Announce state changes, not each 160 ms progress tick. The labeled native
   // progress element remains available when someone wants the current value.
   if(status.textContent !== stateText)status.textContent = stateText;
