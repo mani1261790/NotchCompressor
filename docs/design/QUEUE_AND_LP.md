@@ -169,3 +169,7 @@ Swiftビルド・整形・日英265キーの検査・SchedulingTestsとLocalizat
 ## LPデモの進捗読み上げ（2026-11-25）
 
 LPブランチ990968bで、160msごとの進捗更新をlive regionから分離。状態通知は圧縮中／停止／完了が変わる時だけ更新し、数値は視覚表示と名前付きのネイティブprogressで提供する。日英HTMLを同時に修正。node構文検査・diff検査成功。ローカルブラウザで日本語の開始→70%で停止、進捗バーの名前と値、状態テキストの分離をAXツリーで確認。実際のVoiceOver音声の確認ではない。画像: `.local-work/next/lp-accessible-status.png`。reduced-motionの実描画確認はまだ未実施。
+
+## LPの動きを減らす設定での実確認
+
+ローカルLPにCDPの`prefers-reduced-motion: reduce`を適用して再読込。メディアクエリtrue、tourのfollowing=false、intro-scale=1、ノッチtransition=0sを確認。クリックで両方モードを開始し完了→リセット、画面内のサンプルを中央へ実ドラッグして再び両方モードの完了・空キューまで確認。スクロール後もintro-scale=1、intro-x=0px。完了画面を `.local-work/next/lp-reduced-motion-complete.png` に保存した。試験のメディア設定は解除し、reduced=false・リセット状態を確認。これはブラウザのメディア設定エミュレーションであり、macOS全体の設定は変更していない。
