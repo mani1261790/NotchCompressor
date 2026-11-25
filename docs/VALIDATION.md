@@ -524,3 +524,11 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 意図的に無効な内容の試験MOVを投入すると、キューにFailedと英語の復旧案内・技術詳細の開閉項目を表示。10:17:57に別の通知要求96493B5A-F610-4D4D-9E1E-D2C0A5C30EA7でも同じ配送成功とbanner/list提示処理を確認。元の試験ファイルのSHA-256は一致。失敗項目は個別除外して空キューへ戻した。
 
 ログは `.local-work/next/native-acceptance/notifications-build9.log`。NotificationCenterのCUAではカレンダーウィジェットしか取得できず、ControlCenter取得はtimeoutReached。ユーザーもバナーは見ていなかったため、実際の外観・文言・クリック動作の確認とは扱わない。OSの画面共有中Notifications Offは変更していない。アプリ内通知はfalse、OSの当アプリ通知許可はoffへ復元した。
+
+## 2026-11-25 容量不足の実画面から空き容量誤表示を修正
+
+64 MiBの書き込み可能なHFS+試験DMGに合成動画のコピーを置き、ビルド9で投入。英語UIに容量不足、必要89.5 MB、原本保持、空きを作ってRetry、別ディスクへ移動して再追加という案内を確認。原本ハッシュは一致し、失敗タスクを除外して空キューへ戻した。
+
+ただし画面は空きを0 bytesと表示。Foundationを同じボリュームへ直接問い合わせるとvolumeAvailableCapacity=46,817,280、volumeAvailableCapacityForImportantUsage=0、opportunistic=0だった。圧縮エンジンが重要用途向けの値だけを使っていたため、通常の空きも取得して両者の最大を採るよう修正。未取得値は0と断定せずnilのまま扱う。ビルド10へ進め、実HFS+ディスクを作成・マウントして空きが過少表示されないことを検証する回帰テストを追加。関連UsageFeedbackTests 5件成功。修正版の画面確認は未実施。試験DMGはアンマウントし `.local-work/next/low-space-build9/` に保持。
+
+ビルド10の全体検証: NOTCH_MEDIA_TESTS=1で実FFmpeg/VideoToolbox試験を含む80件が成功。書式・日英254キーと参照215件の検査も成功。ログは同試験ディレクトリのbuild10-media-tests.log。

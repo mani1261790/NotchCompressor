@@ -8,6 +8,18 @@ public struct DiskSpaceIssue: LocalizedError, Codable, Equatable, Sendable {
         self.availableBytes = availableBytes
         self.requiredBytes = requiredBytes
     }
+    // Some non-APFS volumes report zero for the important-usage estimate even
+    // when ordinary free space is available. Never undercount that free space.
+    static func availableCapacity(in folder: URL) throws -> Int64? {
+        let values = try folder.resourceValues(forKeys: [
+            .volumeAvailableCapacityKey, .volumeAvailableCapacityForImportantUsageKey,
+        ])
+        return [
+            values.volumeAvailableCapacity.map(Int64.init),
+            values.volumeAvailableCapacityForImportantUsage,
+        ].compactMap { $0 }.map { max(0, $0) }.max()
+    }
+
     public var additionalBytes: Int64? {
         guard let availableBytes, let requiredBytes else { return nil }
         return max(0, requiredBytes - availableBytes)

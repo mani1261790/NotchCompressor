@@ -95,8 +95,7 @@ public struct CompressionEngine: Sendable {
         guard FileManager.default.isWritableFile(atPath: folder.path) else {
             throw CompressionError.localized(.init("error.folder"))
         }
-        let capacity = try folder.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
-            .volumeAvailableCapacityForImportantUsage
+        let capacity = try DiskSpaceIssue.availableCapacity(in: folder)
         let estimated =
             max(Double(media.size), media.duration * Double(plan.videoBitrate + 256_000) / 8) * 1.2 + 64 * 1024 * 1024
         if let capacity, Double(capacity) < estimated {

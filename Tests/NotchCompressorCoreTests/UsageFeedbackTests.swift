@@ -4,6 +4,35 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class UsageFeedbackTests: XCTestCase {
+    func testHFSVolumeDoesNotReportZeroWhenOrdinaryFreeSpaceIsAvailable() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let mount = root.appendingPathComponent("mounted")
+        try FileManager.default.createDirectory(at: mount, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        func hdiutil(_ arguments: [String]) throws {
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            process.arguments = arguments
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+            try process.run()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else {
+                throw NSError(domain: "CapacityFixture", code: Int(process.terminationStatus))
+            }
+        }
+        let image = root.appendingPathComponent("capacity.dmg").path
+        try hdiutil(["create", "-size", "64m", "-fs", "HFS+", "-type", "UDIF", image])
+        try hdiutil(["attach", "-nobrowse", "-mountpoint", mount.path, image])
+        defer { try? hdiutil(["detach", mount.path]) }
+        let ordinary = try XCTUnwrap(
+            mount.resourceValues(forKeys: [.volumeAvailableCapacityKey])
+                .volumeAvailableCapacity)
+        XCTAssertGreaterThan(ordinary, 32 * 1024 * 1024)
+        let capacity = try XCTUnwrap(DiskSpaceIssue.availableCapacity(in: mount))
+        XCTAssertGreaterThanOrEqual(capacity, Int64(ordinary))
+    }
+
     func testCapacityAdviceIncludesDeficitAndPracticalActions() {
         let issue = DiskSpaceIssue(availableBytes: 1_000_000_000, requiredBytes: 3_000_000_000)
         XCTAssertEqual(issue.additionalBytes, 2_000_000_000)
