@@ -44,10 +44,12 @@ public struct InputBatch: Sendable {
     public var rejected: [InputRejection] = []
 
     /// Preserve drop order, avoid blocking the UI, and report each unsupported
-    /// input independently. Inspecting a batch never starts compression.
+    /// input independently. Callers can enqueue each accepted input immediately
+    /// without waiting for the rest of a large batch.
     public static func inspect(
         _ urls: [URL], mode: CompressionMode, toolsDirectory: String? = nil,
-        enabledKinds: Set<MediaKind> = [.video]
+        enabledKinds: Set<MediaKind> = [.video],
+        onAccepted: (@Sendable (InspectedInput) async -> Void)? = nil
     ) async throws -> Self {
         var batch = Self()
         var seen = Set<URL>()
@@ -66,6 +68,7 @@ public struct InputBatch: Sendable {
                     throw CompressionError.localized(.init("error.imageFormat"))
                 }
                 batch.accepted.append(input)
+                await onAccepted?(input)
             } catch is CancellationError {
                 throw CancellationError()
             } catch {
@@ -87,6 +90,7 @@ public enum MediaInputInspector {
         let source = url.standardizedFileURL.resolvingSymlinksInPath()
         let ext = source.pathExtension.lowercased()
         if ["jpg", "jpeg", "png", "heic", "heif"].contains(ext) {
+            guard size <= 128 * 1024 * 1024 else { throw CompressionError.localized(.init("error.imageTooLarge")) }
             return try await Task.detached(priority: .utility) {
                 guard let image = CGImageSourceCreateWithURL(source as CFURL, nil),
                     let type = CGImageSourceGetType(image) as String?,

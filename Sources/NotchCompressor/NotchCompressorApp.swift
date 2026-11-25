@@ -66,12 +66,15 @@ final class AppState: ObservableObject {
             defer { importingCount -= urls.count; importTasks.removeValue(forKey: importID) }
             do {
                 let batch = try await InputBatch.inspect(
-                    urls, mode: mode, toolsDirectory: settings.toolsDirectory, enabledKinds: [.video, .image, .audio])
+                    urls, mode: mode, toolsDirectory: settings.toolsDirectory, enabledKinds: [.video, .image, .audio]
+                ) { [self] input in
+                    await MainActor.run {
+                        guard self.acceptingImports else { return }
+                        self.queue.enqueue([input.url], mode: mode, mediaKind: input.kind, settings: settings)
+                    }
+                }
                 try Task.checkCancellation()
                 guard acceptingImports else { return }
-                for input in batch.accepted {
-                    queue.enqueue([input.url], mode: mode, mediaKind: input.kind, settings: settings)
-                }
                 if !batch.rejected.isEmpty {
                     rejectedInputs.append(contentsOf: batch.rejected)
                     presentQueue()
