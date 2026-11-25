@@ -139,13 +139,6 @@ struct QueueView: View {
                         ForEach(queue.displayedJobs) { job in
                             if queue.canReorder(job.id) {
                                 card(job)
-                                    .onDrag {
-                                        draggingJobID = job.id
-                                        queueDragLog.info("queue drag began")
-                                        return NSItemProvider(
-                                            item: Data(job.id.uuidString.utf8) as NSData,
-                                            typeIdentifier: UTType.notchQueueJob.identifier)
-                                    }
                                     .modifier(QueueDropTarget(queue: queue, job: job, draggingID: $draggingJobID))
                             } else {
                                 card(job)
@@ -168,7 +161,7 @@ struct QueueView: View {
         .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
     }
     private func card(_ job: CompressionJob) -> some View {
-        JobRow(job: job, queue: queue)
+        JobRow(job: job, queue: queue, draggingID: $draggingJobID)
             .padding(14)
             .background(.background, in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.06)))
@@ -179,6 +172,7 @@ struct QueueView: View {
 private struct JobRow: View {
     let job: CompressionJob
     @ObservedObject var queue: JobQueue
+    @Binding var draggingID: UUID?
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .center, spacing: 12) {
@@ -209,7 +203,9 @@ private struct JobRow: View {
                     Spacer(minLength: 0)
                 }
                 .contentShape(Rectangle())
-                .modifier(ReorderCursor(enabled: queue.canReorder(job.id)))
+                .modifier(
+                    QueueDragSource(
+                        jobID: job.id, enabled: queue.canReorder(job.id), draggingID: $draggingID))
                 HStack(spacing: 4) {
                     if queue.pausedIDs.contains(job.id) {
                         IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
@@ -295,6 +291,30 @@ private struct JobRow: View {
 
 private extension UTType {
     static let notchQueueJob = UTType(exportedAs: "com.mani.NotchCompressor.queue-job", conformingTo: .data)
+}
+
+/// Keep the draggable surface identical to the hand-cursor surface. Controls and
+/// selectable details remain outside this modifier so they cannot start a reorder.
+private struct QueueDragSource: ViewModifier {
+    let jobID: UUID
+    let enabled: Bool
+    @Binding var draggingID: UUID?
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content
+                .modifier(ReorderCursor(enabled: enabled))
+                .onDrag {
+                    draggingID = jobID
+                    queueDragLog.info("queue drag began")
+                    return NSItemProvider(
+                        item: Data(jobID.uuidString.utf8) as NSData,
+                        typeIdentifier: UTType.notchQueueJob.identifier)
+                }
+        } else {
+            content
+        }
+    }
 }
 
 private struct QueueDropTarget: ViewModifier {
