@@ -35,8 +35,8 @@ struct NotchWidgetsView: View {
         .background(
             .black,
             in: UnevenRoundedRectangle(
-                topLeadingRadius: cameraWidth > 0 ? 0 : 12,
-                bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: cameraWidth > 0 ? 0 : 12))
+                topLeadingRadius: 0,
+                bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: 0))
     }
 }
 
@@ -44,19 +44,40 @@ struct NotchDashboardView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var widgets: NotchWidgetsController
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 14) {
             if widgets.showClock {
                 NotchClockView(compact: false)
             }
             if widgets.showMusic {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     if let track = widgets.track {
                         HStack(spacing: 8) {
-                            PlaybackActivityView(playing: track.playing)
-                            Text(track.title).font(.headline).lineLimit(2)
-                                .contentTransition(.opacity)
+                            AlbumArtworkView(data: track.artwork).frame(width: 40, height: 40)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(track.title).font(.callout.weight(.semibold)).lineLimit(2)
+                                    .contentTransition(.opacity)
+                                Text(track.artist).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            }
                         }
-                        Text(track.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        HStack(spacing: 10) {
+                            Button {
+                                widgets.togglePlayback()
+                            } label: {
+                                Image(systemName: track.playing ? "pause.fill" : "play.fill")
+                                    .frame(width: 30, height: 30)
+                            }
+                            .buttonStyle(.plain)
+                            .background(.white.opacity(0.12), in: Circle())
+                            .disabled(widgets.controlling || widgets.reading)
+                            .accessibilityLabel(L10n.text(track.playing ? "widgets.pause" : "widgets.play"))
+                            .help(L10n.text(track.playing ? "widgets.pause" : "widgets.play"))
+                            PlaybackActivityView(playing: track.playing)
+                            if widgets.statusKey == "widgets.controlFailed" {
+                                Image(systemName: "exclamationmark.circle")
+                                    .help(L10n.text("widgets.controlFailed"))
+                                    .accessibilityLabel(L10n.text("widgets.controlFailed"))
+                            }
+                        }
                     } else {
                         Label(L10n.text(widgets.statusKey ?? "widgets.noTrack"), systemImage: "music.note")
                             .font(.callout).foregroundStyle(.secondary).lineLimit(3)
@@ -80,6 +101,22 @@ struct NotchDashboardView: View {
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: widgets.track)
+    }
+}
+
+struct AlbumArtworkView: View {
+    let data: Data?
+    var body: some View {
+        Group {
+            if let data, let image = NSImage(data: data) {
+                Image(nsImage: image).resizable().scaledToFill()
+            } else {
+                RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.12))
+                    .overlay { Image(systemName: "music.note").foregroundStyle(.secondary) }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
+        .accessibilityHidden(true)
     }
 }
 

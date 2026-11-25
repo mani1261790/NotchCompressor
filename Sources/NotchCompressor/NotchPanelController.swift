@@ -5,6 +5,7 @@ import NotchCompressorCore
 
 @MainActor
 final class DropPresentation: ObservableObject {
+    @Published var content = NotchDropContent.automatic
     @Published var receivedFiles = false
     @Published var mode: CompressionMode?
     @Published var topInset: CGFloat = 0
@@ -53,7 +54,16 @@ private final class DropHostingView: NSHostingView<DropPanel> {
         let point = convert(sender.draggingLocation, from: nil)
         // NSHostingView is flipped; the geometry contract uses a bottom-left origin.
         let local = CGPoint(x: point.x, y: isFlipped ? bounds.height - point.y : point.y)
-        return geometry?.mode(at: local)
+        return presentation.content.mode(for: geometry?.mode(at: local))
+    }
+    private var contentGeneration: Int?
+    func updateContent(_ pasteboard: NSPasteboard) {
+        guard contentGeneration != pasteboard.changeCount else { return }
+        let urls =
+            pasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
+        guard !urls.isEmpty else { return }
+        contentGeneration = pasteboard.changeCount
+        presentation.content = NotchDropContent(urls: urls)
     }
     private func update(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard
@@ -62,6 +72,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
             presentation.mode = nil
             return []
         }
+        updateContent(sender.draggingPasteboard)
         onFileEntered?()
         presentation.mode = selectedMode(sender)
         return presentation.mode == nil ? [] : .copy
@@ -229,6 +240,7 @@ final class NotchPanelController {
             lastLoggedPasteboard = pasteboard.changeCount
             log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
         }
+        if hasFiles { host.updateContent(pasteboard) }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
         if receiptTask != nil && !drag.active { return }
         // Do not resize away the drop target between mouse-up and performDragOperation.

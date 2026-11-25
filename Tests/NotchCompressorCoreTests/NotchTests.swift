@@ -3,6 +3,21 @@ import XCTest
 @testable import NotchCompressorCore
 
 final class NotchTests: XCTestCase {
+    func testDropContentMatchesTargets() {
+        let samples: [([String], NotchDropContent)] = [
+            (["a.MOV", "b.mp4"], .video), (["a.png", "b.JPEG"], .image),
+            (["a.m4a"], .audio), (["a.png", "b.mov"], .automatic),
+            (["a.pdf"], .automatic), ([], .automatic),
+        ]
+        for (names, expected) in samples {
+            let content = NotchDropContent(urls: names.map { URL(fileURLWithPath: "/" + $0) })
+            XCTAssertEqual(content, expected)
+            XCTAssertNil(content.mode(for: nil))
+            for mode in CompressionMode.allCases {
+                XCTAssertEqual(content.mode(for: mode), content == .video ? mode : content.singleMode)
+            }
+        }
+    }
     func testOuterScreenEdgeKeepsDropTargetAndApproachOpensBeforeTop() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let second = CGRect(x: 1920, y: -81, width: 1080, height: 1920)
@@ -79,7 +94,7 @@ final class NotchTests: XCTestCase {
             XCTAssertTrue(screen.contains(notch.frame))
             let external = NotchWidgetGeometry(screen: screen, topInset: 0, notchWidth: 0)
             XCTAssertEqual(external.cameraWidth, 0)
-            XCTAssertEqual(external.frame.maxY, screen.maxY - 8)
+            XCTAssertEqual(external.frame.maxY, screen.maxY)
             XCTAssertTrue(screen.contains(external.frame))
         }
         let narrow = NotchWidgetGeometry(

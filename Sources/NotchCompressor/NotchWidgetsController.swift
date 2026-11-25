@@ -19,7 +19,8 @@ final class NotchWidgetsController: ObservableObject {
     @Published private(set) var track: NowPlayingTrack?
     @Published private(set) var statusKey: String?
     @Published private(set) var connecting = false
-    private var reading = false
+    @Published private(set) var controlling = false
+    @Published private(set) var reading = false
     private var timer: AnyCancellable?
     private var sleeping = false
     private var sleepObserver: NSObjectProtocol?
@@ -49,8 +50,21 @@ final class NotchWidgetsController: ObservableObject {
 
     func connect() { refresh(askPermission: true) }
 
+    func togglePlayback() {
+        guard !controlling, !reading, showMusic, track != nil,
+            let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first?
+                .processIdentifier
+        else { return }
+        controlling = true
+        Task {
+            let success = await Task.detached(priority: .userInitiated) { MusicTrackReader.toggle(pid: pid) }.value
+            controlling = false
+            if success { refresh() } else { statusKey = "widgets.controlFailed" }
+        }
+    }
+
     private func refresh(askPermission: Bool = false) {
-        guard showMusic, !sleeping, !reading else { return }
+        guard showMusic, !sleeping, !reading, !controlling else { return }
         guard
             let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first?
                 .processIdentifier
@@ -59,9 +73,10 @@ final class NotchWidgetsController: ObservableObject {
         }
         reading = true
         connecting = askPermission
+        let previous = track
         Task {
             let result = await Task.detached(priority: .utility) {
-                MusicTrackReader.read(pid: pid, askPermission: askPermission)
+                MusicTrackReader.read(pid: pid, askPermission: askPermission, previous: previous)
             }.value
             reading = false; connecting = false
             guard showMusic, !sleeping else { return }
@@ -77,7 +92,7 @@ private enum MusicTrackReader {
     struct Result: Sendable { let track: NowPlayingTrack?; let statusKey: String? }
     static func code(_ text: String) -> OSType { text.utf8.reduce(0) { ($0 << 8) | OSType($1) } }
 
-    static func read(pid: pid_t, askPermission: Bool) -> Result {
+    static func read(pid: pid_t, askPermission: Bool, previous: NowPlayingTrack?) -> Result {
         let target = NSAppleEventDescriptor(processIdentifier: pid)
         guard let descriptor = target.aeDesc else { return .init(track: nil, statusKey: "widgets.musicUnavailable") }
         let permission = AEDeterminePermissionToAutomateTarget(
@@ -92,8 +107,45 @@ private enum MusicTrackReader {
             let title = try get(property: code("pnam"), container: currentTrack, target: target).stringValue ?? ""
             let artist = try get(property: code("pArt"), container: currentTrack, target: target).stringValue ?? ""
             guard !title.isEmpty else { return .init(track: nil, statusKey: "widgets.noTrack") }
-            return .init(track: .init(title: title, artist: artist, playing: state == code("kPSP")), statusKey: nil)
+            let identity = (try? get(property: code("pPIS"), container: currentTrack, target: target).stringValue) ?? ""
+            let artwork: Data?
+            if !identity.isEmpty, previous?.identity == identity {
+                artwork = previous?.artwork
+            } else {
+                artwork = try? readArtwork(container: currentTrack, target: target)
+            }
+            return .init(
+                track: .init(
+                    title: title, artist: artist, playing: state == code("kPSP"), identity: identity, artwork: artwork),
+                statusKey: nil)
         } catch { return .init(track: nil, statusKey: "widgets.musicUnavailable") }
+    }
+
+    static func toggle(pid: pid_t) -> Bool {
+        let target = NSAppleEventDescriptor(processIdentifier: pid)
+        guard let descriptor = target.aeDesc,
+            AEDeterminePermissionToAutomateTarget(descriptor, typeWildCard, typeWildCard, false) == noErr
+        else { return false }
+        let event = NSAppleEventDescriptor(
+            eventClass: code("hook"), eventID: code("PlPs"),
+            targetDescriptor: target, returnID: AEReturnID(kAutoGenerateReturnID),
+            transactionID: AETransactionID(kAnyTransactionID))
+        do {
+            let reply = try event.sendEvent(options: [.waitForReply, .neverInteract], timeout: 2)
+            return (reply.paramDescriptor(forKeyword: AEKeyword(keyErrorNumber))?.int32Value ?? 0) == 0
+        } catch { return false }
+    }
+
+    private static func readArtwork(container: NSAppleEventDescriptor, target: NSAppleEventDescriptor) throws -> Data? {
+        let record = NSAppleEventDescriptor.record()
+        record.setDescriptor(NSAppleEventDescriptor(typeCode: code("cArt")), forKeyword: AEKeyword(keyAEDesiredClass))
+        record.setDescriptor(container, forKeyword: AEKeyword(keyAEContainer))
+        record.setDescriptor(
+            NSAppleEventDescriptor(enumCode: OSType(formAbsolutePosition)), forKeyword: AEKeyword(keyAEKeyForm))
+        record.setDescriptor(NSAppleEventDescriptor(int32: 1), forKeyword: AEKeyword(keyAEKeyData))
+        guard let artwork = record.coerce(toDescriptorType: typeObjectSpecifier) else { return nil }
+        let data = try get(property: code("pRaw"), container: artwork, target: target).data
+        return !data.isEmpty && data.count <= 10 * 1024 * 1024 ? data : nil
     }
 
     private static func property(_ key: OSType, container: NSAppleEventDescriptor = .null()) throws

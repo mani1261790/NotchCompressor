@@ -310,3 +310,13 @@
 "widgets.playing" = "再生中";
 "widgets.paused" = "一時停止中";
 "notch.received" = "ファイルを受け取りました";
+
+"notch.drop.image" = "画像を圧縮";
+"notch.drop.image.hint" = "JPEGは品質設定を使用・PNGは画質を維持";
+"notch.drop.audio" = "音声を圧縮";
+"notch.drop.audio.hint" = "保存した音質設定で圧縮";
+"notch.drop.automatic" = "ファイルを圧縮";
+"notch.drop.automatic.hint" = "種類に合わせて圧縮・未対応のファイルはスキップ";
+"widgets.play" = "再生";
+"widgets.pause" = "一時停止";
+"widgets.controlFailed" = "再生状態を変更できませんでした";

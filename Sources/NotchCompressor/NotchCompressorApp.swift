@@ -216,8 +216,10 @@ struct DropPanel: View {
                         } else {
                             VStack(spacing: 12) {
                                 HStack(spacing: 8) {
-                                    ForEach(CompressionMode.allCases) { mode in
-                                        DropZone(mode: mode, targeted: presentation.mode == mode, selection: selection)
+                                    ForEach(presentation.content.modes) { mode in
+                                        DropZone(
+                                            mode: mode, content: presentation.content,
+                                            targeted: presentation.mode == mode, selection: selection)
                                     }
                                 }
                                 Text(L10n.text("notch.dropHint"))
@@ -237,10 +239,10 @@ struct DropPanel: View {
             .background(.black)
             .mask(alignment: .top) {
                 UnevenRoundedRectangle(
-                    topLeadingRadius: presentation.topInset > 0 ? 0 : 16,
+                    topLeadingRadius: 0,
                     bottomLeadingRadius: presentation.visible ? 26 : 10,
                     bottomTrailingRadius: presentation.visible ? 26 : 10,
-                    topTrailingRadius: presentation.topInset > 0 ? 0 : 16
+                    topTrailingRadius: 0
                 )
                 .frame(
                     width: presentation.visible || presentation.compactWidgets
@@ -260,18 +262,22 @@ struct DropPanel: View {
 
 struct DropZone: View {
     let mode: CompressionMode
+    let content: NotchDropContent
+    private var title: String { content == .video ? mode.title : content.title }
     let targeted: Bool
     let selection: Namespace.ID
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing: 7) {
-            Image(systemName: mode.selectionSymbol).font(.title2)
+            Image(systemName: content == .video ? mode.symbol : content.symbol).font(.title2)
                 .scaleEffect(targeted && !reduceMotion ? 1.12 : 1)
-            Text(mode.selectionTitle).font(.callout.weight(.semibold))
+            Text(title).font(.callout.weight(.semibold))
             Text(
-                mode == .video
-                    ? L10n.text("notch.keepAudio")
-                    : mode == .audio ? L10n.text("notch.keepVideo") : L10n.text("notch.both")
+                content != .video
+                    ? content.hint
+                    : mode == .video
+                        ? L10n.text("notch.keepAudio")
+                        : mode == .audio ? L10n.text("notch.keepVideo") : L10n.text("notch.both")
             )
             .font(.system(size: 10))
         }
@@ -289,6 +295,6 @@ struct DropZone: View {
             RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(.white.opacity(targeted ? 0.28 : 0.08), lineWidth: 1)
         }
-        .accessibilityLabel(L10n.text("notch.accessibility", mode.selectionTitle))
+        .accessibilityLabel(L10n.text("notch.accessibility", title))
     }
 }

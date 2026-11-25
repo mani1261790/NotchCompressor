@@ -310,3 +310,13 @@
 "widgets.playing" = "Playing";
 "widgets.paused" = "Paused";
 "notch.received" = "Files received";
+
+"notch.drop.image" = "Compress images";
+"notch.drop.image.hint" = "JPEG uses saved quality; PNG stays lossless";
+"notch.drop.audio" = "Compress audio";
+"notch.drop.audio.hint" = "Use your saved audio quality";
+"notch.drop.automatic" = "Compress files";
+"notch.drop.automatic.hint" = "Compress by type; skip unsupported files";
+"widgets.play" = "Play";
+"widgets.pause" = "Pause";
+"widgets.controlFailed" = "Could not change playback";

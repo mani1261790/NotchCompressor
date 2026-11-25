@@ -81,3 +81,12 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 ドロップ面のコンテナを常時表示・展開で共用し、開閉のマスクと内容のフェード／位置変化を組み合わせる。対象ゾーンは青い背景が移動し、アイコンを少し拡大する。ファイルを受け取った直後に550 msの受領表示を出して閉じる。受領は圧縮成功の表示ではない。連続投入時は古い受領表示の終了タスクをキャンセルする。
 
 アプリビルドとノッチ関連9件の回帰テスト成功。日英306キーを検査。Developer ID署名の `dist/Preview/NotchCompressor Preview.app` を起動し、build14の確認用コピーを準備。新しいアニメーションの実ポインター・実ドロップでの最終評価は未完了。build14は未公証・未公開であり、以前の公証済みbuild13と区別する。
+
+### 2026-11-25: media-specific drop targets and Music controls (build 15)
+
+- Expanded and compact panels now meet the top screen edge with square upper corners; external-screen compact placement no longer has an 8 pt gap.
+- File URL extensions provide presentation hints before entry: videos retain video/both/audio targets; JPEG/PNG, M4A and mixed/unknown batches have one appropriately labelled target. Hit testing uses the same model as the visible target. InputBatch remains authoritative for content validation.
+- Music artwork uses the running Music process's scripting dictionary (cArt/pRaw), with per-track caching and a 10 MB retained-data cap. Missing artwork uses a music-note placeholder.
+- Explicit play/pause uses Music's hook/PlPs command, never launches Music, and never prompts for automation permission during polling or playback. Command failures are visible next to playback controls.
+- Checked: 10 NotchTests pass, 315 JA/EN localization keys, universal release build and Developer ID preview signing. Music command/artwork rendering and physical hover/drop acceptance still require real UI verification; compilation does not establish those outcomes.
+- Preview remains separate from the public 0.1.0 application and Sparkle feed.
