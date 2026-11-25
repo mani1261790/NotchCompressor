@@ -458,3 +458,17 @@ ec3baa9のビルド7を署名・公証。アプリ27296a7a-5fbb-454f-963b-2f406b
 v0.1.0の草稿全7資産を差替え、targetをec3baa9へ更新。`.local-work/next/build7-draft-download/` へ認証付き再取得し、SHA256SUMS自身と全6資産を照合して一致。公開フィードは変更していない。CI run45518969785は確認時点で実行中。
 
 ビルド7対象ec3baa9のCI run45518969785はcompleted/successを確認。単体テスト・翻訳整合・書式・認証情報なしの配布リハーサルが成功。公証済みビルド7をApplicationsへ導入し、deep/strict署名とstapleを検証して起動した。
+
+## 2026-11-25 キュー並べ替えの手動確認
+
+公証済みビルド7で検証用first.movを手動停止し、second.mov／third.movを待機させた。CUAのドラッグ操作では開始のみ観測され、順序が変わらなかった。ユーザーの手元操作後、09:42:19のdrag began／drop entered accepted=trueと09:42:20のdrop committedを確認。AX状態とqueue.jsonの順序はfirst（paused）→third（waiting）→second（waiting）で一致した。ユーザーの「できてるっぽい」を画面・保存状態・確定ログで裏付けた。
+
+確認後は待機2件、停止1件の順にUIから除外して空キューへ戻した。3本のSHA-256は事前値と一致。証拠は `.local-work/next/native-acceptance/reorder-build7-results.json`、`reorder-build7-before.sha256`。この操作経路で並べ替えのアプリ側不具合は再現しなかった。
+
+## 2026-11-25 Sparkle CLIによるalpha.2→ビルド7の更新
+
+Sparkleチェックアウトの公式sparkle-cliスキームをローカルビルドし、未変更の配布済みalpha.2 ZIPを `.local-work/next/sparkle-alpha2-copy/` へ展開した。元のBundleVersion=2と署名を検証。公開フィードは変更せず、ビルド7の同じ署名済みZIPを127.0.0.1:8789限定サーバーに置き、同じSparkle鍵でローカルURL用フィードを生成・署名検証した。
+
+--probeでUpdate available／exit 0。続く--check-immediatelyでフィードとZIPをHTTP 200取得、ダウンロード・展開・Installation Finished／exit 0。対象コピーはBundleVersion=7へ変わり、署名deep/strict・staple・Gatekeeperが成功、実行ファイルは公証済み候補とバイト一致。/Applicationsの実行中アプリPID50106は継続しており、テスト対象コピーの置換のみを行った。終了後はローカルサーバーを停止した。
+
+ログは `.local-work/next/sparkle-build7-probe.log`、`sparkle-build7-install.log`、`sparkle-build7-http.log`。これは実Sparkleによる取得・置換を証明するが、アプリ内の更新ダイアログ・再起動・設定や待機キューの保持・処理中の再起動抑止は別途必要。CLIではアプリのdelegate動作まで検査できないため、これらを合格へ置き換えない。
