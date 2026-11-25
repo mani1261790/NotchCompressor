@@ -8,6 +8,7 @@ struct QueueView: View {
     @ObservedObject var queue: JobQueue
     @ObservedObject var app: AppState
     @State private var draggingJobID: UUID?
+    @State private var showingQueueHelp = false
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .top) {
@@ -47,7 +48,7 @@ struct QueueView: View {
                 .help(L10n.text("queue.addHelp")).accessibilityLabel(L10n.text("queue.add"))
                 IconControl(title: L10n.text("ui.settings"), symbol: "gearshape") { app.settingsPresented = true }
             }
-            .padding(24)
+            .padding(.horizontal, 24).padding(.top, 20).padding(.bottom, 12)
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Menu {
@@ -61,15 +62,25 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel(L10n.text("queue.executionValue", queue.execution.title))
                     Spacer()
-                    Text(L10n.text("queue.runningFixed"))
+                    IconControl(title: L10n.text("queue.help"), symbol: "info") {
+                        showingQueueHelp.toggle()
+                    }
+                    .popover(isPresented: $showingQueueHelp) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L10n.text("queue.help")).font(.headline)
+                            Text(queue.schedulingDescription)
+                            Text(L10n.text("queue.orderHelp"))
+                            Text(L10n.text("queue.background"))
+                            Text(L10n.text("queue.sleepHelp"))
+                        }
+                        .font(.callout).padding(20).frame(width: 320)
+                    }
+                }
+                if !queue.pausedIDs.isEmpty || queue.systemSleeping {
+                    Label(queue.schedulingDescription, systemImage: "pause.circle")
                         .font(.caption).foregroundStyle(.secondary)
                 }
-                Text(L10n.text("queue.background"))
-                    .font(.caption).foregroundStyle(.secondary)
-                    .help(L10n.text("queue.sleepHelp"))
-                Text(queue.schedulingDescription).font(.caption).foregroundStyle(.secondary)
-                    .help(L10n.text("queue.orderHelp"))
-            }.padding(.horizontal, 24).padding(.bottom, 14)
+            }.padding(.horizontal, 24).padding(.bottom, 12)
             Divider()
             if let notice = queue.completionNotice {
                 HStack {
@@ -114,10 +125,11 @@ struct QueueView: View {
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 8) {
                         ForEach(queue.displayedJobs) { job in
                             if queue.canReorder(job.id) {
                                 card(job)
+                                    .modifier(ReorderCursor())
                                     .onDrag {
                                         draggingJobID = job.id
                                         queueDragLog.info("queue drag began")
@@ -138,16 +150,17 @@ struct QueueView: View {
                 Text(L10n.text("queue.replaceHint"))
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                IconControl(title: L10n.text("queue.clear"), symbol: "clock.badge.xmark") { queue.clearFinished() }
-                    .disabled(!queue.displayedJobs.contains { $0.phase.isFinished })
-                    .help(L10n.text("queue.clearHelp"))
+                if queue.displayedJobs.contains(where: { $0.phase.isFinished }) {
+                    IconControl(title: L10n.text("queue.clear"), symbol: "clock.badge.xmark") { queue.clearFinished() }
+                        .help(L10n.text("queue.clearHelp"))
+                }
             }.padding(16)
         }
         .sheet(isPresented: $app.settingsPresented) { SettingsView(queue: queue) }
     }
     private func card(_ job: CompressionJob) -> some View {
         JobRow(job: job, queue: queue)
-            .padding(18)
+            .padding(14)
             .background(.background, in: RoundedRectangle(cornerRadius: 20))
             .overlay(RoundedRectangle(cornerRadius: 20).strokeBorder(.primary.opacity(0.06)))
     }
@@ -163,7 +176,8 @@ private struct JobRow: View {
                 VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
                 VStack(alignment: .leading, spacing: 4) {
                     Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
-                    Label("\(job.mode.title) · \(job.settings.summary(for: job.mode))", systemImage: job.mode.symbol)
+                        .help(job.input.lastPathComponent)
+                    Label(job.mode.title, systemImage: job.mode.symbol)
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -174,10 +188,53 @@ private struct JobRow: View {
                     .foregroundStyle(
                         job.phase == .failed ? Color.orange : job.phase == .completed ? Color.green : Color.secondary)
             }
+            HStack {
+                if job.result?.output != job.input.resolvingSymlinksInPath() {
+                    IconControl(title: L10n.text("queue.revealInput"), symbol: "doc") {
+                        NSWorkspace.shared.activateFileViewerSelecting([job.input])
+                    }
+                }
+                if let result = job.result {
+                    Button {
+                        NSWorkspace.shared.activateFileViewerSelecting([result.output])
+                    } label: {
+                        Label(L10n.text("queue.revealOutput"), systemImage: "folder")
+                    }.capsuleControl(prominent: true).controlSize(.large)
+                }
+                Spacer(minLength: 8)
+                if queue.canReorder(job.id) {
+                    Image(systemName: "line.3.horizontal")
+                        .help(L10n.text("queue.reorder"))
+                        .accessibilityLabel(L10n.text("queue.reorder"))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if queue.pausedIDs.contains(job.id) {
+                    IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
+                        .disabled(queue.cancelling.contains(job.id))
+                    IconControl(title: L10n.text("queue.removePaused"), symbol: "xmark") { queue.remove(job.id) }
+                        .disabled(!queue.canRemove(job.id))
+                } else if queue.runningIDs.contains(job.id) {
+                    Image(systemName: "pin.fill")
+                        .help(L10n.text("queue.pinned"))
+                        .accessibilityLabel(L10n.text("queue.pinned"))
+                        .font(.caption).foregroundStyle(.secondary)
+                    IconControl(title: L10n.text("queue.pause"), symbol: "pause.fill") { queue.pause(job.id) }
+                        .disabled(queue.cancelling.contains(job.id))
+                } else {
+                    if job.phase.isFinished && job.phase != .completed {
+                        IconControl(title: L10n.text("queue.retry"), symbol: "arrow.clockwise") { queue.retry(job.id) }
+                    }
+                    IconControl(title: L10n.text("queue.remove"), symbol: "xmark") { queue.remove(job.id) }
+                        .disabled(!queue.canRemove(job.id))
+                }
+            }.controlSize(.small)
             if job.phase == .encoding || job.phase == .paused {
-                ProgressView(value: job.progress)
-                Text(L10n.text("queue.progress", L10n.integer(Int(job.progress * 100)))).font(.caption).foregroundStyle(
-                    .secondary)
+                HStack(spacing: 12) {
+                    ProgressView(value: job.progress)
+                    Text(L10n.text("queue.progress", L10n.integer(Int(job.progress * 100))))
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        .fixedSize()
+                }
             } else if [.probing, .validating].contains(job.phase) {
                 ProgressView().controlSize(.small)
             }
@@ -209,6 +266,12 @@ private struct JobRow: View {
                     Label(L10n.text("queue.openFolder"), systemImage: "externaldrive")
                 }.capsuleControl()
             }
+            DisclosureGroup(L10n.text("queue.compressionDetails")) {
+                Text(job.settings.summary(for: job.mode))
+                    .font(.caption).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 4)
+            }.font(.caption)
             if let details = job.displayDetails, !details.isEmpty {
                 DisclosureGroup(L10n.text("details.technical")) {
                     Text(details).font(.caption).textSelection(.enabled)
@@ -217,42 +280,7 @@ private struct JobRow: View {
             if let message = job.displayMessage {
                 Text(message).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
-            HStack {
-                if job.result?.output != job.input.resolvingSymlinksInPath() {
-                    IconControl(title: L10n.text("queue.revealInput"), symbol: "doc") {
-                        NSWorkspace.shared.activateFileViewerSelecting([job.input])
-                    }
-                }
-                if let result = job.result {
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([result.output])
-                    } label: {
-                        Label(L10n.text("queue.revealOutput"), systemImage: "folder")
-                    }.capsuleControl(prominent: true).controlSize(.large)
-                }
-                Spacer()
-                if queue.canReorder(job.id) {
-                    Label(L10n.text("queue.reorder"), systemImage: "line.3.horizontal")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                if queue.pausedIDs.contains(job.id) {
-                    IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
-                        .disabled(queue.cancelling.contains(job.id))
-                    IconControl(title: L10n.text("queue.removePaused"), symbol: "xmark") { queue.remove(job.id) }
-                        .disabled(!queue.canRemove(job.id))
-                } else if queue.runningIDs.contains(job.id) {
-                    Label(L10n.text("queue.pinned"), systemImage: "pin.fill")
-                        .font(.caption).foregroundStyle(.secondary)
-                    IconControl(title: L10n.text("queue.pause"), symbol: "pause.fill") { queue.pause(job.id) }
-                        .disabled(queue.cancelling.contains(job.id))
-                } else {
-                    if job.phase.isFinished && job.phase != .completed {
-                        IconControl(title: L10n.text("queue.retry"), symbol: "arrow.clockwise") { queue.retry(job.id) }
-                    }
-                    IconControl(title: L10n.text("queue.remove"), symbol: "xmark") { queue.remove(job.id) }
-                        .disabled(!queue.canRemove(job.id))
-                }
-            }.controlSize(.small)
+
         }
     }
     private func bytes(_ count: Int64) -> String { L10n.bytes(count) }
@@ -315,3 +343,28 @@ private struct QueueCardDrop: DropDelegate {
 }
 
 private let queueDragLog = Logger(subsystem: "com.mani.NotchCompressor", category: "QueueReorder")
+
+/// Apply only to reorderable rows; balance cursor ownership when a row starts
+/// running or disappears after completion/removal while the pointer is over it.
+private struct ReorderCursor: ViewModifier {
+    @State private var ownsCursor = false
+
+    func body(content: Content) -> some View {
+        content
+            .onHover { inside in
+                if inside && !ownsCursor {
+                    NSCursor.openHand.push()
+                    ownsCursor = true
+                } else if !inside && ownsCursor {
+                    NSCursor.pop()
+                    ownsCursor = false
+                }
+            }
+            .onDisappear {
+                if ownsCursor {
+                    NSCursor.pop()
+                    ownsCursor = false
+                }
+            }
+    }
+}

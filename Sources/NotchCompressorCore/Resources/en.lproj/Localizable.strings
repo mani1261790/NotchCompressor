@@ -254,3 +254,9 @@
 "update.current" = "You’re up to date.";
 
 "note.sleepRetry" = "Compression or verification failed after sleep. Retrying from the beginning.";
+
+"queue.help" = "How the queue works";
+"queue.compressionDetails" = "Compression settings";
+"settings.category" = "Settings category";
+"settings.general" = "General";
+"settings.updatesSupport" = "Updates & Support";

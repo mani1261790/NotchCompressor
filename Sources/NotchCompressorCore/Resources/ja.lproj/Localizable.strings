@@ -254,3 +254,9 @@
 "update.current" = "現在のバージョンは最新です。";
 
 "note.sleepRetry" = "スリープ後に圧縮または検証が失敗したため、最初から再試行しています。";
+
+"queue.help" = "キューの動作について";
+"queue.compressionDetails" = "圧縮設定";
+"settings.category" = "設定の分類";
+"settings.general" = "一般";
+"settings.updatesSupport" = "更新とサポート";
