@@ -11,7 +11,7 @@ A macOS app built with SwiftUI that compresses screen recordings dropped near th
 | Video only | Video and audio | Audio only |
 | Keep audio | Re-encode both tracks | Keep video |
 
-The drop panel expands only while you drag files toward it. Drop multiple videos together, or add more while compression is running. Open the queue from the menu bar to check progress, or use its **+** button to add videos and choose a mode.
+The drop panel expands when you drag files toward it. Drop multiple videos together, or add more while compression is running. Open the queue from the menu bar to check progress, or use its **+** button to add videos and choose a mode.
 
 **Only smaller output that passes validation replaces the original.** The app writes temporary output and decodes the entire result before replacing the original at the same location, preserving the MOV/MP4/M4V container. Failure, cancellation, no size reduction, or a changed original keeps the original. After replacement, the uncompressed original is no longer available; keep a separate copy if needed.
 
@@ -19,7 +19,7 @@ The drop panel expands only while you drag files toward it. Drop multiple videos
 
 Requires macOS 14 or later and Apple Silicon.
 
-1. Download `NotchCompressor-0.1.0-arm64-en.dmg` from the [0.1.0 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.1.0).
+1. Download `NotchCompressor-0.2.0-arm64-en.dmg` from the [0.2.0 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.0).
 2. Open the DMG and drag `NotchCompressor.app` to Applications.
 3. Open the app from Applications. It runs in the menu bar and near the notch.
 
@@ -27,9 +27,15 @@ The published app and DMG are Developer ID signed and notarized by Apple. No qua
 
 The app supports Japanese and English. The two DMGs have different installer instructions but contain the same app. The interface follows the macOS per-app language preference; restart the app after changing it.
 
-Alpha.1 does not support automatic updates: install 0.1.0 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are off by default.
+Alpha.1 does not support automatic updates: install 0.1.0 manually using the DMG. Alpha.2 can check for updates from Settings or the menu bar. Automatic checks are on for new installations. Existing preferences are preserved.
 
 If alpha.2 stays open after you choose Install and Relaunch, close Settings and choose Quit NotchCompressor from the app menu. The update will finish and relaunch the app. This issue is fixed in 0.1.0.
+
+## Images, audio, and notch widgets
+
+Add JPEG, PNG, and AAC M4A files alongside videos. Configure JPEG quality and standalone audio bitrate independently in Settings. PNG optimization preserves pixels and transparency. Images are limited to 128 MB and 32 megapixels. APNG, HEIF, HDR images, ALAC, WAV, and MP3 are not supported. M4A requires one mono or stereo AAC track; unsupported metadata or layouts keep the original.
+
+Hover over the notch to see a clock, Apple Music song information, artwork, and play/pause control. Choose Off, On hover, or Always for clock and music independently. Music access is requested when you connect.
 
 ## Frame rate
 
