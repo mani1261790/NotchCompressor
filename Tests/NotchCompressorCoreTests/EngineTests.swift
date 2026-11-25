@@ -36,6 +36,65 @@ final class EngineTests: XCTestCase {
         return try JSONDecoder().decode(Hashes.self, from: data).packets.map(\.data_hash)
     }
 
+    func testRealEngineRecoversFromDamagedCandidateOnlyAfterSleep() async throws {
+        let tools = try tools()
+        for scenario in ["recover", "repeatedFailure", "withoutSleep"] {
+            let folder = try directory()
+            defer { try? FileManager.default.removeItem(at: folder) }
+            let source = folder.appendingPathComponent("source.mov")
+            try await makeVideo(source, tools: tools)
+            let original = try Data(contentsOf: source)
+            let control = CompressionControl()
+            let fault = CandidateFault()
+            do {
+                let result = try await CompressionControl.$current.withValue(control) {
+                    try await CompressionEngine().compress(input: source, mode: .both, settings: .init()) {
+                        phase, _, note in
+                        guard phase == .validating else { return }
+                        fault.lock.withLock {
+                            fault.validations += 1
+                            // Every attempt must still read the untouched source until final commit.
+                            do {
+                                XCTAssertEqual(try Data(contentsOf: source), original)
+                                if fault.validations == 2 {
+                                    XCTAssertEqual(note, L10n.text("note.sleepRetry"))
+                                }
+                                if fault.validations == 1 || scenario == "repeatedFailure" {
+                                    let staging = try FileManager.default.contentsOfDirectory(
+                                        at: folder, includingPropertiesForKeys: nil
+                                    ).filter { $0.lastPathComponent.hasPrefix(".notchcompressor-") }
+                                    XCTAssertEqual(staging.count, 1)
+                                    let candidate = try XCTUnwrap(staging.first).appendingPathComponent("output.mov")
+                                    try Data("damaged test candidate".utf8).write(to: candidate)
+                                    if scenario != "withoutSleep" {
+                                        XCTAssertTrue(control.pause(.systemSleep))
+                                        XCTAssertTrue(control.resume(.systemSleep))
+                                    }
+                                }
+                            } catch {
+                                XCTFail("Fault injection failed: \(error)")
+                            }
+                        }
+                    }
+                }
+                XCTAssertEqual(scenario, "recover")
+                XCTAssertEqual(result.effectiveOutcome, .replaced)
+                XCTAssertLessThan(result.outputBytes, result.originalBytes)
+                XCTAssertTrue(control.hasCommitted)
+                let media = try await CompressionEngine().probe(source, tools: tools)
+                XCTAssertEqual(media.video.codecName, "hevc")
+                XCTAssertLessThan(abs(media.duration - 2), 0.1)
+            } catch {
+                XCTAssertNotEqual(scenario, "recover", "Unexpected failure: \(error)")
+                XCTAssertEqual((error as? CompressionError)?.localizedMessage.key, "error.process")
+                XCTAssertEqual(try Data(contentsOf: source), original)
+                XCTAssertFalse(control.hasCommitted)
+            }
+            XCTAssertEqual(fault.lock.withLock { fault.validations }, scenario == "withoutSleep" ? 1 : 2)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: folder.path), ["source.mov"])
+        }
+    }
+
     private func videoTimes(_ url: URL, tools: Toolchain) async throws -> [Double] {
         let data = try await ProcessRunner().run(
             executable: tools.ffprobe,
@@ -343,4 +402,9 @@ final class EngineTests: XCTestCase {
         }
     }
 
+}
+
+private final class CandidateFault: @unchecked Sendable {
+    let lock = NSLock()
+    var validations = 0
 }

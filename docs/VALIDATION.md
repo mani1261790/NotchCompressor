@@ -442,3 +442,11 @@ sleep-build7/validation.mov（合成動画の別コピー503,675,460バイト）
 09:06:24からMaintenance Sleep、09:21:54にDarkWake、09:22:05に再スリープ、09:30:13にUserActivity AssertionによるWakeを記録。通常復帰まで約24分で、明示的な復帰タイマーは設定していない。09:30:14にvalidatingへ戻り、UIでも検証継続を確認、09:30:44にcompleted/replaced（503,675,460→430,380,716バイト）。完了後の空キューも画面で確認。
 
 圧縮中だけ・検証中だけの両試験で正常復帰したが、前回のHEVC参照フレーム失敗は再現せず、自動再試行経路は実スリープでは未確認。原因を特定済みとはしない。再試行経路は制御した失敗を用いた実エンジン検証を追加する。証拠は `.local-work/next/native-acceptance/sleep-build7-validation-observations.jsonl`、`sleep-build7-validation-events.log`、`sleep-build7-validation-before.sha256`。
+
+## 2026-11-25 実エンジンによる自動再試行経路の確認
+
+EngineTests.testRealEngineRecoversFromDamagedCandidateOnlyAfterSleepを追加。実FFmpeg/VideoToolboxで生成した2秒の合成動画を実CompressionEngineへ渡し、validating通知で候補だけを破損させ、systemSleepの停止・復帰を模擬する。OSを眠らせる試験とは区別する。
+
+3条件を確認した。(1) 最初の候補だけ破損→2回目の圧縮・全体検証・縮小置換が成功、(2) 両候補が破損→2回で停止し原本を保持、(3) スリープなしで破損→1回で失敗し原本を保持。全検証段階で原本の全バイト一致を確認し、再試行の翻訳済み案内・最終commitの有無・一時出力の片付けも検査。成功時のHEVC形式・2秒の長さと縮小も確認した。
+
+`NOTCH_MEDIA_TESTS=1 bash scripts/test.sh --filter EngineTests/testRealEngineRecoversFromDamagedCandidateOnlyAfterSleep` 成功（1テスト内3条件、skipなし、5.18秒）。書式検査成功。ログ `.local-work/next/sleep-fault-tests.log`。アプリソースはビルド7から変更していない。実スリープ後の破損自体は再現しておらず、その原因を特定したという意味ではない。
