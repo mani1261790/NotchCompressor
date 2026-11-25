@@ -40,6 +40,10 @@
 python3 scripts/check-fixture-timing.py .local-work/quality-comparison/input.mov .local-work/quality-comparison/*-1.mov --output .local-work/quality-comparison/sync-check.json
 ```
 
+## ブラウザでの再生確認
+
+ローカルの比較ページで元動画と現行HEVCの1回目を実際に再生し、12.00秒の終端まで進むことを確認。ブラウザのVideoPlaybackQuality表示は元動画で4/720、HEVCで0/720のドロップを報告した。この数値はプレーヤー・表示環境の値で、エンコードされたファイルのフレーム欠落とは区別する。スクロール場面の画像を確認したが、途中でブラウザ幅が狭くなり画面全体の同条件比較にはなっていない。音を聴取した証拠や、全方式の動きの主観評価には使わない。
+
 ## 品質指定の対応条件
 
 [FFmpeg 9.0の公式ソース](https://www.ffmpeg.org/doxygen/9.0/videotoolboxenc_8c_source.html)と同梱版の`.build/vendor/ffmpeg-9.0.1/libavcodec/videotoolboxenc.c`を確認した。`-q:v`はMacのARM64ビルドだけで許可され、非対応環境ではエラーとなる。値は100を基準にVideoToolboxのQualityプロパティへ変換される。Intel版やRosetta下へこのMacの結果を一般化しない。x264/x265のCRFと同じ尺度ではなく、目標容量や文字の読みやすさを保証する数値でもない。
