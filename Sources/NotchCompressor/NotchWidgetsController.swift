@@ -21,6 +21,7 @@ final class NotchWidgetsController: ObservableObject {
     @Published private(set) var connecting = false
     @Published private(set) var controlling = false
     @Published private(set) var reading = false
+    private var playbackRevision = 0
     private var timer: AnyCancellable?
     private var sleeping = false
     private var sleepObserver: NSObjectProtocol?
@@ -51,15 +52,26 @@ final class NotchWidgetsController: ObservableObject {
     func connect() { refresh(askPermission: true) }
 
     func togglePlayback() {
-        guard !controlling, !reading, showMusic, track != nil,
+        guard !controlling, !sleeping, showMusic, track != nil,
             let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first?
                 .processIdentifier
         else { return }
+        playbackRevision += 1
         controlling = true
+        statusKey = nil
         Task {
-            let success = await Task.detached(priority: .userInitiated) { MusicTrackReader.toggle(pid: pid) }.value
+            // Read back only playback state; artwork/metadata must not delay feedback.
+            let playing = await Task.detached(priority: .userInitiated) { MusicTrackReader.toggle(pid: pid) }.value
             controlling = false
-            if success { refresh() } else { statusKey = "widgets.controlFailed" }
+            guard showMusic, !sleeping else { return }
+            if let playing, let current = track {
+                track = NowPlayingTrack(
+                    title: current.title, artist: current.artist, playing: playing,
+                    identity: current.identity, artwork: current.artwork)
+                refresh()
+            } else {
+                statusKey = "widgets.controlFailed"
+            }
         }
     }
 
@@ -74,12 +86,18 @@ final class NotchWidgetsController: ObservableObject {
         reading = true
         connecting = askPermission
         let previous = track
+        let revision = playbackRevision
         Task {
             let result = await Task.detached(priority: .utility) {
                 MusicTrackReader.read(pid: pid, askPermission: askPermission, previous: previous)
             }.value
             reading = false; connecting = false
             guard showMusic, !sleeping else { return }
+            guard revision == playbackRevision else {
+                // A poll started before the click must not restore the old icon.
+                if !controlling { refresh() }
+                return
+            }
             track = result.track
             statusKey = result.statusKey
         }
@@ -121,19 +139,24 @@ private enum MusicTrackReader {
         } catch { return .init(track: nil, statusKey: "widgets.musicUnavailable") }
     }
 
-    static func toggle(pid: pid_t) -> Bool {
+    static func toggle(pid: pid_t) -> Bool? {
         let target = NSAppleEventDescriptor(processIdentifier: pid)
         guard let descriptor = target.aeDesc,
             AEDeterminePermissionToAutomateTarget(descriptor, typeWildCard, typeWildCard, false) == noErr
-        else { return false }
+        else { return nil }
         let event = NSAppleEventDescriptor(
             eventClass: code("hook"), eventID: code("PlPs"),
             targetDescriptor: target, returnID: AEReturnID(kAutoGenerateReturnID),
             transactionID: AETransactionID(kAnyTransactionID))
         do {
             let reply = try event.sendEvent(options: [.waitForReply, .neverInteract], timeout: 2)
-            return (reply.paramDescriptor(forKeyword: AEKeyword(keyErrorNumber))?.int32Value ?? 0) == 0
-        } catch { return false }
+            guard (reply.paramDescriptor(forKeyword: AEKeyword(keyErrorNumber))?.int32Value ?? 0) == 0 else {
+                return nil
+            }
+            let state = try get(property: code("pPlS"), target: target).enumCodeValue
+            guard [code("kPSP"), code("kPSp"), code("kPSS")].contains(state) else { return nil }
+            return state == code("kPSP")
+        } catch { return nil }
     }
 
     private static func readArtwork(container: NSAppleEventDescriptor, target: NSAppleEventDescriptor) throws -> Data? {

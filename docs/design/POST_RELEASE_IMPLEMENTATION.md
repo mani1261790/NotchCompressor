@@ -106,3 +106,11 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Found the panel was initialized with a zero-size content rect and hidden without establishing its expanded canvas; initial size and visible state could be committed together.
 - Initialize the panel with a screen-top-centered canvas. Keep hidden layout prepared, and commit destination geometry/closed-mask layout with animations disabled before setting visible. Actual window movement remains unanimated to preserve native drag tracking.
 - Validation: 10 existing notch geometry/hover tests pass, universal release build and signed preview. These checks do not verify animation frames; first-hover visual acceptance still needs physical pointer input.
+
+### 2026-11-25: single playback affordance and immediate feedback (build 18)
+
+- Removed the dashboard's paused-state activity glyph beside the play button. Only the single play/pause control remains when paused; activity bars appear only during playback. Compact paused status uses a neutral music note.
+- Playback commands no longer wait for or disable themselves during metadata polling. The circular native button immediately shows pending progress and rejects duplicate clicks until the command completes.
+- Read back only player state after the command, updating the button without waiting for artwork/title retrieval. A revision counter discards metadata polls begun before the command so they cannot restore stale playback state.
+- Failure preserves the last known playback state and displays the existing error indicator. No optimistic playback success is shown.
+- Universal build and localization checks passed. Actual Music response latency and physical notch-button acceptance have not been measured.

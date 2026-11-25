@@ -63,15 +63,22 @@ struct NotchDashboardView: View {
                             Button {
                                 widgets.togglePlayback()
                             } label: {
-                                Image(systemName: track.playing ? "pause.fill" : "play.fill")
-                                    .frame(width: 30, height: 30)
+                                ZStack {
+                                    if widgets.controlling {
+                                        ProgressView().controlSize(.mini)
+                                    } else {
+                                        Image(systemName: track.playing ? "pause.fill" : "play.fill")
+                                    }
+                                }.frame(width: 34, height: 34)
+
                             }
-                            .buttonStyle(.plain)
-                            .background(.white.opacity(0.12), in: Circle())
-                            .disabled(widgets.controlling || widgets.reading)
+                            .modifier(CircularControlStyle())
+                            .disabled(widgets.controlling)
                             .accessibilityLabel(L10n.text(track.playing ? "widgets.pause" : "widgets.play"))
                             .help(L10n.text(track.playing ? "widgets.pause" : "widgets.play"))
-                            PlaybackActivityView(playing: track.playing)
+                            if track.playing && !widgets.controlling {
+                                PlaybackActivityView(playing: true).accessibilityHidden(true)
+                            }
                             if widgets.statusKey == "widgets.controlFailed" {
                                 Image(systemName: "exclamationmark.circle")
                                     .help(L10n.text("widgets.controlFailed"))
@@ -133,7 +140,7 @@ struct PlaybackActivityView: View {
             }
             .frame(width: 18, height: 18)
             .overlay {
-                if !playing { Image(systemName: "pause.fill").font(.system(size: 11, weight: .semibold)) }
+                if !playing { Image(systemName: "music.note").font(.system(size: 11, weight: .semibold)) }
             }
         }
         .accessibilityLabel(L10n.text(playing ? "widgets.playing" : "widgets.paused"))
