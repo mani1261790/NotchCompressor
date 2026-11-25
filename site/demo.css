@@ -20,3 +20,45 @@
 .showcase .demo-caption{padding-top:28px}
 
 .hero .preview-notice{max-width:46rem;margin:20px auto 16px;font-size:.85rem;line-height:1.7;color:var(--muted)}
+
+/* A stationary Mac: dragging the file is the only movement in the demo.
+   Reference display: 1380 wide, notch 168 × 30. The native panel is 480 × 178. */
+.tour{display:block;width:min(1100px,96%);height:auto}
+.tour .showcase{position:relative;top:auto;max-width:none}
+.tour .face,.tour .housing,.tour .machine::after{transform:none;opacity:1}
+.tour .scenes{opacity:1;width:88%;max-width:42rem;margin:24px auto 0;text-align:center}
+.scenes .section-title{justify-content:center}
+.demo-menubar{height:2.4cqw;font-size:1.18cqw;padding-inline:1.15cqw}
+.demo-notch{width:12.174cqw;height:2.174cqw;border-radius:0 0 .55cqw .55cqw;background:#101110}
+.demo-camera{height:2.174cqw}
+.demo-notch.expanded{width:34.783cqw;height:12.899cqw}
+.demo-zones{gap:.5cqw;padding:.6cqw .8cqw .8cqw}
+.demo-zones button{min-height:8.5cqw;font-size:1.4cqw;border-radius:1cqw;padding:.5cqw}
+.demo-workspace{inset:18cqw 15cqw 10cqw}
+.demo-file{font-size:1.5cqw}.demo-file small{font-size:1.2cqw}
+.file-symbol{width:5.2cqw;height:6.5cqw;font-size:3.5cqw;border-radius:.6cqw}
+.demo-instruction{font-size:1.3cqw}
+.showcase .demo-caption{display:block;padding:12px 4% 0;line-height:1.8}
+.mobile-crop-note{display:none}
+.queue-section{width:min(1100px,88%);grid-template-columns:.85fr 1.15fr;gap:6%;align-items:center}
+.queue-section ul{padding-left:1.2em;color:var(--muted);line-height:1.85;margin-top:20px}
+.queue-section li+li{margin-top:12px}
+.queue-shot{max-width:none}.queue-shot img{border-radius:12px;border:1px solid var(--line);box-shadow:0 14px 45px #142d2417}
+.queue-shot a{display:block;cursor:zoom-in}.queue-shot figcaption{line-height:1.7;padding-top:12px;color:var(--muted);font-size:.75rem}
+.usage-notes{width:min(950px,88%);margin:0 auto;padding:0 0 70px;display:grid;grid-template-columns:1fr 1fr;gap:38px 8%}
+.usage-notes h2{font-size:1.2rem;letter-spacing:-.025em}.usage-notes p{font-size:.94rem;line-height:1.9;color:var(--muted);margin-top:12px}
+.usage-notes .legacy-note{font-size:.8rem}
+@media(max-width:800px){.queue-section{grid-template-columns:1fr;gap:28px}.queue-shot{width:min(100%,680px);margin-inline:auto}}
+@media(max-width:600px){
+ .tour{width:94%}.machine{aspect-ratio:auto;height:410px;border:5px solid #252b28;border-radius:16px;overflow:hidden;background:#252b28}
+ .housing{display:none}.tour .face{width:680px;inset:0 auto auto 50%;transform:translateX(-50%)}
+ .demo-screen{border-radius:0;box-shadow:none}.screen{filter:none}
+ .demo-menubar{font-size:8px}.demo-menubar b{visibility:hidden}
+ .demo-workspace{inset:18cqw 28cqw 10cqw}
+ .demo-queue{width:280px;padding:12px}.demo-queue-heading{margin-bottom:10px}
+ .demo-reset,.demo-pause{width:44px;height:44px;min-width:44px}
+ .demo-instruction{font-size:11px;bottom:5cqw;left:50%;width:280px;transform:translateX(-50%)}
+ .demo-file{font-size:12px;min-height:44px}.demo-file small{font-size:10px}
+ .demo-zones button{font-size:11px;min-height:58px}
+ .mobile-crop-note{display:block}.usage-notes{grid-template-columns:1fr;gap:30px}
+}
