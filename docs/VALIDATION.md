@@ -456,3 +456,5 @@ EngineTests.testRealEngineRecoversFromDamagedCandidateOnlyAfterSleepを追加。
 ec3baa9のビルド7を署名・公証。アプリ27296a7a-5fbb-454f-963b-2f406b7348b5、日本語DMG1936b8fe-b29d-43b0-b0a3-4fff9fe851c9、英語DMG18bf5b44-755d-4a57-a6c3-4413dfa49f63はいずれもAccepted。staple・Gatekeeper・署名付きappcast・全SHA-256検査が成功。ログ `.local-work/next/build7-notarize.log`、成果物 `dist/0.1.0-build7/`、一時作業 `dist/.candidate.H8CDAh/`。
 
 v0.1.0の草稿全7資産を差替え、targetをec3baa9へ更新。`.local-work/next/build7-draft-download/` へ認証付き再取得し、SHA256SUMS自身と全6資産を照合して一致。公開フィードは変更していない。CI run45518969785は確認時点で実行中。
+
+ビルド7対象ec3baa9のCI run45518969785はcompleted/successを確認。単体テスト・翻訳整合・書式・認証情報なしの配布リハーサルが成功。公証済みビルド7をApplicationsへ導入し、deep/strict署名とstapleを検証して起動した。
