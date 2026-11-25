@@ -120,7 +120,8 @@ const status = demo.querySelector('.demo-status');
 const pause = demo.querySelector('.demo-pause');
 const meter = demo.querySelector('progress');
 const ja = document.documentElement.lang === 'ja';
-const mime = 'application/x-notchcompressor-demo';
+let gesture = null;
+let suppressClick = false;
 let dragging = false, progress = 0, paused = false, timer;
 function expand(open) {
   island.classList.toggle('expanded', open); zones.hidden = !open;
@@ -142,24 +143,57 @@ function start(mode) {
   progress=0;paused=false;updateProgress();
   timer=setInterval(()=>{if(paused)return;progress=Math.min(100,progress+2);updateProgress();if(progress===100)clearInterval(timer);},160);
 }
-file.addEventListener('click',()=>expand(!island.classList.contains('expanded')));
-file.addEventListener('dragstart',event=>{dragging=true;event.dataTransfer.setData(mime,'sample');event.dataTransfer.effectAllowed='copy';});
-file.addEventListener('dragend',()=>{dragging=false;expand(false);});
-demo.addEventListener('dragover',event=>{
-  event.preventDefault();
-  if(!dragging){event.dataTransfer.dropEffect='none';return;}
+file.addEventListener('click',()=>{
+  if(suppressClick){suppressClick=false;return;}
+  expand(!island.classList.contains('expanded'));
+});
+// A pointer gesture keeps the sample under the finger/mouse and works on touch
+// devices too. It never accepts a real file or relies on browser drag ghosts.
+file.draggable=false;
+file.addEventListener('pointerdown',event=>{
+  if(!event.isPrimary || event.button!==0)return;
+  suppressClick=false;
+  gesture={id:event.pointerId,x:event.clientX,y:event.clientY,moved:false,
+    scale:file.getBoundingClientRect().width/file.offsetWidth};
+  file.setPointerCapture(event.pointerId);
+});
+function zoneAt(x,y){
+  if(zones.hidden)return null;
+  // Hit targets use the expanded geometry immediately. A fast drop must not
+  // miss just because the visual width transition has not finished yet.
   const r=demo.getBoundingClientRect();
-  const near=event.clientY-r.top<r.height*.36;
-  expand(near);const zone=event.target.closest('[data-mode]');
-  event.dataTransfer.dropEffect=zone?'copy':'none';
+  const left=r.left+r.width*.12, top=r.top+r.width*.045;
+  const width=r.width*.76, bottom=r.top+r.width*.21;
+  if(x<left || x>left+width || y<top || y>bottom)return null;
+  return zones.querySelectorAll('button')[Math.min(2,Math.floor((x-left)/width*3))];
+}
+file.addEventListener('pointermove',event=>{
+  if(!gesture || gesture.id!==event.pointerId)return;
+  const dx=event.clientX-gesture.x,dy=event.clientY-gesture.y;
+  if(!gesture.moved && Math.hypot(dx,dy)<5)return;
+  gesture.moved=true;dragging=true;
+  file.classList.add('dragging');
+  file.style.transform=`translate(${dx/gesture.scale}px,${dy/gesture.scale}px)`;
+  const r=demo.getBoundingClientRect();
+  expand(event.clientX>=r.left && event.clientX<=r.right && event.clientY>=r.top && event.clientY<r.top+r.height*.36);
+  const zone=zoneAt(event.clientX,event.clientY);
   zones.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b===zone)));
 });
-demo.addEventListener('drop',event=>{
-  event.preventDefault();const zone=event.target.closest('[data-mode]');
-  if(dragging && zone && event.dataTransfer.getData(mime)==='sample')start(zone.dataset.mode);
-  else expand(false);
-});
+function endGesture(event,cancelled=false){
+  if(!gesture || gesture.id!==event.pointerId)return;
+  const moved=gesture.moved;
+  const zone=moved && !cancelled ? zoneAt(event.clientX,event.clientY) : null;
+  gesture=null;dragging=false;file.style.transform='';file.classList.remove('dragging');
+  if(file.hasPointerCapture(event.pointerId))file.releasePointerCapture(event.pointerId);
+  if(moved){suppressClick=true;if(zone)start(zone.dataset.mode);else expand(false);}
+}
+file.addEventListener('pointerup',event=>endGesture(event));
+file.addEventListener('pointercancel',event=>endGesture(event,true));
+file.addEventListener('lostpointercapture',event=>endGesture(event,true));
+file.addEventListener('dragstart',event=>event.preventDefault());
+demo.addEventListener('dragover',event=>{event.preventDefault();event.dataTransfer.dropEffect='none';});
+demo.addEventListener('drop',event=>event.preventDefault());
 zones.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>start(button.dataset.mode)));
 pause.addEventListener('click',()=>{paused=!paused;updateProgress();});
-demo.querySelector('.demo-reset').addEventListener('click',()=>{clearInterval(timer);queue.hidden=true;file.hidden=false;expand(false);file.focus();});
-demo.addEventListener('keydown',event=>{if(event.key==='Escape'){expand(false);file.focus();}});
+demo.querySelector('.demo-reset').addEventListener('click',()=>{clearInterval(timer);suppressClick=false;queue.hidden=true;file.hidden=false;expand(false);file.focus();});
+demo.addEventListener('keydown',event=>{if(event.key==='Escape'){if(gesture)endGesture({pointerId:gesture.id},true);expand(false);file.focus();}});
