@@ -532,3 +532,11 @@ Developer ID署名済みビルド8を更新元、公証済みビルド9（067621
 ただし画面は空きを0 bytesと表示。Foundationを同じボリュームへ直接問い合わせるとvolumeAvailableCapacity=46,817,280、volumeAvailableCapacityForImportantUsage=0、opportunistic=0だった。圧縮エンジンが重要用途向けの値だけを使っていたため、通常の空きも取得して両者の最大を採るよう修正。未取得値は0と断定せずnilのまま扱う。ビルド10へ進め、実HFS+ディスクを作成・マウントして空きが過少表示されないことを検証する回帰テストを追加。関連UsageFeedbackTests 5件成功。修正版の画面確認は未実施。試験DMGはアンマウントし `.local-work/next/low-space-build9/` に保持。
 
 ビルド10の全体検証: NOTCH_MEDIA_TESTS=1で実FFmpeg/VideoToolbox試験を含む80件が成功。書式・日英254キーと参照215件の検査も成功。ログは同試験ディレクトリのbuild10-media-tests.log。
+
+## 2026-11-25 ビルド10の公証・容量表示再確認
+
+ソースa0b52cbのアプリ・日英DMGが公証、staple、Gatekeeper、署名・フィード・チェックサム検査を通過。成果物はdist/0.1.0-build10、ログは `.local-work/next/build10-notarize.log`、作業物はdist/.candidate.XycLmG。アプリ提出IDは0008a7ad-3d6b-4394-95d8-6625369a4d24。
+
+署名・公証を検査してこのMacのアプリをビルド10へ入替。同じ小容量HFS+ディスクの動画で、英語実画面にAvailable:46.8 MB / Estimated:89.5 MB / More needed:42.7 MBを確認。保存された容量値は46,817,280と89,527,080 bytesで実際の空きと一致。原本ハッシュ一致、試験タスク除外後は空キュー。試験ディスクをアンマウントした。結果は `.local-work/next/low-space-build9/build10-result.json`。
+
+ビルド10の7成果物をv0.1.0下書きへ添付し対象コミットを更新。`.local-work/next/build10-draft-download/` への再取得後、チェックサムファイル自体と記載された6成果物の一致を確認。対象CI run45525732505はまだin_progress。公開フィードは未変更。
