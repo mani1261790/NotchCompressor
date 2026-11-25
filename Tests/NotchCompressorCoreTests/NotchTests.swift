@@ -67,6 +67,27 @@ final class NotchTests: XCTestCase {
         XCTAssertFalse(session.holdsPanelOpen(leftButtonDown: true, now: 4))
     }
 
+    func testWidgetsReserveCameraAndFitExternalDisplays() {
+        for screen in [
+            CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080),
+        ] {
+            let notch = NotchWidgetGeometry(screen: screen, topInset: 32, notchWidth: 210)
+            XCTAssertEqual(notch.cameraWidth, 210)
+            XCTAssertEqual(notch.frame.midX, screen.midX)
+            XCTAssertEqual(notch.frame.maxY, screen.maxY)
+            XCTAssertEqual(notch.frame.width, 2 * notch.sideWidth + notch.cameraWidth)
+            XCTAssertTrue(screen.contains(notch.frame))
+            let external = NotchWidgetGeometry(screen: screen, topInset: 0, notchWidth: 0)
+            XCTAssertEqual(external.cameraWidth, 0)
+            XCTAssertEqual(external.frame.maxY, screen.maxY - 8)
+            XCTAssertTrue(screen.contains(external.frame))
+        }
+        let narrow = NotchWidgetGeometry(
+            screen: CGRect(x: 0, y: 0, width: 200, height: 300), topInset: 32, notchWidth: 210)
+        XCTAssertEqual(narrow.frame.width, 200)
+        XCTAssertGreaterThanOrEqual(narrow.sideWidth, 0)
+    }
+
     func testCollapsedFrameFitsNotchAndRemainsAtScreenTop() {
         let screen = CGRect(x: -1512, y: 200, width: 1512, height: 982)
         let geometry = NotchGeometry(screen: screen, topInset: 32, notchWidth: 210)

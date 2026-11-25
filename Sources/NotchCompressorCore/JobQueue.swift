@@ -9,7 +9,9 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public var effectiveMediaKind: MediaKind { mediaKind ?? .video }
     public var usesVisualEncoder: Bool { effectiveMediaKind != .audio && mode != .audio }
     public var modeTitle: String { effectiveMediaKind == .video ? mode.title : effectiveMediaKind.title }
-    public var modeSymbol: String { effectiveMediaKind == .image ? "photo" : mode.symbol }
+    public var modeSymbol: String {
+        effectiveMediaKind == .image ? "photo" : (effectiveMediaKind == .audio ? "waveform" : mode.symbol)
+    }
     public var settingsSummary: String {
         if effectiveMediaKind == .image {
             return input.pathExtension.lowercased() == "png"

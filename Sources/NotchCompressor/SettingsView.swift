@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var message: String?
     @State private var loginDetails: String?
     @State private var showingDiagnostics = false
+    @ObservedObject private var widgets = NotchWidgetsController.shared
     @State private var category: SettingsCategory = .compression
 
     var body: some View {
@@ -190,6 +191,24 @@ struct SettingsView: View {
                     }
                 }
                 if category == .general {
+                    Section {
+                        Toggle(L10n.text("widgets.clock"), isOn: $widgets.showClock).toggleStyle(.switch)
+                        Toggle(L10n.text("widgets.music"), isOn: $widgets.showMusic).toggleStyle(.switch)
+                        Text(L10n.text("widgets.hint")).font(.caption).foregroundStyle(.secondary)
+                        if widgets.showMusic {
+                            Button {
+                                widgets.connect()
+                            } label: {
+                                Label(L10n.text("widgets.connect"), systemImage: "music.note")
+                            }.capsuleControl().disabled(widgets.connecting)
+                            if widgets.connecting { ProgressView().controlSize(.small) }
+                            if let key = widgets.statusKey {
+                                Text(L10n.text(key)).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                    } header: {
+                        Label(L10n.text("widgets.title"), systemImage: "menubar.rectangle")
+                    }
                     Section {
                         KeyboardShortcuts.Recorder(L10n.text("app.openQueue"), name: .showCompressionQueue)
                         Text(L10n.text("settings.shortcutHint"))

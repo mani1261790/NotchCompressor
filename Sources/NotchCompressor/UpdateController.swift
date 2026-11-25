@@ -25,6 +25,7 @@ final class UpdateController: NSObject, ObservableObject, SPUUpdaterDelegate {
     }
 
     func start() {
+        guard Bundle.main.bundleIdentifier == "com.mani.NotchCompressor" else { return }
         do { try controller.updater.start() } catch {
             status = L10n.text("update.error"); technicalDetails = error.localizedDescription
         }

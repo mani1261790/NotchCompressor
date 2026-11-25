@@ -8,6 +8,10 @@ final class DropPresentation: ObservableObject {
     @Published var mode: CompressionMode?
     @Published var topInset: CGFloat = 0
     @Published var visible = false
+    @Published var showingWidgets = false
+    @Published var compactWidth: CGFloat = 180
+    @Published var compactHeight: CGFloat = 28
+    @Published var cameraWidth: CGFloat = 0
 }
 
 @MainActor
@@ -70,6 +74,8 @@ final class NotchPanelController {
     private let presentation = DropPresentation()
     private let host: DropHostingView
     private var timer: Timer?
+    private var collapseTask: Task<Void, Never>?
+    private let widgets = NotchWidgetsController.shared
     private var nativeDrop = NativeDropSession()
     private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
@@ -126,25 +132,66 @@ final class NotchPanelController {
     }
 
     private func collapse() {
+        guard collapseTask == nil else { return }
+        panel.ignoresMouseEvents = true
+        if presentation.mode != nil { presentation.mode = nil }
+        if presentation.visible {
+            presentation.visible = false
+            collapseTask = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(220)) } catch { return }
+                guard let self else { return }
+                collapseTask = nil
+                finishCollapse()
+            }
+        } else {
+            finishCollapse()
+        }
+    }
+
+    private func finishCollapse() {
         guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.screens.first else {
-            return
+            panel.orderOut(nil); return
         }
         let geometry = geometry(on: screen)
-        presentation.visible = false
-        presentation.mode = nil
-        presentation.topInset = geometry.topInset
+        if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
+        if presentation.compactWidth != geometry.collapsed.width {
+            presentation.compactWidth = geometry.collapsed.width
+        }
+        if presentation.compactHeight != geometry.collapsed.height {
+            presentation.compactHeight = geometry.collapsed.height
+        }
         host.geometry = geometry
-        setFrame(geometry.collapsed)
-        if !panel.isVisible { panel.orderFrontRegardless() }
+        if presentation.showingWidgets != widgets.hasVisibleContent {
+            presentation.showingWidgets = widgets.hasVisibleContent
+        }
+        if widgets.hasVisibleContent {
+            let layout = NotchWidgetGeometry(
+                screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width)
+            if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
+            setFrame(layout.frame)
+            if !panel.isVisible { panel.orderFrontRegardless() }
+        } else {
+            // No invisible window over the menu bar when optional information is off.
+            panel.orderOut(nil)
+        }
     }
 
     private func expand(on screen: NSScreen) {
+        collapseTask?.cancel(); collapseTask = nil
         let geometry = geometry(on: screen)
         host.geometry = geometry
-        presentation.topInset = geometry.topInset
-        presentation.visible = true
+        if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
+        if presentation.compactWidth != geometry.collapsed.width {
+            presentation.compactWidth = geometry.collapsed.width
+        }
+        if presentation.compactHeight != geometry.collapsed.height {
+            presentation.compactHeight = geometry.collapsed.height
+        }
+        if presentation.showingWidgets { presentation.showingWidgets = false }
         setFrame(geometry.panel)
+        panel.ignoresMouseEvents = false
         if !panel.isVisible { panel.orderFrontRegardless() }
+        if !presentation.visible { presentation.visible = true }
     }
 
     private func update() {

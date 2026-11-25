@@ -21,3 +21,17 @@
 - 2026-11-25: 実FFmpeg/VideoToolboxを含む92テストが成功（スキップなし）。旧履歴・動画圧縮・原本保持・スリープ回復の回帰試験を含む。署名済み配布アプリと実ユーザー操作の検証は別途必要。
 
 次の表示改善: [#40 ノッチ](https://github.com/mani1261790/NotchCompressor/issues/40)、[#41 時計・音楽](https://github.com/mani1261790/NotchCompressor/issues/41)。
+
+## ノッチと任意情報の実装
+
+待機時に時計・音楽がオフならNSPanelをorderOutし、クリック領域を残さない。接近検知時にウインドウ枠は即時確保し、SwiftUIのマスクだけを展開する。収納中もクリックを透過し、Reduce Motion時は描画アニメーションを止める。時計と日付、Apple Musicの曲名はノッチ左右の独立した領域へ表示する。初期値は両方オフ。
+
+Apple Musicは公開Apple Eventsで既に起動しているPIDから現在曲だけを取得する。オフ時はアクセスせず、定期取得は許可を要求しない。利用者が設定の接続ボタンを押したときだけ許可要求が可能。拒否・曲なし・未起動・タイムアウトの説明を日英で用意した。Spotifyやブラウザ等の全プレーヤー対応ではない。曲情報の実取得と権限ダイアログは未確認。
+
+2026-11-25: 実メディア込み93テスト成功。追加の画像補助プロセス停止・再開テストも成功。アドホック署名付きアプリのビルドと署名検査、パッケージ内の画像補助プロセス実行が成功。画像・音声を含むUI文言をファイル単位へ更新。署名・公証済み次版を公開したという意味ではない。
+
+CUAはMacのロックを検出し実画面を取得できなかったため、解除を依頼した。NotchBoxの表示、展開の見た目、実Finderドロップ、音楽権限は合格としない。既存0.1.0のキューとアプリは変更せず、別bundle IDの検証用コピーでUIを確認する。
+
+## MacのDynamic Island
+
+[AppleのWidgetKit戦略](https://developer.apple.com/documentation/widgetkit/developing-a-widgetkit-strategy/)はmacOS 27.3以降のネイティブLive Activitiesを案内している。一方、実機のOS27.3に対しインストール済みSDKは27.2で、ActivityKit.ActivityとWidgetKit.DynamicIslandはmacOS unavailable。既存SDKでavailabilityを回避しない。[#42](https://github.com/mani1261790/NotchCompressor/issues/42)で対応SDKと機種の検証を追跡する。自前の受け取りパネルとシステムLive Activityは別に扱う。

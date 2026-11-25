@@ -29,7 +29,7 @@ final class AppState: ObservableObject {
 
     private init() {
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.mani.NotchCompressor", isDirectory: true)
+            .appendingPathComponent(Bundle.main.bundleIdentifier ?? "com.mani.NotchCompressor", isDirectory: true)
         let queue = JobQueue(storage: folder.appendingPathComponent("queue.json"))
         self.queue = queue
         activity = QueueActivity(queue: queue)
@@ -192,14 +192,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 struct DropPanel: View {
     @ObservedObject var presentation: DropPresentation
+    @ObservedObject private var widgets = NotchWidgetsController.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        ZStack(alignment: .top) {
-            UnevenRoundedRectangle(
-                bottomLeadingRadius: presentation.visible ? 26 : 10,
-                bottomTrailingRadius: presentation.visible ? 26 : 10
-            )
-            .fill(.black)
-            if presentation.visible {
+        GeometryReader { proxy in
+            if presentation.showingWidgets {
+                NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
+            } else {
                 VStack(spacing: 0) {
                     Color.clear.frame(height: presentation.topInset)
                     VStack(spacing: 12) {
@@ -211,10 +210,25 @@ struct DropPanel: View {
                         Text(L10n.text("notch.dropHint"))
                             .font(.caption2).foregroundStyle(.white.opacity(0.65))
                     }.padding(14).frame(height: 148)
+                        .opacity(presentation.visible ? 1 : 0)
                 }
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+                .background(.black)
+                .mask(alignment: .top) {
+                    UnevenRoundedRectangle(
+                        topLeadingRadius: presentation.topInset > 0 ? 0 : 16,
+                        bottomLeadingRadius: presentation.visible ? 26 : 10,
+                        bottomTrailingRadius: presentation.visible ? 26 : 10,
+                        topTrailingRadius: presentation.topInset > 0 ? 0 : 16
+                    )
+                    .frame(
+                        width: presentation.visible ? proxy.size.width : presentation.compactWidth,
+                        height: presentation.visible ? proxy.size.height : presentation.compactHeight)
+                }
+                .animation(
+                    reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.86), value: presentation.visible)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipped()
         .environment(\.colorScheme, .dark)
     }
@@ -223,6 +237,7 @@ struct DropPanel: View {
 struct DropZone: View {
     let mode: CompressionMode
     let targeted: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing: 7) {
             Image(systemName: mode.selectionSymbol).font(.title2)
@@ -237,7 +252,7 @@ struct DropZone: View {
         .foregroundStyle(targeted ? .black : .white)
         .frame(maxWidth: .infinity).frame(height: 88)
         .background(targeted ? Color.mint : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-        .animation(.easeOut(duration: 0.1), value: targeted)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: targeted)
         .accessibilityLabel(L10n.text("notch.accessibility", mode.selectionTitle))
     }
 }

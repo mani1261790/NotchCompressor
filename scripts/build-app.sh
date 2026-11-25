@@ -45,6 +45,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSAppleEventsUsageDescription</key><string>Show the current Apple Music track beside the notch when you enable music display.</string>
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/mani1261790/NotchCompressor/main/updates/appcast.xml</string>
 <key>SUEnableAutomaticChecks</key><false/>
 <key>SUAllowsAutomaticUpdates</key><false/>
@@ -56,5 +57,12 @@ PLIST
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NOTCH_MARKETING_VERSION" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NOTCH_BUILD_NUMBER" "$app_dir/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $(cat config/sparkle-public-key.txt)" "$app_dir/Contents/Info.plist"
+mkdir -p "$app_dir/Contents/Resources/ja.lproj" "$app_dir/Contents/Resources/en.lproj"
+cat > "$app_dir/Contents/Resources/ja.lproj/InfoPlist.strings" <<'STRINGS'
+"NSAppleEventsUsageDescription" = "音楽表示を有効にしたとき、Apple Musicで再生中の曲をノッチの横に表示します。";
+STRINGS
+cat > "$app_dir/Contents/Resources/en.lproj/InfoPlist.strings" <<'STRINGS'
+"NSAppleEventsUsageDescription" = "Show the current Apple Music track beside the notch when you enable music display.";
+STRINGS
 bash scripts/sign-app.sh "$app_dir"
 printf 'Built %s\n' "$app_dir"

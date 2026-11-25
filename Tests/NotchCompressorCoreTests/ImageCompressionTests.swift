@@ -143,6 +143,34 @@ final class ImageCompressionTests: XCTestCase {
             })
     }
 
+    func testImageHelperPausesAndResumesWithinTheSameTransaction() async throws {
+        let directory = try folder()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let source = directory.appendingPathComponent("image.png")
+        try image(source, type: .png)
+        let before = try Data(contentsOf: source)
+        let control = CompressionControl()
+        let encoding = expectation(description: "Image worker reached encoding")
+        let task = Task {
+            try await CompressionControl.$current.withValue(control) {
+                try await CompressionEngine().compress(input: source, mode: .both, settings: .init()) { phase, _, _ in
+                    if phase == .encoding { XCTAssertTrue(control.pause()); encoding.fulfill() }
+                }
+            }
+        }
+        await fulfillment(of: [encoding], timeout: 5)
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertTrue(control.isPaused)
+        XCTAssertEqual(try Data(contentsOf: source), before)
+        XCTAssertTrue(control.resume())
+        let result = try await task.value
+        XCTAssertLessThanOrEqual(result.outputBytes, result.originalBytes)
+        XCTAssertFalse(
+            try FileManager.default.contentsOfDirectory(atPath: directory.path).contains {
+                $0.hasPrefix(".notchcompressor-")
+            })
+    }
+
     func testImageEngineUsesHelperAndKeepsOriginalOnFailure() async throws {
         let directory = try folder()
         defer { try? FileManager.default.removeItem(at: directory) }
