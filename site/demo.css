@@ -15,3 +15,6 @@
 .demo-screen{background:linear-gradient(145deg,light-dark(#c4dfcc,#243c32),light-dark(#e6edc7,#394b35));color:light-dark(#22312a,#edf3e8)}
 .demo-screen strong{color:inherit}.demo-menubar{background:light-dark(#f7fff375,#15271bbf)}.demo-queue{background:light-dark(#fffffff0,#17231ff2)}.demo-mode,.demo-file small{color:light-dark(#526557,#b3c4b8)}.demo-reset,.demo-pause{background:light-dark(#f4f8ef,#2d4034);border-color:var(--line);color:inherit}.file-symbol{color:#22312a}
 .demo-screen:has(.demo-queue:not([hidden])) .demo-instruction{visibility:hidden}
+.demo-empty{padding:2cqw 0;font-size:2cqw;color:light-dark(#526557,#b3c4b8)}
+@media(max-width:700px){.demo-empty{font-size:10px}}
+.showcase .demo-caption{padding-top:28px}

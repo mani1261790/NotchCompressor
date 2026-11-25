@@ -3,14 +3,9 @@ const system = matchMedia('(prefers-color-scheme: dark)');
 const wide = matchMedia('(min-width: 960px) and (min-height: 630px)');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)');
 const figure = document.querySelector('.showcase');
-const switcher = document.querySelector('.switcher');
 const tour = document.querySelector('.tour');
-const buttons = [...document.querySelectorAll('[data-view]')];
 const scenes = [...document.querySelectorAll('[data-scene]')];
-const notebook = document.querySelector('#notebook');
-const settings = document.querySelector('#settings-shot');
 let active = 'open';
-let lastPath = '';
 function draw(){
   const value = document.querySelector('.appearance-value');
   value.textContent = appearance.selectedOptions[0].textContent;
@@ -28,7 +23,6 @@ appearance.addEventListener('change',()=>{
   draw();
 });
 system.addEventListener('change',draw);
-buttons.forEach(b=>b.addEventListener('click',()=>choose(b.dataset.view)));
 const slot = tour.querySelector('.screen-slot');
 let geometry;
 let needsMeasure = true;
@@ -129,7 +123,11 @@ function expand(open) {
   if (!open) zones.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));
 }
 function updateProgress() {
+  if(progress===100 && document.activeElement===pause)demo.querySelector('.demo-reset').focus({preventScroll:true});
   meter.value = progress;
+  demo.querySelector('.demo-job').hidden = progress === 100;
+  demo.querySelector('.demo-empty').hidden = progress !== 100;
+  meter.hidden = progress === 100;
   status.textContent = progress === 100
     ? (ja ? 'デモ完了 — 実際の動画は変更していません。' : 'Demo complete — no real video was changed.')
     : (ja ? (paused ? '一時停止中' : '圧縮中（デモ）') : (paused ? 'Paused' : 'Compressing (demo)')) + ' · ' + progress + '%';
@@ -138,9 +136,11 @@ function updateProgress() {
   pause.setAttribute('aria-label', ja ? (paused ? '再開' : '一時停止') : (paused ? 'Resume' : 'Pause'));
 }
 function start(mode) {
+  const focusControls=zones.contains(document.activeElement);
   clearInterval(timer); expand(false); dragging=false; file.hidden=true; queue.hidden=false;
   demo.querySelector('.demo-mode').textContent = zones.querySelector(`[data-mode="${mode}"]`).textContent;
   progress=0;paused=false;updateProgress();
+  if(focusControls)pause.focus({preventScroll:true});
   timer=setInterval(()=>{if(paused)return;progress=Math.min(100,progress+2);updateProgress();if(progress===100)clearInterval(timer);},160);
 }
 file.addEventListener('click',()=>{
