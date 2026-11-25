@@ -1,75 +1,72 @@
-# Developer ID配布: alpha.2
+# Developer ID配布ガイド
 
-2026-11-24: alpha.2を署名・公証済み試験版として公開。認証登録は完了。UIの実機確認とSparkle実更新の未確認範囲は[検証記録](VALIDATION.md)を参照。以下は配布手順と過去の準備記録。
-2026-11-11時点。対象はGitHubから直接配布するApple Silicon版。Developer Programへの加入と配布用証明書の発行は別の手続き。現在配布しているalpha.1はアドホック署名・未公証のまま変更しない。
+バージョンとビルド番号は `config/release.env` を唯一の設定元とする。現在の公開版・候補・実機確認の状況は [0.1.0の配布チェックリスト](RELEASE_0_1_0.md) と [検証記録](VALIDATION.md) を参照する。過去の版の番号をコピーして新しい成果物を作らない。
 
-1. **配布工程（#18）**: 同梱エンジンとアプリ本体を内側から署名し、リハーサル用と配布用の出力を分ける。
-2. **実署名・公証（#8 / #19）**: このMacで秘密鍵が使えるDeveloper ID Application証明書と、同じチームの公証プロファイルを用意。チケット付きアプリを含むZIPとDMGを作る。
-3. **配布経路の確認（#19）**: ブラウザで取得したZIPでGatekeeperと主要操作を確認する。全条件が通ったら新規タグで公開する。
-4. **次の判断**: 実機・代表収録の課題（#4〜#7）を整理して安定版を判断する。DMGとSparkle更新を今回の配布工程に含める。ストア配布を選ぶ場合はサンドボックス下のFinderドロップ・同名置換・同梱ヘルパーの動作を別途設計する。
+対象はGitHubから直接配布するApple Silicon版。公開済みタグや添付物は変更しない。App Storeへの配布は別の設計・審査が必要。
 
-## 一度だけ行うアカウント設定
+## 認証と署名
 
-- Xcode → Settings → Accounts（Apple Accounts）で該当チームを選び、Manage Certificates → ＋ → **Developer ID Application**。既に別のMacで発行済みなら、秘密鍵付きの既存証明書を安全に移行する方法もある。Apple DevelopmentやDeveloper ID Installerでは代用できない。
-- ターミナルで次を実行。Apple Account・Team ID・アプリ用パスワード等は手元の対話プロンプトに入力し、チャットやリポジトリには記載しない。既存プロファイルを使う場合は登録不要。
+Developer ID Application証明書と対応する秘密鍵、およびnotarytoolのキーチェーンプロファイルを使う。このプロジェクトのプロファイル名は `NotchCompressor`。登録済みの環境では再登録不要。
 
 ```sh
-xcrun notarytool store-credentials NotchCompressor
 bash scripts/distribute.sh check
 ```
 
-別名のプロファイルは `NOTCH_NOTARY_PROFILE`、複数の配布証明書があるときは `NOTCH_SIGNING_SHA1` に対象のフィンガープリントを指定する。checkは証明書の種類・有効性とAppleの公証サービスへの認証を確認し、アップロードは行わない。秘密鍵のバックアップと失効管理はチーム所有者が行う。
-
-## ビルドと検証
+checkは署名証明書と公証サービスの認証を確認する。成果物の提出・公開は行わない。新しい環境でプロファイルを登録するときだけ、手元のターミナルで次を実行する。認証情報をチャット、Issue、リポジトリへ記載しない。
 
 ```sh
+xcrun notarytool store-credentials NotchCompressor
+```
+
+別のプロファイルは `NOTCH_NOTARY_PROFILE`、複数の証明書がある場合は `NOTCH_SIGNING_SHA1` で選択する。証明書の種類はDeveloper ID Applicationであり、Apple DevelopmentやDeveloper ID Installerでは代用できない。
+
+## ビルドと公証
+
+1. `config/release.env` に未使用のリリース名と、公開済み版より大きいビルド番号を設定し、コミットする。既存候補にアプリの修正を入れた場合もビルド番号を進める。
+2. 対象コミットのCI（書式、翻訳、テスト、配布リハーサル）を確認する。
+3. クリーンなチェックアウトから配布工程を実行する。
+
+```sh
+# Apple認証不要のローカルリハーサル
 bash scripts/distribute.sh rehearse
-# 配布用認証の用意後、リリース元コミットのクリーンなcheckoutで:
+# Developer ID署名・公証を行う配布候補
 bash scripts/distribute.sh notarize
 ```
 
-rehearseはローカルのアドホック署名で、build 2・Hardened Runtime付きのアプリと同梱ffmpeg/ffprobeを検証する。出力は隠し作業ディレクトリのREHEARSAL名で、公開禁止。notarizeは証明書・認証の不足時に失敗し、アドホック署名へ切り替えない。署名 → secure timestamp → ZIP提出 → Accepted確認 → appにstaple → 再梱包 → 展開したappをcodesign/stapler/spctlで検査する。公証ログ・提出IDは出力された作業パスで確認する。通信中断時は同じIDをnotarytool info/logで確認してから再提出を判断する。
+リハーサルはアドホック署名で、REHEARSALという名前の成果物を作る。公開用には使わない。notarizeは認証不足時に失敗し、アドホック署名へ切り替えない。
 
-配布用資産は成功時だけ `dist/0.1.0-alpha.2/` に揃う。公開はスクリプトに含めない。ソースと同梱ライセンス・ビルド情報・SHA256SUMSは従来どおり添付する。
+notarizeは内包エンジンからアプリまで署名し、アプリの公証・staple後にZIPを作り直す。展開したアプリの署名、ticket、Gatekeeperと内包エンジンを検査する。日英DMGも個別に署名・公証・staple・Gatekeeper検査する。
 
-## 公開の判定
+成功した配布物は `dist/<リリース名>-build<ビルド番号>/` に揃う。例えば0.1.0のビルド9は `dist/0.1.0-build9/`。既存の出力先は再利用しない。非公開の提出ログと作業物は表示された `dist/.candidate.*` に残る。公証の観測が中断した場合は同じ提出IDをnotarytool info/logで確認し、重複提出を避ける。
 
-- AppleのAccepted、公証ログ（警告も確認）、全実行ファイルの署名、展開済みアプリのticketとGatekeeper判定が成功。
-- 該当コミットでGitHubの新規Release下書きを作成し、検証済みの配布資産を添付。別のMacまたはクリーンなユーザーで、ブラウザから取得した正規DMGを開き、アプリをApplicationsへドラッグして起動。**隔離属性を削除しない**。通常の初回起動確認と「開発元を確認できません」を区別する。
-- 許可されたテスト動画のコピーでノッチ3領域、キュー、同名置換・失敗時保持、メニューバー、ログイン起動を確認。未確認項目は記録する。
-- 署名した同じDMG・ZIPを公開し、匿名ダウンロード後のSHA-256を照合。READMEはその時点で新しい手順へ変更し、alpha.1向けの隔離属性の説明を混在させない。公開済みのタグ・添付物は変更しない。
+## 配布物
 
-Apple: [Developer ID](https://developer.apple.com/developer-id/) / [Notarizing macOS software before distribution](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+- `-ja.dmg` と `-en.dmg`: インストール案内の背景だけが異なり、同一のアプリを含む。アプリの言語はmacOSの設定に従う。
+- アプリZIP: Sparkle更新用。DMGと同じ署名済みアプリを含む。
+- FFmpegソースとbuild-information ZIP: 対応する再配布資料。build-informationにはソースコミットとビルド設定を含む。
+- `appcast.xml`: 更新先URL、ビルド番号、ZIP署名を含む署名済みフィード。
+- `SHA256SUMS.txt`: 上記6成果物のチェックサム。
 
+Sparkle 2.10.1の鍵はログインキーチェーンのアカウント `com.mani.NotchCompressor` に保存し、公開鍵だけをリポジトリに置く。秘密鍵のバックアップは所有者が安全な場所で管理する。CIにはApple認証や更新用秘密鍵を置かない。
 
-## DMGとSparkle更新
+## 公開の順序
 
-`distribute.sh rehearse` はアプリとApplicationsへのリンクを含む読み取り専用DMGを作り、マウントして署名とリンクを検証する。`notarize` はアプリに加えてDMGも署名・公証・stapleし、Gatekeeperの検査を行う。DMGは初回インストール用、ZIPはSparkle更新用で、両方に同じアプリを格納する。
+1. 配布チェックリストの未完項目を確認する。実機未確認をCIや公証の成功で置き換えない。
+2. ビルド情報に記録されたソースコミットを対象にGitHub Releaseの下書きを作り、7成果物を添付する。下書きから再ダウンロードし、チェックサムファイル自体も信頼するローカル原本と比較してから、6成果物を照合する。
+3. 署名・公証済みの同じ成果物をReleaseとして公開する。公開後は添付物を差し替えない。不備があれば次の版を作る。
+4. 認証なしで公開DMG・ZIP・再配布資料・フィード・チェックサムを取得し、ローカル原本との一致を確認する。署名済みフィードの更新ZIP URLが公開されていることを確認する。
+5. 候補の `appcast.xml` を**バイトを変更せず** `updates/appcast.xml` へコピーしてコミット・pushする。フィード公開をZIP公開より先にしない。
+6. 日本語・英語のREADMEとLPについて、ダウンロード先、版名、原本保持、スリープ、対応言語の説明をまとめて切り替える。日英DMGは共通アプリであることを維持する。
+7. 公開LPの両言語から正しいDMGへ到達でき、公開フィードの署名とビルド番号が候補に一致することを確認する。更新対応版で取得・置換・再起動を確認する。
 
-Sparkle 2.10.1を固定し、メニューバーと設定に更新確認を追加した。自動チェックは初期状態ではオフ。設定から有効にできるが、インストールにはユーザーの操作を必要とする。処理待ち・実行中・一時停止中の動画がある間は更新チェックを開始せず、ダウンロード中に動画が追加された場合もキューが空になるまで再起動を待つ。一時停止中の動画は再開または除外が必要。
+ブラウザ取得後の初回起動では隔離属性を削除しない。通常の初回確認と「開発元を確認できません」を区別する。別ユーザー・別Macで確認した場合は、その環境と範囲を記録する。
 
-更新ZIPとフィードをEdDSA署名し、アプリ側で検証する。秘密鍵はこのMacのログインキーチェーン（アカウント `com.mani.NotchCompressor`）に保存し、リポジトリには公開鍵だけを含める。鍵を失うと既存インストールへの更新配布が困難になるため、所有者が安全な場所へバックアップする。秘密鍵をIssueやチャットへ貼らない。ツールは `bash scripts/sparkle-tools.sh` で取得でき、固定SHA-256を検証してから使用する。
+## 更新時の確認事項
 
-### 公開する順序
+更新チェックは実行中・待機中・一時停止中には開始しない。取得後にタスクが追加された場合も、キューが空になるまで更新インストールを延期する。一時停止したタスクは、利用者が再開または除外するまで更新を待たせる。設定・履歴の保持も比較する。
 
-1. 未使用のリリース番号と、既存版より大きい `CFBundleVersion` を設定する。現在の候補はalpha.2 / build 2。
-2. クリーンなコミットから `bash scripts/distribute.sh notarize` を実行する。生成された `dist/0.1.0-alpha.2/appcast.xml` はまだ公開されない。
-3. GitHub ReleaseにDMG・更新ZIP・対応ソース・ビルド情報・SHA256SUMS・appcastを添付し、上の配布経路確認を行って公開する。
-4. 公開した更新ZIPのURLとSHA-256を確認してから、生成されたappcastを**バイトを変えず** `updates/appcast.xml` にコピーしてコミット・pushする。更新フィードの公開を先行させない。
-5. 既存のSparkle対応版でチェック→ダウンロード→インストール→再起動まで確認する。キュー実行中・一時停止中に再起動されないことも実機で確認する。
+alpha.1にはSparkleがないため、DMGから手動更新する。alpha.2では設定シートが更新時の終了を妨げる場合がある。Install and Relaunch後も終了しなければ設定を閉じ、メニューからNotchCompressorを終了すると、更新が完了して再起動する。この回避操作と修正版の自動再起動・延期の実結果は検証記録を参照。
 
-初期の `updates/appcast.xml` は署名済みの空フィードで、未検証の版を案内しない。alpha.1にはSparkleがないため、最初の対応版はDMGから手動インストールする。次版からアプリ内で更新できる。GitHub Actionsの検証にはApple認証やSparkle秘密鍵を置かず、公証と更新署名は鍵を持つMacで行う。
+通常の検証では更新用ローカルコピーと127.0.0.1限定の署名付き試験フィードを使い、公開フィードを変更しない。インストール先へ旧版を重ねてコピーすると新しいファイルが残って署名が壊れるため、終了後に既存アプリをバックアップへ移し、空の場所へ展開する。試験後はフィード設定・キュー・利用者設定を戻し、サーバーを停止する。
 
-Sparkle: [配布ガイド](https://sparkle-project.org/documentation/publishing/) / [カスタマイズ](https://sparkle-project.org/documentation/customization/)
-
-## 次版の言語別インストーラ（開発中）
-
-次版の配布スクリプトは `-ja.dmg` と `-en.dmg` を生成する。背景の案内を言語別にし、両方に同一のアプリを含める。DMGの選択はアプリの表示言語を固定せず、アプリはmacOSの優先言語を使う。更新ZIPとSparkleフィードは共通で、各DMGを個別に署名・公証・staple・Gatekeeper検証する。SHA256SUMSには両方を含める。公開済みalpha.2の添付物は変更しない。
-
-個別のローカル検証は `bash scripts/create-dmg.sh app-path new-output-path en` または末尾 `ja`。引数省略は従来どおり日本語。不正な言語指定は生成前に拒否する。リリース前に `distribute.sh` とアプリ生成のバージョン・ビルド番号を次版へ揃え、既存のalpha.2ディレクトリを再利用しない。
-
-[英語README](../README.en.md)は公開版の日本語UIと開発中の英語対応を区別する。公開時は両READMEの配布リンクと既知の制限を更新し、リリース説明も日英の文書を分けてリンクする。
-
-## alpha.3候補の番号管理（2026-11-25）
-
-`config/release.env` をバージョン情報の唯一の設定元とし、次版はリリース名 `0.1.0-alpha.3`、アプリ表示 `0.1.0`、Sparkleが比較するビルド番号 `3`。build-app/package-release/distributeが共用する。feed生成はタグとZIP内のビルド番号・表示バージョンの一致を確認し、別版の混入を拒否する。公開済みビルド2は変更しない。新しい公証済み成果物の出力先は `dist/0.1.0-alpha.3/`。
+参考: [Apple Developer ID](https://developer.apple.com/developer-id/)、[Sparkle publishing](https://sparkle-project.org/documentation/publishing/)。スクリプトが行う検証と、その版で実施済みの検証は区別する。
