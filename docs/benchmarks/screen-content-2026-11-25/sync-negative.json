@@ -1,0 +1,47 @@
+{
+  "scope": "Objective checks for generated fixture; no subjective playback rating",
+  "decoder": "ffmpeg version 7.1.1 Copyright (c) 2000-2025 the FFmpeg developers",
+  "reference": {
+    "flash_start_seconds": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      9.0,
+      10.0,
+      11.0
+    ],
+    "beep_start_seconds": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0,
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      9.0,
+      10.0,
+      11.0
+    ],
+    "pcm_sha256": "a3ac8b42b46cf67c7897835ead4a59be034cfa0875b5041c401fd7bb9a440848",
+    "pcm_samples": 576512
+  },
+  "candidates": [
+    {
+      "file": "audio-delayed.mov",
+      "frame_timestamps_match": true,
+      "audio_timestamps_match": false,
+      "flash_frames_match": true,
+      "decoded_audio_matches": false,
+      "audio_sample_count_matches": false,
+      "passed": false
+    }
+  ]
+}

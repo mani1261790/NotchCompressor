@@ -30,6 +30,22 @@
 
 既定は現行HEVCハードウェア／標準を維持する。今回の静止比較だけでは、品質指定や速度優先への既定変更を正当化しない。現行方式が最適という結論でもない。
 
+## 全フレームの同期検査
+
+`scripts/check-fixture-timing.py`で6方式それぞれの1回目を再検査した。12回の白い点滅は入力・出力で同一フレームに存在し、入力のビープ開始は10ms単位の検出で0〜11秒の毎秒の点滅と一致。各出力の映像PTS720個、音声パケットPTS、デコード音声のSHA-256・サンプル数も入力と一致した。結果は`sync-check.json`。AACの端数を含む576,512サンプルを比較しており、12秒×48kHzへの切り詰めはしていない。
+
+検査自体の確認として、音声を200ms遅らせて再多重化した素材を作成。同じ検査が音声時刻・音声内容・サンプル数の不一致で終了コード1となり、誤って合格にしないことを確認した（`sync-negative.json`）。これは生成素材用の検査で、音声を再圧縮した一般動画の品質検査ではない。連続再生時の目視・聴取を実施したとは扱わない。
+
+```sh
+python3 scripts/check-fixture-timing.py .local-work/quality-comparison/input.mov .local-work/quality-comparison/*-1.mov --output .local-work/quality-comparison/sync-check.json
+```
+
+## 品質指定の対応条件
+
+[FFmpeg 9.0の公式ソース](https://www.ffmpeg.org/doxygen/9.0/videotoolboxenc_8c_source.html)と同梱版の`.build/vendor/ffmpeg-9.0.1/libavcodec/videotoolboxenc.c`を確認した。`-q:v`はMacのARM64ビルドだけで許可され、非対応環境ではエラーとなる。値は100を基準にVideoToolboxのQualityプロパティへ変換される。Intel版やRosetta下へこのMacの結果を一般化しない。x264/x265のCRFと同じ尺度ではなく、目標容量や文字の読みやすさを保証する数値でもない。
+
+今回確認したのはこのMac／同梱版での実動作であり、OS・機種全組合せの保証ではない。アプリへ追加する場合はエンコーダの対応確認と、失敗時の案内または明示的な代替処理が必要。現段階では既定に採用しない。
+
 ## 残る評価
 
 連続再生での動き・ちらつき・音の目視聴取、映像混在素材、無音声、別解像度やMacでの比較は未実施。このため段階4全体は未完了。品質指定の対応環境調査と内容解析方式の採否も引き続き評価する。ユーザーの素材待ちを再導入しない。
