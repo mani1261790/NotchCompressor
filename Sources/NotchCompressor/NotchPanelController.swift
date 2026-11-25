@@ -5,6 +5,7 @@ import NotchCompressorCore
 
 @MainActor
 final class DropPresentation: ObservableObject {
+    @Published var receivedFiles = false
     @Published var mode: CompressionMode?
     @Published var topInset: CGFloat = 0
     @Published var visible = false
@@ -20,6 +21,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
     var geometry: NotchGeometry?
     let presentation: DropPresentation
     var onEnd: (() -> Void)?
+    var onAccepted: (() -> Void)?
     var onFileEntered: (() -> Void)?
     var onFileExited: (() -> Void)?
     required init(rootView: DropPanel) {
@@ -44,7 +46,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
         if (try? Toolchain.discover(directory: AppState.shared.queue.settings.toolsDirectory)) == nil {
             AppState.shared.presentQueue(settings: true)
         }
-        onEnd?()
+        onAccepted?()
         return true
     }
     private func selectedMode(_ sender: NSDraggingInfo) -> CompressionMode? {
@@ -76,6 +78,7 @@ final class NotchPanelController {
     private let host: DropHostingView
     private var timer: Timer?
     private var collapseTask: Task<Void, Never>?
+    private var receiptTask: Task<Void, Never>?
     private let widgets = NotchWidgetsController.shared
     private var nativeDrop = NativeDropSession()
     private var hover = NotchHoverState()
@@ -97,7 +100,23 @@ final class NotchPanelController {
         panel.isReleasedWhenClosed = false
         panel.contentView = host
         host.onEnd = { [weak self] in
-            self?.nativeDrop.ended(); self?.drag.end(); self?.collapse()
+            guard let self else { return }
+            nativeDrop.ended(); drag.end()
+            if receiptTask == nil { collapse() }
+        }
+        host.onAccepted = { [weak self] in
+            guard let self else { return }
+            nativeDrop.ended(); drag.end()
+            presentation.mode = nil
+            presentation.receivedFiles = true
+            panel.ignoresMouseEvents = true
+            receiptTask?.cancel()
+            receiptTask = Task { [weak self] in
+                do { try await Task.sleep(for: .milliseconds(550)) } catch { return }
+                guard let self else { return }
+                receiptTask = nil
+                collapse()
+            }
         }
         host.onFileExited = { [weak self] in self?.nativeDrop.ended() }
         host.onFileEntered = { [weak self] in
@@ -182,6 +201,8 @@ final class NotchPanelController {
 
     private func expand(on screen: NSScreen, information: Bool = false) {
         collapseTask?.cancel(); collapseTask = nil
+        receiptTask?.cancel(); receiptTask = nil
+        if presentation.receivedFiles { presentation.receivedFiles = false }
         let geometry = geometry(on: screen)
         host.geometry = geometry
         if presentation.topInset != geometry.topInset { presentation.topInset = geometry.topInset }
@@ -209,6 +230,7 @@ final class NotchPanelController {
             log.notice("Drag pasteboard changed; leftDown=\(leftDown), files=\(hasFiles)")
         }
         drag.update(changeCount: pasteboard.changeCount, leftButtonDown: leftDown, hasFiles: hasFiles)
+        if receiptTask != nil && !drag.active { return }
         // Do not resize away the drop target between mouse-up and performDragOperation.
         if nativeDrop.holdsPanelOpen(leftButtonDown: leftDown, now: ProcessInfo.processInfo.systemUptime) {
             trace("native destination"); return

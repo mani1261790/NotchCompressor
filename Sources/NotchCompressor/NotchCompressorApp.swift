@@ -197,46 +197,61 @@ struct DropPanel: View {
     @ObservedObject var presentation: DropPresentation
     @ObservedObject private var widgets = NotchWidgetsController.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Namespace private var selection
     var body: some View {
         GeometryReader { proxy in
-            if presentation.compactWidgets {
-                NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
-            } else {
+            ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     Color.clear.frame(height: presentation.topInset)
-                    Group {
-                        if presentation.showingWidgets {
-                            NotchDashboardView(widgets: widgets)
+                    ZStack {
+                        if presentation.receivedFiles {
+                            VStack(spacing: 10) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 30, weight: .medium)).foregroundStyle(.blue)
+                                Text(L10n.text("notch.received")).font(.callout.weight(.medium))
+                            }
+                            .transition(.opacity.combined(with: .scale(scale: reduceMotion ? 1 : 0.92)))
+                        } else if presentation.showingWidgets {
+                            NotchDashboardView(widgets: widgets).transition(.opacity)
                         } else {
                             VStack(spacing: 12) {
                                 HStack(spacing: 8) {
                                     ForEach(CompressionMode.allCases) { mode in
-                                        DropZone(mode: mode, targeted: presentation.mode == mode)
+                                        DropZone(mode: mode, targeted: presentation.mode == mode, selection: selection)
                                     }
                                 }
                                 Text(L10n.text("notch.dropHint"))
                                     .font(.caption2).foregroundStyle(.white.opacity(0.65))
-                            }
+                            }.transition(.opacity)
                         }
                     }.padding(14).frame(height: 148)
                         .opacity(presentation.visible ? 1 : 0)
+                        .offset(y: reduceMotion || presentation.visible ? 0 : -8)
+                        .scaleEffect(reduceMotion || presentation.visible ? 1 : 0.97, anchor: .top)
                 }
-                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
-                .background(.black)
-                .mask(alignment: .top) {
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: presentation.topInset > 0 ? 0 : 16,
-                        bottomLeadingRadius: presentation.visible ? 26 : 10,
-                        bottomTrailingRadius: presentation.visible ? 26 : 10,
-                        topTrailingRadius: presentation.topInset > 0 ? 0 : 16
-                    )
-                    .frame(
-                        width: presentation.visible ? proxy.size.width : presentation.compactWidth,
-                        height: presentation.visible ? proxy.size.height : presentation.compactHeight)
+                if presentation.compactWidgets {
+                    NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
                 }
-                .animation(
-                    reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.86), value: presentation.visible)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height, alignment: .top)
+            .background(.black)
+            .mask(alignment: .top) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: presentation.topInset > 0 ? 0 : 16,
+                    bottomLeadingRadius: presentation.visible ? 26 : 10,
+                    bottomTrailingRadius: presentation.visible ? 26 : 10,
+                    topTrailingRadius: presentation.topInset > 0 ? 0 : 16
+                )
+                .frame(
+                    width: presentation.visible || presentation.compactWidgets
+                        ? proxy.size.width : presentation.compactWidth,
+                    height: presentation.visible || presentation.compactWidgets
+                        ? proxy.size.height : presentation.compactHeight)
+            }
+            .animation(reduceMotion ? nil : .spring(response: 0.34, dampingFraction: 0.88), value: presentation.visible)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.16), value: presentation.showingWidgets)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: presentation.receivedFiles)
+            .animation(reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.82), value: presentation.mode)
         }
         .clipped()
         .environment(\.colorScheme, .dark)
@@ -246,10 +261,12 @@ struct DropPanel: View {
 struct DropZone: View {
     let mode: CompressionMode
     let targeted: Bool
+    let selection: Namespace.ID
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         VStack(spacing: 7) {
             Image(systemName: mode.selectionSymbol).font(.title2)
+                .scaleEffect(targeted && !reduceMotion ? 1.12 : 1)
             Text(mode.selectionTitle).font(.callout.weight(.semibold))
             Text(
                 mode == .video
@@ -258,10 +275,20 @@ struct DropZone: View {
             )
             .font(.system(size: 10))
         }
-        .foregroundStyle(targeted ? .black : .white)
+        .foregroundStyle(.white)
         .frame(maxWidth: .infinity).frame(height: 88)
-        .background(targeted ? Color.mint : Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.1), value: targeted)
+        .background {
+            RoundedRectangle(cornerRadius: 14).fill(.white.opacity(0.08))
+            if targeted {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.blue.gradient)
+                    .matchedGeometryEffect(id: "drop-selection", in: selection)
+            }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 14)
+                .strokeBorder(.white.opacity(targeted ? 0.28 : 0.08), lineWidth: 1)
+        }
         .accessibilityLabel(L10n.text("notch.accessibility", mode.selectionTitle))
     }
 }

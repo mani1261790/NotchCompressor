@@ -306,3 +306,7 @@
 
 "widgets.alwaysVisible" = "閉じている間も常時表示";
 "widgets.chooseContent" = "設定で時計や音楽を選べます。";
+
+"widgets.playing" = "再生中";
+"widgets.paused" = "一時停止中";
+"notch.received" = "ファイルを受け取りました";

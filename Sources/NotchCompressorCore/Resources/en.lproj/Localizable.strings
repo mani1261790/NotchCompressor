@@ -306,3 +306,7 @@
 
 "widgets.alwaysVisible" = "Always show when closed";
 "widgets.chooseContent" = "Choose clock or music in Settings.";
+
+"widgets.playing" = "Playing";
+"widgets.paused" = "Paused";
+"notch.received" = "Files received";

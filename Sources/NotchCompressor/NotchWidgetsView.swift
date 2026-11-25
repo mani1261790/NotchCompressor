@@ -8,20 +8,16 @@ struct NotchWidgetsView: View {
         HStack(spacing: 0) {
             Group {
                 if widgets.showClock {
-                    TimelineView(.everyMinute) { context in
-                        Text(context.date.formatted(.dateTime.hour().minute().locale(L10n.locale)))
-                            .font(.system(.callout, design: .rounded).weight(.medium)).monospacedDigit()
-                            .accessibilityLabel(context.date.formatted(.dateTime.hour().minute().locale(L10n.locale)))
-                    }
+                    NotchClockView(compact: true)
                 } else if let track = widgets.track, widgets.showMusic {
-                    Image(systemName: track.playing ? "music.note" : "pause.fill")
+                    PlaybackActivityView(playing: track.playing)
                 }
             }.frame(maxWidth: .infinity)
             Color.clear.frame(width: cameraWidth)
             Group {
                 if widgets.showMusic, let track = widgets.track {
                     HStack(spacing: 5) {
-                        Image(systemName: track.playing ? "music.note" : "pause.fill").font(.caption2)
+                        PlaybackActivityView(playing: track.playing).font(.caption2)
                         Text(track.title).font(.caption).lineLimit(1).truncationMode(.tail)
                     }
                     .help([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
@@ -45,24 +41,21 @@ struct NotchWidgetsView: View {
 }
 
 struct NotchDashboardView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var widgets: NotchWidgetsController
     var body: some View {
         HStack(spacing: 20) {
             if widgets.showClock {
-                TimelineView(.everyMinute) { context in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(context.date.formatted(.dateTime.hour().minute().locale(L10n.locale)))
-                            .font(.system(size: 30, weight: .medium, design: .rounded)).monospacedDigit()
-                        Text(context.date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(L10n.locale)))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
-                }
+                NotchClockView(compact: false)
             }
             if widgets.showMusic {
                 VStack(alignment: .leading, spacing: 6) {
                     if let track = widgets.track {
-                        Label(track.title, systemImage: track.playing ? "music.note" : "pause.fill")
-                            .font(.headline).lineLimit(2)
+                        HStack(spacing: 8) {
+                            PlaybackActivityView(playing: track.playing)
+                            Text(track.title).font(.headline).lineLimit(2)
+                                .contentTransition(.opacity)
+                        }
                         Text(track.artist).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     } else {
                         Label(L10n.text(widgets.statusKey ?? "widgets.noTrack"), systemImage: "music.note")
@@ -86,5 +79,55 @@ struct NotchDashboardView: View {
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.22), value: widgets.track)
+    }
+}
+
+/// A playback indicator, not an audio-level meter. No audio is captured.
+struct PlaybackActivityView: View {
+    let playing: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 20, paused: !playing || reduceMotion)) { context in
+            HStack(alignment: .center, spacing: 2) {
+                ForEach(0..<4) { index in
+                    Capsule().frame(width: 2.5, height: height(index, at: context.date))
+                }
+            }
+            .frame(width: 18, height: 18)
+            .overlay {
+                if !playing { Image(systemName: "pause.fill").font(.system(size: 11, weight: .semibold)) }
+            }
+        }
+        .accessibilityLabel(L10n.text(playing ? "widgets.playing" : "widgets.paused"))
+    }
+    private func height(_ index: Int, at date: Date) -> CGFloat {
+        guard playing else { return 0 }
+        guard !reduceMotion else { return [6, 13, 9, 16][index] }
+        let phase = date.timeIntervalSinceReferenceDate * (2.8 + Double(index) * 0.37) + Double(index) * 1.4
+        return 4 + 12 * CGFloat((sin(phase) + 1) / 2)
+    }
+}
+
+struct NotchClockView: View {
+    let compact: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            VStack(alignment: .leading, spacing: 6) {
+                Text(context.date.formatted(.dateTime.hour().minute().second().locale(L10n.locale)))
+                    .font(.system(size: compact ? 13 : 26, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .contentTransition(reduceMotion ? .identity : .numericText(countsDown: false))
+                    .animation(
+                        reduceMotion ? nil : .easeOut(duration: 0.24), value: Int(context.date.timeIntervalSince1970)
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
+                if !compact {
+                    Text(context.date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(L10n.locale)))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 }
