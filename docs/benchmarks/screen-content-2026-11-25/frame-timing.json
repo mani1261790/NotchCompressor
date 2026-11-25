@@ -1,0 +1,30 @@
+{
+  "input": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "hevc-bitrate-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "hevc-fast-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "h264-bitrate-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "hevc-quality-50-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "hevc-quality-65-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  },
+  "hevc-quality-80-1": {
+    "frames": 720,
+    "timestamps_match_input": true
+  }
+}
