@@ -6,14 +6,23 @@ public struct NotchWidgetGeometry: Equatable {
     public let frame: CGRect
     public let cameraWidth: CGFloat
     public let sideWidth: CGFloat
-    public init(screen: CGRect, topInset: CGFloat, notchWidth: CGFloat, preferredSideWidth: CGFloat = 150) {
-        cameraWidth = topInset > 0 ? min(max(0, notchWidth), screen.width) : 0
-        sideWidth = min(max(0, preferredSideWidth), max(0, (screen.width - cameraWidth) / 2))
+    public let leftRegion: CGRect
+    public let rightRegion: CGRect
+    public init(
+        screen: CGRect, topInset: CGFloat, notchWidth: CGFloat,
+        preferredSideWidth: CGFloat = 150, cameraRect: CGRect? = nil, cameraPadding: CGFloat = 0
+    ) {
+        let physicalWidth = topInset > 0 ? min(max(0, cameraRect?.width ?? notchWidth), screen.width) : 0
+        cameraWidth = topInset > 0 ? min(screen.width, physicalWidth + 2 * max(0, cameraPadding)) : 0
+        let center = topInset > 0 ? (cameraRect?.midX ?? screen.midX) : screen.midX
+        let available = max(0, min(center - screen.minX, screen.maxX - center) - cameraWidth / 2)
+        sideWidth = min(max(0, preferredSideWidth), available)
         let height = max(28, topInset)
-        let gap: CGFloat = 0
         frame = CGRect(
-            x: screen.midX - (cameraWidth + 2 * sideWidth) / 2,
-            y: screen.maxY - gap - height, width: cameraWidth + 2 * sideWidth, height: height)
+            x: center - cameraWidth / 2 - sideWidth, y: screen.maxY - height,
+            width: cameraWidth + 2 * sideWidth, height: height)
+        leftRegion = CGRect(x: frame.minX, y: frame.minY, width: sideWidth, height: height)
+        rightRegion = CGRect(x: frame.maxX - sideWidth, y: frame.minY, width: sideWidth, height: height)
     }
 }
 

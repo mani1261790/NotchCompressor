@@ -15,6 +15,7 @@ final class DropPresentation: ObservableObject {
     @Published var compactWidth: CGFloat = 180
     @Published var compactHeight: CGFloat = 28
     @Published var cameraWidth: CGFloat = 0
+    @Published var widgetSideWidth: CGFloat = 120
 }
 
 @MainActor
@@ -109,6 +110,7 @@ final class NotchPanelController {
         panel = NSPanel(
             contentRect: initialFrame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         host = DropHostingView(rootView: DropPanel(presentation: presentation))
+        host.sizingOptions = []
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = false
@@ -231,10 +233,27 @@ final class NotchPanelController {
         let compactWidgets = widgets.hasPersistentContent
         if presentation.compactWidgets != compactWidgets { presentation.compactWidgets = compactWidgets }
         if widgets.hasPersistentContent {
+            let camera: CGRect?
+            if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea,
+                right.minX > left.maxX
+            {
+                camera = CGRect(
+                    x: left.maxX, y: screen.frame.maxY - geometry.topInset,
+                    width: right.minX - left.maxX, height: geometry.topInset)
+            } else {
+                camera = nil
+            }
+            // If the camera boundary is unavailable, stay entirely below its safe inset.
+            let fallbackBelowCamera = geometry.topInset > 0 && camera == nil
+            var safeFrame = screen.frame
+            if fallbackBelowCamera { safeFrame.size.height -= geometry.topInset }
             let layout = NotchWidgetGeometry(
-                screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width,
-                preferredSideWidth: widgets.persistentMusic ? 120 : 90)
+                screen: safeFrame, topInset: fallbackBelowCamera ? 0 : geometry.topInset,
+                notchWidth: geometry.collapsed.width,
+                preferredSideWidth: widgets.persistentMusic ? 160 : 120,
+                cameraRect: camera, cameraPadding: 8)
             if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
+            if presentation.widgetSideWidth != layout.sideWidth { presentation.widgetSideWidth = layout.sideWidth }
             setFrame(layout.frame)
             if !panel.isVisible { panel.orderFrontRegardless() }
         } else {

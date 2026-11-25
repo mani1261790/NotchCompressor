@@ -4,43 +4,73 @@ import NotchCompressorCore
 struct NotchWidgetsView: View {
     @ObservedObject var widgets: NotchWidgetsController
     let cameraWidth: CGFloat
+    let sideWidth: CGFloat
     var body: some View {
-        HStack(spacing: 0) {
-            Group {
-                if widgets.persistentClock {
-                    NotchClockView(compact: true)
-                } else if let track = widgets.track, widgets.persistentMusic {
-                    AlbumArtworkView(data: track.artwork).frame(width: 22, height: 22)
-                }
-            }.frame(maxWidth: .infinity)
-            Color.clear.frame(width: cameraWidth)
-            Group {
-                if widgets.persistentMusic, let track = widgets.track {
-                    HStack(spacing: 5) {
-                        PlaybackActivityView(playing: track.playing).font(.caption2)
-                        Text(track.title).font(.caption).lineLimit(1).truncationMode(.tail)
+        Group {
+            if cameraWidth > 0 {
+                HStack(spacing: 0) {
+                    Group {
+                        if widgets.persistentClock {
+                            NotchClockView(compact: true)
+                        } else if let track = widgets.track, widgets.persistentMusic {
+                            AlbumArtworkView(data: track.artwork).frame(width: 22, height: 22)
+                        }
                     }
-                    .help([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
-                    .accessibilityLabel([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: ", "))
-                } else if widgets.persistentClock {
-                    TimelineView(.everyMinute) { context in
-                        Text(context.date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(L10n.locale)))
-                            .font(.caption).lineLimit(1)
+                    .padding(.horizontal, 8)
+                    .frame(width: sideWidth).clipped()
+                    Color.clear.frame(width: cameraWidth).fixedSize()
+                    Group {
+                        if widgets.persistentMusic, let track = widgets.track {
+                            musicTitle(track)
+                        } else if widgets.persistentClock {
+                            dateLabel
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .frame(width: sideWidth).clipped()
+                }
+            } else {
+                // External displays have no camera gap: keep the visible content together.
+                HStack(spacing: 12) {
+                    if widgets.persistentClock { NotchClockView(compact: true) }
+                    if widgets.persistentMusic, let track = widgets.track {
+                        AlbumArtworkView(data: track.artwork).frame(width: 22, height: 22)
+                        musicTitle(track)
+                    } else if widgets.persistentClock {
+                        dateLabel
                     }
                 }
-            }.padding(.horizontal, 10).frame(maxWidth: .infinity)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: sideWidth * 2).clipped()
+            }
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             if widgets.showIdleBackground {
                 UnevenRoundedRectangle(
-                    topLeadingRadius: 0,
-                    bottomLeadingRadius: 12, bottomTrailingRadius: 12, topTrailingRadius: 0
+                    topLeadingRadius: 0, bottomLeadingRadius: 12,
+                    bottomTrailingRadius: 12, topTrailingRadius: 0
                 ).fill(.black)
             }
         }
         .shadow(color: widgets.showIdleBackground ? .clear : .black.opacity(0.5), radius: 1)
+    }
+
+    private func musicTitle(_ track: NowPlayingTrack) -> some View {
+        HStack(spacing: 5) {
+            PlaybackActivityView(playing: track.playing).frame(width: 18)
+            Text(track.title).font(.caption).lineLimit(1).truncationMode(.tail)
+        }
+        .help([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: " — "))
+        .accessibilityLabel([track.title, track.artist].filter { !$0.isEmpty }.joined(separator: ", "))
+    }
+
+    private var dateLabel: some View {
+        TimelineView(.everyMinute) { context in
+            Text(context.date.formatted(.dateTime.month().day().weekday(.abbreviated).locale(L10n.locale)))
+                .font(.caption).lineLimit(1)
+        }
     }
 }
 

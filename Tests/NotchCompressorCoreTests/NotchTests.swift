@@ -116,6 +116,30 @@ final class NotchTests: XCTestCase {
         }
     }
 
+    func testPersistentContentNeverIntersectsCameraIncludingOffsetScreens() {
+        for screen in [
+            CGRect(x: 0, y: 0, width: 1512, height: 982),
+            CGRect(x: -1728, y: 100, width: 1728, height: 1117),
+        ] {
+            for offset: CGFloat in [-40, 0, 40] {
+                let camera = CGRect(
+                    x: screen.midX + offset - 110, y: screen.maxY - 38,
+                    width: 220, height: 38)
+                for width: CGFloat in [120, 160] {
+                    let layout = NotchWidgetGeometry(
+                        screen: screen, topInset: 38, notchWidth: 180,
+                        preferredSideWidth: width, cameraRect: camera, cameraPadding: 8)
+                    XCTAssertEqual(layout.frame.midX, camera.midX)
+                    XCTAssertLessThanOrEqual(layout.leftRegion.maxX, camera.minX - 8)
+                    XCTAssertGreaterThanOrEqual(layout.rightRegion.minX, camera.maxX + 8)
+                    XCTAssertFalse(layout.leftRegion.intersects(camera))
+                    XCTAssertFalse(layout.rightRegion.intersects(camera))
+                    XCTAssertTrue(screen.contains(layout.frame))
+                }
+            }
+        }
+    }
+
     func testWidgetsReserveCameraAndFitExternalDisplays() {
         for screen in [
             CGRect(x: 0, y: 0, width: 1512, height: 982), CGRect(x: -1920, y: 200, width: 1920, height: 1080),

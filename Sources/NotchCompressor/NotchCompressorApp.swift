@@ -236,7 +236,9 @@ struct DropPanel: View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
                 if presentation.compactWidgets {
-                    NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
+                    NotchWidgetsView(
+                        widgets: widgets, cameraWidth: presentation.cameraWidth, sideWidth: presentation.widgetSideWidth
+                    )
                 } else {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: presentation.topInset)
@@ -293,6 +295,7 @@ struct DropPanel: View {
             .animation(reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.82), value: presentation.mode)
         }
         .clipped()
+        .ignoresSafeArea()
         .environment(\.colorScheme, .dark)
     }
 }

@@ -154,3 +154,11 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Queue scheduling picker uses inline menu style so all three choices are directly available. Help uses a 14 pt info.circle in a 28 pt hit area with secondary color, tooltip and accessibility label.
 - Universal build/localization checks passed. No-track playback and empty-library behavior still require native Music acceptance; compilation is not evidence of audible playback.
 - Updated Preview launched with info.circle in queue AX. Native menu acceptance could not be completed because the user was actively switching settings during the UI check; no settings or playback were changed by the verification. Scheduling menu flattening remains code/build-verified only.
+
+### 2026-11-26: persistent widget geometry and camera exclusion (build 25)
+
+- Persistent widgets now use explicit clipped left/right slots on notched screens; free-width sibling layout cannot push content into the cutout. Camera bounds come from NSScreen auxiliary safe rectangles in global coordinates, with 8 pt padding each side, including nonzero display origins and asymmetric cutout positions.
+- External displays use one centered contiguous row, without an artificial center gap or oversized separate artwork slot.
+- If a screen reports a top cutout inset but no usable auxiliary bounds, persistent information falls below the top safe inset rather than guessing cutout width.
+- NSHostingView no longer resizes the panel from content intrinsic size; DropPanel ignores SwiftUI's automatic safe-area inset because the controller explicitly reserves the camera space.
+- 14 geometry/hover tests pass, including slot exclusion for offset screens/cameras and different slot widths. Physical notch hardware visual acceptance is still pending; geometry tests are not hardware verification.
