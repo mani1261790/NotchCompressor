@@ -14,7 +14,9 @@ Hardware HEVC remains the default. No new codec or speed preference is being mad
 
 ## Checks remaining before publication
 
-Verify both interface languages and dependency dialogs, actual Mac sleep/wake, Finder drops, notifications, login launch, and a Sparkle update from alpha.2. Sign, notarize, and verify downloads of the new release artifacts. Outstanding checks must not be presented as completed.
+Actual sleep/wake during encoding and validation, and automatic Sparkle update/relaunch from the fixed build have passed. Build 9 app and both DMGs are signed and notarized. Remaining checks cover the language-switch fix, Finder drops, notification banners, launch after login, update deferral with paused or newly added tasks, and representative recording quality. Anonymous downloads will be verified after publication.
+
+In alpha.2, an open settings sheet can prevent update relaunch. This release fixes that behavior; instructions for upgrading from the old version still need verification before publication.
 
 ## Saving files
 
