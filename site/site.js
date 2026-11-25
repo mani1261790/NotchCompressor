@@ -37,7 +37,7 @@ function expand(open) {
   if (!open) zones.querySelectorAll('button').forEach(b=>b.setAttribute('data-active','false'));
 }
 function updateProgress() {
-  if(progress===100 && document.activeElement===pause)demo.querySelector('.demo-reset').focus({preventScroll:true});
+  if(progress===100 && (demo.querySelector('.demo-card').contains(document.activeElement) || document.activeElement===demo.querySelector('.demo-gear')))demo.querySelector('.demo-reset').focus({preventScroll:true});
   meter.value = progress;
   demo.querySelector('.demo-card').hidden = progress === 100;
   demo.querySelector('.demo-gear').hidden = progress === 100;
