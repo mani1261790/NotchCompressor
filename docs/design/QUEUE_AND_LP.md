@@ -173,3 +173,9 @@ LPブランチ990968bで、160msごとの進捗更新をlive regionから分離�
 ## LPの動きを減らす設定での実確認
 
 ローカルLPにCDPの`prefers-reduced-motion: reduce`を適用して再読込。メディアクエリtrue、tourのfollowing=false、intro-scale=1、ノッチtransition=0sを確認。クリックで両方モードを開始し完了→リセット、画面内のサンプルを中央へ実ドラッグして再び両方モードの完了・空キューまで確認。スクロール後もintro-scale=1、intro-x=0px。完了画面を `.local-work/next/lp-reduced-motion-complete.png` に保存した。試験のメディア設定は解除し、reduced=false・リセット状態を確認。これはブラウザのメディア設定エミュレーションであり、macOS全体の設定は変更していない。
+
+## LPデモのキーボード導線
+
+LPブランチ1bce791で、サンプルをEnter／クリックで展開すると中央の両方モードへフォーカスを移動。左右キーでモード間を移動し、Escapeで閉じてサンプルへ戻す。圧縮開始後のEscapeは非表示のサンプルへフォーカスを送らない。圧縮モードは実行ボタンなので、toggleを意味するaria-pressedを除去し、ドラッグ中の視覚強調にはdata-activeを使用する。
+
+ブラウザでEnter→中央、右キー→音声、Escape→サンプル・閉状態、Enter→中央→Enterで開始を確認。完了後はジョブが非表示となり、フォーカスがリセットボタンへ移ることを確認。画像 `.local-work/next/lp-keyboard-complete.png`。構文・差分検査成功。
