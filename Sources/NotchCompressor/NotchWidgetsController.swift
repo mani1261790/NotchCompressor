@@ -23,6 +23,7 @@ final class NotchWidgetsController: ObservableObject {
     var persistentClock: Bool { clockDisplay == .always }
     var persistentMusic: Bool { musicDisplay == .always && track != nil }
     var hasPersistentContent: Bool { persistentClock || persistentMusic }
+    @Published private(set) var playbackIssue: String?
     @Published private(set) var track: NowPlayingTrack?
     @Published private(set) var statusKey: String?
     @Published private(set) var connecting = false
@@ -93,24 +94,35 @@ final class NotchWidgetsController: ObservableObject {
     }
 
     func togglePlayback() {
-        guard !controlling, !sleeping, showMusic, track != nil,
+        guard !controlling, !sleeping, showMusic, track != nil || connection == .ready,
             let pid = NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.Music").first?
                 .processIdentifier
         else { return }
+        let startingPlayback = track == nil
+        playbackIssue = nil
         playbackRevision += 1
         controlling = true
         statusKey = nil
         Task {
             // Read back only playback state; artwork/metadata must not delay feedback.
-            let playing = await Task.detached(priority: .userInitiated) { MusicTrackReader.toggle(pid: pid) }.value
+            let playing = await Task.detached(priority: .userInitiated) {
+                MusicTrackReader.toggle(pid: pid, start: startingPlayback)
+            }.value
             controlling = false
             guard showMusic, !sleeping else { return }
-            if let playing, let current = track {
-                track = NowPlayingTrack(
-                    title: current.title, artist: current.artist, playing: playing,
-                    identity: current.identity, artwork: current.artwork)
+            if let playing {
+                if let current = track {
+                    track = NowPlayingTrack(
+                        title: current.title, artist: current.artist, playing: playing,
+                        identity: current.identity, artwork: current.artwork)
+                }
+                if startingPlayback && !playing {
+                    playbackIssue = "music.startUnavailable"
+                    openMusic()
+                }
                 refresh()
             } else {
+                playbackIssue = "widgets.controlFailed"
                 statusKey = "widgets.controlFailed"
             }
         }
@@ -143,6 +155,7 @@ final class NotchWidgetsController: ObservableObject {
                 return
             }
             track = result.track
+            if result.track != nil { playbackIssue = nil }
             statusKey = result.statusKey
         }
     }
@@ -189,24 +202,50 @@ private enum MusicTrackReader {
         } catch { return .init(track: nil, statusKey: "widgets.musicUnavailable") }
     }
 
-    static func toggle(pid: pid_t) -> Bool? {
+    static func toggle(pid: pid_t, start: Bool) -> Bool? {
         let target = NSAppleEventDescriptor(processIdentifier: pid)
         guard let descriptor = target.aeDesc,
             AEDeterminePermissionToAutomateTarget(descriptor, typeWildCard, typeWildCard, false) == noErr
         else { return nil }
         let event = NSAppleEventDescriptor(
-            eventClass: code("hook"), eventID: code("PlPs"),
+            eventClass: code("hook"), eventID: code(start ? "Play" : "PlPs"),
             targetDescriptor: target, returnID: AEReturnID(kAutoGenerateReturnID),
             transactionID: AETransactionID(kAnyTransactionID))
         do {
             let reply = try event.sendEvent(options: [.waitForReply, .neverInteract], timeout: 2)
-            guard (reply.paramDescriptor(forKeyword: AEKeyword(keyErrorNumber))?.int32Value ?? 0) == 0 else {
+            if (reply.paramDescriptor(forKeyword: AEKeyword(keyErrorNumber))?.int32Value ?? 0) != 0 && !start {
                 return nil
             }
-            let state = try get(property: code("pPlS"), target: target).enumCodeValue
+            var state = try get(property: code("pPlS"), target: target).enumCodeValue
+            if start && state != code("kPSP") {
+                // No resumable selection: ask Music to play its first library track.
+                // An empty/unavailable library simply leaves playback stopped.
+                if let library = try? firstObject(code("cLiP")),
+                    let firstTrack = try? firstObject(code("cTrk"), container: library)
+                {
+                    event.setParam(firstTrack, forKeyword: AEKeyword(keyDirectObject))
+                    _ = try? event.sendEvent(options: [.waitForReply, .neverInteract], timeout: 2)
+                    state = (try? get(property: code("pPlS"), target: target).enumCodeValue) ?? state
+                }
+            }
             guard [code("kPSP"), code("kPSp"), code("kPSS")].contains(state) else { return nil }
             return state == code("kPSP")
         } catch { return nil }
+    }
+
+    private static func firstObject(_ kind: OSType, container: NSAppleEventDescriptor = .null()) throws
+        -> NSAppleEventDescriptor
+    {
+        let record = NSAppleEventDescriptor.record()
+        record.setDescriptor(NSAppleEventDescriptor(typeCode: kind), forKeyword: AEKeyword(keyAEDesiredClass))
+        record.setDescriptor(container, forKeyword: AEKeyword(keyAEContainer))
+        record.setDescriptor(
+            NSAppleEventDescriptor(enumCode: OSType(formAbsolutePosition)), forKeyword: AEKeyword(keyAEKeyForm))
+        record.setDescriptor(NSAppleEventDescriptor(int32: 1), forKeyword: AEKeyword(keyAEKeyData))
+        guard let result = record.coerce(toDescriptorType: typeObjectSpecifier) else {
+            throw CocoaError(.coderInvalidValue)
+        }
+        return result
     }
 
     private static func readArtwork(container: NSAppleEventDescriptor, target: NSAppleEventDescriptor) throws -> Data? {

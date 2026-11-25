@@ -64,7 +64,7 @@ struct QueueView: View {
                     Menu {
                         Picker(L10n.text("queue.execution"), selection: $queue.execution) {
                             ForEach(QueueExecution.allCases) { mode in Text(mode.title).tag(mode) }
-                        }
+                        }.pickerStyle(.inline).labelsHidden()
                     } label: {
                         HStack(spacing: 6) {
                             Label(queue.execution.title, systemImage: "slider.horizontal.3")
@@ -72,9 +72,16 @@ struct QueueView: View {
                         }
                     }.capsuleMenu().accessibilityLabel(L10n.text("queue.executionValue", queue.execution.title))
                     Spacer()
-                    IconControl(title: L10n.text("queue.help"), symbol: "info") {
+                    Button {
                         showingQueueHelp.toggle()
+                    } label: {
+                        Image(systemName: "info.circle").font(.system(size: 14))
+                            .foregroundStyle(.secondary).frame(width: 28, height: 28)
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(.plain)
+                    .help(L10n.text("queue.help"))
+                    .accessibilityLabel(L10n.text("queue.help"))
                     .popover(isPresented: $showingQueueHelp) {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(L10n.text("queue.help")).font(.headline)

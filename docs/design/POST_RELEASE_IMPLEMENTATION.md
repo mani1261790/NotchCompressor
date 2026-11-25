@@ -147,3 +147,10 @@ Macが操作可能になったためPreviewを起動した。アドホック署�
 - Removed unconditional black backgrounds from compact content and its outer host. Idle-background toggle now controls both layers, including persistent information; expanded hover/drop remains black. Physical camera cutout is not software background.
 - 13 notch tests pass including independent migration; universal build/signing and localization checks completed. Physical transparency/hover acceptance remains separate from code verification.
 - Native UI check: General and Image screenshots have matching sidebar top inset and header position; no custom close button. Clock changed to Always while Music remained On hover, then restored. Cmd-W closed settings and returned to the queue.
+
+### 2026-11-26: start playback without a track and simplify queue controls (build 24)
+
+- A connected Music session with no current track now offers Play. The explicit action sends Music's documented Play event, tries the first library track if nothing resumes, and opens Music with a selection hint when playback remains stopped. Failure is visible; polling never starts playback.
+- Queue scheduling picker uses inline menu style so all three choices are directly available. Help uses a 14 pt info.circle in a 28 pt hit area with secondary color, tooltip and accessibility label.
+- Universal build/localization checks passed. No-track playback and empty-library behavior still require native Music acceptance; compilation is not evidence of audible playback.
+- Updated Preview launched with info.circle in queue AX. Native menu acceptance could not be completed because the user was actively switching settings during the UI check; no settings or playback were changed by the verification. Scheduling menu flattening remains code/build-verified only.

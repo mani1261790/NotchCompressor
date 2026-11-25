@@ -91,8 +91,28 @@ struct NotchDashboardView: View {
                             }
                         }
                     } else {
-                        Label(L10n.text(widgets.statusKey ?? "widgets.noTrack"), systemImage: "music.note")
-                            .font(.callout).foregroundStyle(.secondary).lineLimit(3)
+                        Label(
+                            L10n.text(widgets.playbackIssue ?? widgets.statusKey ?? "widgets.noTrack"),
+                            systemImage: "music.note"
+                        )
+                        .font(.callout).foregroundStyle(.secondary).lineLimit(3)
+                        if widgets.connection == .ready || widgets.controlling || widgets.playbackIssue != nil {
+                            Button {
+                                widgets.togglePlayback()
+                            } label: {
+                                ZStack {
+                                    if widgets.controlling {
+                                        ProgressView().controlSize(.mini)
+                                    } else {
+                                        Image(systemName: "play.fill")
+                                    }
+                                }.frame(width: 34, height: 34)
+                            }
+                            .modifier(CircularControlStyle())
+                            .disabled(widgets.controlling || (widgets.track == nil && widgets.connection != .ready))
+                            .accessibilityLabel(L10n.text("widgets.play"))
+                            .help(L10n.text("music.startHint"))
+                        }
                     }
                 }.frame(
                     maxWidth: widgets.showClock ? .infinity : 280, alignment: widgets.showClock ? .leading : .center)

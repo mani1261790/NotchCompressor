@@ -367,3 +367,6 @@
 "widgets.display.hover" = "ホバー時のみ";
 "widgets.display.always" = "常時表示";
 "widgets.displayHint" = "時計と音楽は別々に表示方法を選べます。背景がオフなら、常時表示の文字や画像の背景も透明になります。どちらも「表示しない」なら、待機中は何も表示しません。Mac本体の黒いノッチは変わりません。";
+
+"music.startUnavailable" = "Musicで曲を選んで再生してください。";
+"music.startHint" = "前の再生を再開します。再開できなければライブラリの最初の曲を再生します。";
