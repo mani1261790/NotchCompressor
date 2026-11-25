@@ -15,7 +15,7 @@ Hardware HEVC remains the default. No new codec or speed preference is being mad
 
 ## Checks remaining before publication
 
-Actual sleep/wake during encoding and validation, and automatic Sparkle update/relaunch from the fixed build have passed. Build 10 app and both DMGs are signed and notarized. The language-switch fix and a single-video Finder drop onto the center notch target have also passed. Remaining checks cover notification banners, launch after login, representative recording quality. Anonymous downloads will be verified after publication.
+Actual sleep/wake during encoding and validation, and automatic Sparkle update/relaunch from the fixed build have passed. Build 11 app and both DMGs are signed and notarized. The language-switch fix and a single-video Finder drop onto the center notch target have also passed. Remaining checks cover mouse-drop completion in the refreshed queue, notification banners, launch after login, and representative recording quality. Anonymous downloads will be verified after publication.
 
 In alpha.2, an open settings sheet can prevent update relaunch. This release fixes that behavior; the verified workaround for the old version is to close Settings and quit from the app menu, after which installation finishes and the app relaunches. This is also documented in the README.
 
