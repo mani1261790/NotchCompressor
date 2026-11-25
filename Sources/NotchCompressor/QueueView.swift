@@ -129,7 +129,6 @@ struct QueueView: View {
                         ForEach(queue.displayedJobs) { job in
                             if queue.canReorder(job.id) {
                                 card(job)
-                                    .modifier(ReorderCursor())
                                     .onDrag {
                                         draggingJobID = job.id
                                         queueDragLog.info("queue drag began")
@@ -172,66 +171,50 @@ private struct JobRow: View {
     @ObservedObject var queue: JobQueue
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .top) {
-                VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
-                        .help(job.input.lastPathComponent)
-                    Label(job.mode.title, systemImage: job.mode.symbol)
-                        .font(.caption).foregroundStyle(.secondary)
+            HStack(alignment: .center, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: queue.canReorder(job.id) ? "line.3.horizontal" : "pin.fill")
+                        .font(.caption).foregroundStyle(.tertiary)
+                        .help(L10n.text(queue.canReorder(job.id) ? "queue.reorder" : "queue.pinned"))
+                        .accessibilityLabel(L10n.text(queue.canReorder(job.id) ? "queue.reorder" : "queue.pinned"))
+                    VideoThumbnail(urls: [job.result?.output, job.input].compactMap { $0 })
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(job.input.lastPathComponent).font(.headline).lineLimit(2)
+                            .help(job.input.lastPathComponent)
+                        Label(job.mode.title, systemImage: job.mode.symbol)
+                            .font(.caption).foregroundStyle(.secondary)
+                        Text(queue.cancelling.contains(job.id) ? L10n.text("queue.stopping") : job.phase.title)
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(job.phase == .failed ? Color.orange : Color.secondary)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer()
-                Text(queue.cancelling.contains(job.id) ? L10n.text("queue.stopping") : job.phase.title)
-                    .font(.caption.weight(.medium))
-                    .padding(.horizontal, 10).padding(.vertical, 5)
-                    .background(.quaternary, in: Capsule())
-                    .foregroundStyle(
-                        job.phase == .failed ? Color.orange : job.phase == .completed ? Color.green : Color.secondary)
+                .contentShape(Rectangle())
+                .modifier(ReorderCursor(enabled: queue.canReorder(job.id)))
+                HStack(spacing: 4) {
+                    if queue.pausedIDs.contains(job.id) {
+                        IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
+                            .disabled(queue.cancelling.contains(job.id))
+                        IconControl(title: L10n.text("queue.removePaused"), symbol: "xmark") { queue.remove(job.id) }
+                            .disabled(!queue.canRemove(job.id))
+                    } else if queue.runningIDs.contains(job.id) {
+                        IconControl(title: L10n.text("queue.pause"), symbol: "pause.fill") { queue.pause(job.id) }
+                            .disabled(queue.cancelling.contains(job.id))
+                    } else {
+                        if job.phase.isFinished && job.phase != .completed {
+                            IconControl(title: L10n.text("queue.retry"), symbol: "arrow.clockwise") {
+                                queue.retry(job.id)
+                            }
+                        }
+                        IconControl(title: L10n.text("queue.remove"), symbol: "xmark") { queue.remove(job.id) }
+                            .disabled(!queue.canRemove(job.id))
+                    }
+                }.fixedSize()
             }
-            HStack {
-                if job.result?.output != job.input.resolvingSymlinksInPath() {
-                    IconControl(title: L10n.text("queue.revealInput"), symbol: "doc") {
-                        NSWorkspace.shared.activateFileViewerSelecting([job.input])
-                    }
-                }
-                if let result = job.result {
-                    Button {
-                        NSWorkspace.shared.activateFileViewerSelecting([result.output])
-                    } label: {
-                        Label(L10n.text("queue.revealOutput"), systemImage: "folder")
-                    }.capsuleControl(prominent: true).controlSize(.large)
-                }
-                Spacer(minLength: 8)
-                if queue.canReorder(job.id) {
-                    Image(systemName: "line.3.horizontal")
-                        .help(L10n.text("queue.reorder"))
-                        .accessibilityLabel(L10n.text("queue.reorder"))
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                if queue.pausedIDs.contains(job.id) {
-                    IconControl(title: L10n.text("queue.resume"), symbol: "play.fill") { queue.resume(job.id) }
-                        .disabled(queue.cancelling.contains(job.id))
-                    IconControl(title: L10n.text("queue.removePaused"), symbol: "xmark") { queue.remove(job.id) }
-                        .disabled(!queue.canRemove(job.id))
-                } else if queue.runningIDs.contains(job.id) {
-                    Image(systemName: "pin.fill")
-                        .help(L10n.text("queue.pinned"))
-                        .accessibilityLabel(L10n.text("queue.pinned"))
-                        .font(.caption).foregroundStyle(.secondary)
-                    IconControl(title: L10n.text("queue.pause"), symbol: "pause.fill") { queue.pause(job.id) }
-                        .disabled(queue.cancelling.contains(job.id))
-                } else {
-                    if job.phase.isFinished && job.phase != .completed {
-                        IconControl(title: L10n.text("queue.retry"), symbol: "arrow.clockwise") { queue.retry(job.id) }
-                    }
-                    IconControl(title: L10n.text("queue.remove"), symbol: "xmark") { queue.remove(job.id) }
-                        .disabled(!queue.canRemove(job.id))
-                }
-            }.controlSize(.small)
             if job.phase == .encoding || job.phase == .paused {
                 HStack(spacing: 12) {
                     ProgressView(value: job.progress)
-                    Text(L10n.text("queue.progress", L10n.integer(Int(job.progress * 100))))
+                    Text(L10n.text("queue.percent", L10n.integer(Int(job.progress * 100))))
                         .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         .fixedSize()
                 }
@@ -271,6 +254,11 @@ private struct JobRow: View {
                     .font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
+                Button {
+                    NSWorkspace.shared.activateFileViewerSelecting([job.result?.output ?? job.input])
+                } label: {
+                    Label(L10n.text("queue.revealInput"), systemImage: "folder")
+                }.capsuleControl()
             }.font(.caption)
             if let details = job.displayDetails, !details.isEmpty {
                 DisclosureGroup(L10n.text("details.technical")) {
@@ -347,15 +335,22 @@ private let queueDragLog = Logger(subsystem: "com.mani.NotchCompressor", categor
 /// Apply only to reorderable rows; balance cursor ownership when a row starts
 /// running or disappears after completion/removal while the pointer is over it.
 private struct ReorderCursor: ViewModifier {
+    let enabled: Bool
     @State private var ownsCursor = false
 
     func body(content: Content) -> some View {
         content
             .onHover { inside in
-                if inside && !ownsCursor {
+                if inside && enabled && !ownsCursor {
                     NSCursor.openHand.push()
                     ownsCursor = true
-                } else if !inside && ownsCursor {
+                } else if (!inside || !enabled) && ownsCursor {
+                    NSCursor.pop()
+                    ownsCursor = false
+                }
+            }
+            .onChange(of: enabled) { _, enabled in
+                if !enabled && ownsCursor {
                     NSCursor.pop()
                     ownsCursor = false
                 }

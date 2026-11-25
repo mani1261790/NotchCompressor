@@ -260,3 +260,4 @@
 "settings.category" = "Settings category";
 "settings.general" = "General";
 "settings.updatesSupport" = "Updates & Support";
+"queue.percent" = "%@%%";
