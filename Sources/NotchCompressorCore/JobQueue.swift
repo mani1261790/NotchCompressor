@@ -5,6 +5,8 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
     public let id: UUID
     public let input: URL
     public let mode: CompressionMode
+    public var mediaKind: MediaKind?
+    public var effectiveMediaKind: MediaKind { mediaKind ?? .video }
     public let settings: CompressionSettings
     public let createdAt: Date
     public var phase: JobPhase
@@ -22,7 +24,8 @@ public struct CompressionJob: Identifiable, Codable, Sendable {
 
     public var result: CompressionResult?
     public var diskSpaceIssue: DiskSpaceIssue?
-    public init(input: URL, mode: CompressionMode, settings: CompressionSettings) {
+    public init(input: URL, mode: CompressionMode, settings: CompressionSettings, mediaKind: MediaKind? = nil) {
+        self.mediaKind = mediaKind
         id = UUID(); self.input = input; self.mode = mode; self.settings = settings
         createdAt = Date(); phase = .waiting; progress = 0
     }
@@ -201,7 +204,9 @@ public final class JobQueue: ObservableObject {
     }
 
     @discardableResult
-    public func enqueue(_ urls: [URL], mode: CompressionMode) -> Int {
+    public func enqueue(
+        _ urls: [URL], mode: CompressionMode, mediaKind: MediaKind? = nil, settings snapshot: CompressionSettings? = nil
+    ) -> Int {
         guard accepting else { return 0 }
         var added = 0
         for url in urls {
@@ -209,7 +214,7 @@ public final class JobQueue: ObservableObject {
             guard !jobs.contains(where: { $0.input == source && $0.mode == mode && !$0.phase.isFinished }) else {
                 continue
             }
-            jobs.append(CompressionJob(input: source, mode: mode, settings: settings))
+            jobs.append(CompressionJob(input: source, mode: mode, settings: snapshot ?? settings, mediaKind: mediaKind))
             added += 1
         }
         trimHistory()
@@ -418,22 +423,25 @@ public final class JobQueue: ObservableObject {
             do {
                 try Task.checkCancellation()
                 let result = try await CompressionControl.$current.withValue(control) {
-                    try await self.operation(job.input, job.mode, job.settings) { [weak self] phase, progress, note in
-                        Task { @MainActor in
-                            guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
-                                !self.cancelling.contains(job.id),
-                                let index = self.jobs.firstIndex(where: { $0.id == job.id }),
-                                !self.jobs[index].phase.isFinished
-                            else { return }
-                            let changedPhase = self.jobs[index].phase != phase
-                            self.jobs[index].phase = phase
-                            self.jobs[index].progress = progress
-                            self.jobs[index].localizedMessage =
-                                ["note.silent", "note.sleepRetry"].first(where: { note == L10n.text($0) }).map {
-                                    .init($0)
-                                }
-                            self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
-                            if changedPhase { self.persist() }
+                    try await MediaInputContext.$expectedKind.withValue(job.effectiveMediaKind) {
+                        try await self.operation(job.input, job.mode, job.settings) {
+                            [weak self] phase, progress, note in
+                            Task { @MainActor in
+                                guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
+                                    !self.cancelling.contains(job.id),
+                                    let index = self.jobs.firstIndex(where: { $0.id == job.id }),
+                                    !self.jobs[index].phase.isFinished
+                                else { return }
+                                let changedPhase = self.jobs[index].phase != phase
+                                self.jobs[index].phase = phase
+                                self.jobs[index].progress = progress
+                                self.jobs[index].localizedMessage =
+                                    ["note.silent", "note.sleepRetry"].first(where: { note == L10n.text($0) }).map {
+                                        .init($0)
+                                    }
+                                self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
+                                if changedPhase { self.persist() }
+                            }
                         }
                     }
                 }

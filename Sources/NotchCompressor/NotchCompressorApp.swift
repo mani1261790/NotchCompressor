@@ -13,6 +13,8 @@ final class AppState: ObservableObject {
     private let sleepMonitor: QueueSleepMonitor
     @Published var settingsPresented = false
     @Published var dropError: String?
+    @Published private(set) var importingCount = 0
+    private var importTask: Task<Void, Never>?
     private var window: NSWindow?
 
     private init() {
@@ -42,6 +44,34 @@ final class AppState: ObservableObject {
         settingsPresented = settings
     }
 
+    func receiveFiles(_ urls: [URL], mode: CompressionMode) {
+        let settings = queue.settings
+        let previous = importTask
+        importingCount += 1
+        importTask = Task { [weak self] in
+            await previous?.value
+            guard let self else { return }
+            defer { importingCount -= 1 }
+            do {
+                let batch = try await InputBatch.inspect(urls, mode: mode, toolsDirectory: settings.toolsDirectory)
+                for input in batch.accepted {
+                    queue.enqueue([input.url], mode: mode, mediaKind: input.kind, settings: settings)
+                }
+                if !batch.rejected.isEmpty {
+                    let reasons = batch.rejected.map { "\($0.url.lastPathComponent): \($0.reason.text)" }
+                    dropError = ([L10n.text("input.rejected", L10n.integer(batch.rejected.count))] + reasons).joined(
+                        separator: "\n")
+                    presentQueue()
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                dropError = (error as? CompressionError)?.localizedDescription ?? L10n.text("error.read")
+                presentQueue()
+            }
+        }
+    }
+
     func chooseVideos(mode: CompressionMode) {
         let panel = NSOpenPanel()
         panel.title = L10n.text("app.choose", mode.title)
@@ -49,7 +79,7 @@ final class AppState: ObservableObject {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
-        queue.enqueue(panel.urls, mode: mode)
+        receiveFiles(panel.urls, mode: mode)
         if (try? Toolchain.discover(directory: queue.settings.toolsDirectory)) == nil { settingsPresented = true }
     }
 

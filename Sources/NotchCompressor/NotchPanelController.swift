@@ -35,7 +35,7 @@ private final class DropHostingView: NSHostingView<DropPanel> {
             let urls = sender.draggingPasteboard.readObjects(
                 forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL], !urls.isEmpty
         else { return false }
-        AppState.shared.queue.enqueue(urls, mode: mode)
+        AppState.shared.receiveFiles(urls, mode: mode)
         if (try? Toolchain.discover(directory: AppState.shared.queue.settings.toolsDirectory)) == nil {
             AppState.shared.presentQueue(settings: true)
         }

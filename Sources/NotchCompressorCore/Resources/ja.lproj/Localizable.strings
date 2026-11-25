@@ -267,3 +267,11 @@
 
 "queue.moveEarlier" = "一つ前へ移動";
 "queue.moveLater" = "一つ後ろへ移動";
+"media.video" = "動画";
+"media.image" = "画像";
+"media.audio" = "音声";
+"error.mediaMode" = "%@はこの領域では圧縮できません。中央の領域へドロップしてください。";
+"error.mediaUnavailable" = "%@の圧縮はまだ対応していません。元ファイルは変更していません。";
+"error.mediaMismatch" = "ファイルの内容と形式が一致しないか、読み取れない形式です。元ファイルは変更していません。";
+"input.rejected" = "追加できなかったファイル（%@件）";
+"input.inspecting" = "ファイルを確認中…";

@@ -100,6 +100,9 @@ struct QueueView: View {
                     IconControl(title: L10n.text("queue.dismissResult"), symbol: "xmark") { queue.dismissCompletion() }
                 }.padding(.horizontal, 24).padding(.vertical, 12)
             }
+            if app.importingCount > 0 {
+                ProgressView(L10n.text("input.inspecting")).controlSize(.small).padding()
+            }
             if let error = app.dropError {
                 HStack {
                     Text(error).font(.callout); Spacer();

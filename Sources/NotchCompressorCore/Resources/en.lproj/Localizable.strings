@@ -267,3 +267,11 @@
 
 "queue.moveEarlier" = "Move earlier";
 "queue.moveLater" = "Move later";
+"media.video" = "Video";
+"media.image" = "Image";
+"media.audio" = "Audio";
+"error.mediaMode" = "%@ cannot be compressed in this area. Drop it in the center area.";
+"error.mediaUnavailable" = "%@ compression is not supported yet. The original was not changed.";
+"error.mediaMismatch" = "The contents do not match the file type, or the format cannot be read. The original was not changed.";
+"input.rejected" = "Files not added (%@)";
+"input.inspecting" = "Checking files…";
