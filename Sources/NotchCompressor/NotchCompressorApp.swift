@@ -154,9 +154,6 @@ struct NotchCompressorApp: App {
             Button(L10n.text("app.checkUpdates")) { updates.check() }
                 .disabled(!updates.canCheck || queue.isBusy)
             Divider()
-            Text(L10n.text("app.zones"))
-            Text(L10n.text("app.replace"))
-            Divider()
             Button(L10n.text("app.quit")) { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
         } label: {
