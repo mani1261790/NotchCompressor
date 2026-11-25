@@ -71,8 +71,8 @@
 }
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .demo-screen{--mock-dark:1}@media(max-width:600px){:root:not([data-theme=light]) .demo-screen{background-image:url(assets/lunamo-laptop-dark-v2.png)}}}
 @media(prefers-reduced-motion:reduce){.demo-notch,.demo-zones button{transition:none}}
-.demo-heading-actions{display:flex;align-items:center;gap:.6cqw}.demo-gear{display:grid;place-items:center;width:3.19cqw;height:3.19cqw;padding:.8cqw;border-radius:50%;border:1px solid #8883;background:light-dark(#f4f4f4cc,#48484899);color:inherit;cursor:pointer;box-shadow:inset 0 1px 1px #fff5}.demo-gear svg{width:100%;height:100%}
+.demo-heading-actions{display:flex;align-items:center;gap:.6cqw}.demo-gear{display:grid;place-items:center;width:3.19cqw;height:3.19cqw;padding:.65cqw;border-radius:50%;border:1px solid #8883;background:light-dark(#f4f4f4cc,#48484899);color:inherit;cursor:pointer;box-shadow:inset 0 1px 1px #fff5}.demo-gear svg{width:100%;height:100%}
 .demo-dock svg{width:90%;height:90%}.demo-dock .folder-icon{background:transparent}
 .demo-zones button{min-height:44px}.demo-zones b{font-size:max(8px,.94cqw)}.demo-zones small{font-size:max(6px,.725cqw)}
 .demo-queue strong{margin-right:0}
-@media(max-width:600px){.demo-gear{width:36px;height:36px;padding:9px}.demo-heading-actions{gap:4px}}
+@media(max-width:600px){.demo-gear{width:36px;height:36px;padding:7px}.demo-heading-actions{gap:4px}}
