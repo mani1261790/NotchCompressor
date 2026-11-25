@@ -37,3 +37,13 @@ CUAはMacのロックを検出し実画面を取得できなかったため、�
 [AppleのWidgetKit戦略](https://developer.apple.com/documentation/widgetkit/developing-a-widgetkit-strategy/)はmacOS 27.3以降のネイティブLive Activitiesを案内している。一方、実機のOS27.3に対しインストール済みSDKは27.2で、ActivityKit.ActivityとWidgetKit.DynamicIslandはmacOS unavailable。既存SDKでavailabilityを回避しない。[#42](https://github.com/mani1261790/NotchCompressor/issues/42)で対応SDKと機種の検証を追跡する。自前の受け取りパネルとシステムLive Activityは別に扱う。
 
 追加検証: 94テスト（実メディア込み）が成功。配布アプリ内の画像補助プロセスでPNGを圧縮し、展開後の画素列が元と一致した。検証コピーは `.local-work/next/media-preview-build12/NotchCompressor Preview.app`（bundle ID `com.mani.NotchCompressor.preview`）。履歴保存先をbundle ID単位に分離し、検証コピーではSparkleを開始しない。インストール済み正式版は0.1.0/build11を維持。CIも補助プロセスをビルド・指定するtest.sh経由へ統一する。
+
+## CIと公証済み候補の確認（2026-11-25）
+
+コミット `965990ce2dfde31524f6864cc7745d680f4bc300` の [CI 45610117573](https://github.com/mani1261790/NotchCompressor/actions/runs/45610117573) が成功。整形・日英カタログ・単体テスト・配布リハーサルを含む。CIの単体テストとローカルの実メディア込み94件は別の実行結果。
+
+同コミットのアプリ本体はDeveloper IDで署名し、公証 `20167add-9ee7-4929-8aaf-c402efea2896` がAccepted。公証済みアプリ内の画像補助プロセスを実行し、試験PNGが355,226から235,893バイトになり、展開後の画素列および入力原本のバイトが変わらないことを確認した。これはFinderドロップやノッチ表示の確認ではない。
+
+残りの実操作は [実機確認表](../releases/0.2.0-acceptance.md) に列挙した。CUAは引き続きMacのロックを報告しており、表示・権限・操作は未確認のまま。正式版0.1.0のアプリ・キュー・公開更新フィードは変更していない。
+
+日本語・英語DMGも公証Accepted。アプリと両DMGのstapler検証・Gatekeeper評価、配布物チェックサム検証が成功。ローカル候補は `dist/0.2.0-alpha.1-build12`。Sparkle署名済みappcastも同ディレクトリ内に作成したが、公開フィードには反映していない。
