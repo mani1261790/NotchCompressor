@@ -297,9 +297,12 @@
 "widgets.title" = "Notch display";
 "widgets.clock" = "Show clock";
 "widgets.music" = "Show Apple Music track";
-"widgets.hint" = "Displays information on either side of the top of your screen. File drops take priority. With both options off, nothing extra is shown while idle.";
+"widgets.hint" = "Hover over the top center of your screen to see the clock and music. Move away to close it. Turn on Always show to keep compact information visible when closed. File drags take priority.";
 "widgets.connect" = "Connect to Apple Music";
 "widgets.openMusic" = "Open Music and play a track, then connect.";
 "widgets.musicPermission" = "Connecting requires permission to access Music. If denied, allow it in System Settings → Privacy & Security → Automation.";
 "widgets.noTrack" = "No current track.";
 "widgets.musicUnavailable" = "Track information is unavailable. Check the Music app.";
+
+"widgets.alwaysVisible" = "Always show when closed";
+"widgets.chooseContent" = "Choose clock or music in Settings.";

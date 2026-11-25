@@ -115,4 +115,29 @@ final class NotchTests: XCTestCase {
             }
         }
     }
+    func testHoverNeedsDwellAndKeepsExpandedContentReachable() {
+        var hover = NotchHoverState()
+        hover.update(insideTrigger: true, insidePanel: false, now: 1)
+        hover.update(insideTrigger: true, insidePanel: false, now: 1.1)
+        XCTAssertFalse(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: false, now: 1.12)
+        hover.update(insideTrigger: true, insidePanel: false, now: 2)
+        XCTAssertFalse(hover.expanded, "A pass over the menu bar must not open the panel")
+        hover.update(insideTrigger: true, insidePanel: false, now: 2.2)
+        XCTAssertTrue(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: true, now: 3)
+        XCTAssertTrue(hover.expanded, "Moving from the notch into its content keeps it open")
+        hover.update(insideTrigger: false, insidePanel: false, now: 4)
+        hover.update(insideTrigger: false, insidePanel: false, now: 4.1)
+        XCTAssertTrue(hover.expanded)
+        hover.update(insideTrigger: false, insidePanel: true, now: 4.2)
+        hover.update(insideTrigger: false, insidePanel: false, now: 5)
+        hover.update(insideTrigger: false, insidePanel: false, now: 5.3)
+        XCTAssertFalse(hover.expanded)
+        hover.update(insideTrigger: true, insidePanel: false, now: 6)
+        hover.update(insideTrigger: true, insidePanel: false, now: 6.2)
+        hover.reset()
+        XCTAssertFalse(hover.expanded, "A file drag takes priority over information")
+    }
+
 }

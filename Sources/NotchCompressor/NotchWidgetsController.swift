@@ -6,6 +6,9 @@ import NotchCompressorCore
 @MainActor
 final class NotchWidgetsController: ObservableObject {
     static let shared = NotchWidgetsController()
+    @Published var alwaysVisible: Bool {
+        didSet { UserDefaults.standard.set(alwaysVisible, forKey: "notch.alwaysVisible") }
+    }
     @Published var showClock: Bool { didSet { UserDefaults.standard.set(showClock, forKey: "notch.showClock") } }
     @Published var showMusic: Bool {
         didSet {
@@ -24,7 +27,10 @@ final class NotchWidgetsController: ObservableObject {
     var hasVisibleContent: Bool { showClock || (showMusic && track != nil) }
 
     private init() {
-        showClock = UserDefaults.standard.bool(forKey: "notch.showClock")
+        alwaysVisible = UserDefaults.standard.bool(forKey: "notch.alwaysVisible")
+        showClock =
+            UserDefaults.standard.object(forKey: "notch.showClock") == nil
+            ? true : UserDefaults.standard.bool(forKey: "notch.showClock")
         showMusic = UserDefaults.standard.bool(forKey: "notch.showMusic")
         timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect().sink { [weak self] _ in self?.refresh() }
         sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(

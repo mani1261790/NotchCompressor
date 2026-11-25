@@ -194,6 +194,7 @@ struct SettingsView: View {
                     Section {
                         Toggle(L10n.text("widgets.clock"), isOn: $widgets.showClock).toggleStyle(.switch)
                         Toggle(L10n.text("widgets.music"), isOn: $widgets.showMusic).toggleStyle(.switch)
+                        Toggle(L10n.text("widgets.alwaysVisible"), isOn: $widgets.alwaysVisible).toggleStyle(.switch)
                         Text(L10n.text("widgets.hint")).font(.caption).foregroundStyle(.secondary)
                         if widgets.showMusic {
                             Button {

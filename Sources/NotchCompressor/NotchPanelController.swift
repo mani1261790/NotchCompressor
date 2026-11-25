@@ -9,6 +9,7 @@ final class DropPresentation: ObservableObject {
     @Published var topInset: CGFloat = 0
     @Published var visible = false
     @Published var showingWidgets = false
+    @Published var compactWidgets = false
     @Published var compactWidth: CGFloat = 180
     @Published var compactHeight: CGFloat = 28
     @Published var cameraWidth: CGFloat = 0
@@ -77,6 +78,7 @@ final class NotchPanelController {
     private var collapseTask: Task<Void, Never>?
     private let widgets = NotchWidgetsController.shared
     private var nativeDrop = NativeDropSession()
+    private var hover = NotchHoverState()
     private var drag = FileDragState(changeCount: NSPasteboard(name: .drag).changeCount)
 
     init() {
@@ -161,10 +163,12 @@ final class NotchPanelController {
             presentation.compactHeight = geometry.collapsed.height
         }
         host.geometry = geometry
-        if presentation.showingWidgets != widgets.hasVisibleContent {
-            presentation.showingWidgets = widgets.hasVisibleContent
+        if presentation.showingWidgets != (widgets.alwaysVisible && widgets.hasVisibleContent) {
+            presentation.showingWidgets = widgets.alwaysVisible && widgets.hasVisibleContent
         }
-        if widgets.hasVisibleContent {
+        let compactWidgets = widgets.alwaysVisible && widgets.hasVisibleContent
+        if presentation.compactWidgets != compactWidgets { presentation.compactWidgets = compactWidgets }
+        if widgets.alwaysVisible && widgets.hasVisibleContent {
             let layout = NotchWidgetGeometry(
                 screen: screen.frame, topInset: geometry.topInset, notchWidth: geometry.collapsed.width)
             if presentation.cameraWidth != layout.cameraWidth { presentation.cameraWidth = layout.cameraWidth }
@@ -176,7 +180,7 @@ final class NotchPanelController {
         }
     }
 
-    private func expand(on screen: NSScreen) {
+    private func expand(on screen: NSScreen, information: Bool = false) {
         collapseTask?.cancel(); collapseTask = nil
         let geometry = geometry(on: screen)
         host.geometry = geometry
@@ -187,7 +191,8 @@ final class NotchPanelController {
         if presentation.compactHeight != geometry.collapsed.height {
             presentation.compactHeight = geometry.collapsed.height
         }
-        if presentation.showingWidgets { presentation.showingWidgets = false }
+        if presentation.compactWidgets { presentation.compactWidgets = false }
+        if presentation.showingWidgets != information { presentation.showingWidgets = information }
         setFrame(geometry.panel)
         panel.ignoresMouseEvents = false
         if !panel.isVisible { panel.orderFrontRegardless() }
@@ -209,11 +214,28 @@ final class NotchPanelController {
             trace("native destination"); return
         }
         let screens = NSScreen.screens
-        guard drag.active,
-            let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame))
-        else { trace("compact: no active file drag"); collapse(); return }
+        guard let screenIndex = NotchGeometry.screenIndex(containing: pointer, frames: screens.map(\.frame))
+        else { hover.reset(); collapse(); return }
         let screen = screens[screenIndex]
         let geometry = geometry(on: screen)
+        if !drag.active {
+            if leftDown {
+                if presentation.visible && presentation.showingWidgets && panel.frame.contains(pointer) { return }
+                hover.reset(); collapse(); return
+            }
+            let trigger = geometry.collapsed.insetBy(dx: -20, dy: 0)
+            let inTrigger =
+                pointer.x >= trigger.minX && pointer.x <= trigger.maxX
+                && pointer.y >= trigger.minY && pointer.y <= trigger.maxY
+            hover.update(
+                insideTrigger: inTrigger,
+                insidePanel: presentation.visible && presentation.showingWidgets
+                    && panel.frame.insetBy(dx: -12, dy: -12).contains(pointer),
+                now: ProcessInfo.processInfo.systemUptime)
+            if hover.expanded { expand(on: screen, information: true) } else { collapse() }
+            return
+        }
+        hover.reset()
         let insidePanel =
             presentation.visible && panel.frame == geometry.panel
             && panel.frame.insetBy(dx: -16, dy: -16).contains(pointer)

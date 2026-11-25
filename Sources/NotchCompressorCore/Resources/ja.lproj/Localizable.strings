@@ -297,9 +297,12 @@
 "widgets.title" = "ノッチの表示";
 "widgets.clock" = "時計を表示";
 "widgets.music" = "Apple Musicの曲を表示";
-"widgets.hint" = "画面上部の左右に表示します。ファイルのドラッグ中は圧縮操作を優先します。両方オフなら、待機中に追加の表示を出しません。";
+"widgets.hint" = "画面上部中央にカーソルを合わせると、時計や音楽を表示します。カーソルを離すと閉じます。「常時表示」をオンにすると、閉じている間も小さく表示します。ファイルのドラッグ中は圧縮の選択を優先します。";
 "widgets.connect" = "Apple Musicに接続";
 "widgets.openMusic" = "ミュージックを起動し、曲を再生してから接続してください。";
 "widgets.musicPermission" = "接続にはミュージックへのアクセス許可が必要です。拒否した場合は、システム設定の「プライバシーとセキュリティ」→「オートメーション」で許可できます。";
 "widgets.noTrack" = "再生中の曲はありません。";
 "widgets.musicUnavailable" = "曲の情報を取得できません。ミュージックの状態を確認してください。";
+
+"widgets.alwaysVisible" = "閉じている間も常時表示";
+"widgets.chooseContent" = "設定で時計や音楽を選べます。";

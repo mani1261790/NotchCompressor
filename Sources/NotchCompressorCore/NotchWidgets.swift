@@ -25,3 +25,27 @@ public struct NowPlayingTrack: Equatable, Sendable {
         self.title = title; self.artist = artist; self.playing = playing
     }
 }
+
+/// Debounce entry and tolerate briefly crossing the expanded panel boundary.
+public struct NotchHoverState {
+    public private(set) var expanded = false
+    private var enteredAt: TimeInterval?
+    private var exitedAt: TimeInterval?
+    public init() {}
+    public mutating func reset() { expanded = false; enteredAt = nil; exitedAt = nil }
+    public mutating func update(insideTrigger: Bool, insidePanel: Bool, now: TimeInterval) {
+        if expanded {
+            if insideTrigger || insidePanel {
+                exitedAt = nil
+            } else {
+                if exitedAt == nil { exitedAt = now }
+                if now - (exitedAt ?? now) >= 0.25 { reset() }
+            }
+        } else if insideTrigger {
+            if enteredAt == nil { enteredAt = now }
+            if now - (enteredAt ?? now) >= 0.18 { expanded = true; exitedAt = nil }
+        } else {
+            enteredAt = nil
+        }
+    }
+}

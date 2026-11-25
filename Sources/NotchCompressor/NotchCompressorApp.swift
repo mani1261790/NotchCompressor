@@ -199,19 +199,25 @@ struct DropPanel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         GeometryReader { proxy in
-            if presentation.showingWidgets {
+            if presentation.compactWidgets {
                 NotchWidgetsView(widgets: widgets, cameraWidth: presentation.cameraWidth)
             } else {
                 VStack(spacing: 0) {
                     Color.clear.frame(height: presentation.topInset)
-                    VStack(spacing: 12) {
-                        HStack(spacing: 8) {
-                            ForEach(CompressionMode.allCases) { mode in
-                                DropZone(mode: mode, targeted: presentation.mode == mode)
+                    Group {
+                        if presentation.showingWidgets {
+                            NotchDashboardView(widgets: widgets)
+                        } else {
+                            VStack(spacing: 12) {
+                                HStack(spacing: 8) {
+                                    ForEach(CompressionMode.allCases) { mode in
+                                        DropZone(mode: mode, targeted: presentation.mode == mode)
+                                    }
+                                }
+                                Text(L10n.text("notch.dropHint"))
+                                    .font(.caption2).foregroundStyle(.white.opacity(0.65))
                             }
                         }
-                        Text(L10n.text("notch.dropHint"))
-                            .font(.caption2).foregroundStyle(.white.opacity(0.65))
                     }.padding(14).frame(height: 148)
                         .opacity(presentation.visible ? 1 : 0)
                 }
