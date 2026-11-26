@@ -104,6 +104,57 @@ public final class JobQueue: ObservableObject {
         }
     }
 
+    @Published public private(set) var isRecoveringWorkspace = false
+    @Published public var requestedWorkspaceJobID: UUID?
+    @Published public private(set) var pendingRecoveries: [LowSpaceRecord] = []
+    @Published public private(set) var lowSpaceError: String?
+    private var externalWorkspaces: [UUID: LowSpaceWorkspace] = [:]
+    private var recoveryDirectory: URL {
+        (storage?.deletingLastPathComponent() ?? FileManager.default.temporaryDirectory)
+            .appendingPathComponent("TemporaryRecovery", isDirectory: true)
+    }
+    public func reloadRecoveries() {
+        do { pendingRecoveries = try LowSpaceRecovery.pending(in: recoveryDirectory); lowSpaceError = nil } catch {
+            lowSpaceError = error.localizedDescription
+        }
+    }
+    public func recover(_ record: LowSpaceRecord) async {
+        guard workers.isEmpty, !isRecoveringWorkspace else { return }
+        isRecoveringWorkspace = true
+        defer { isRecoveringWorkspace = false; startNext() }
+        do {
+            try await Task.detached { try LowSpaceRecovery.recover(record) }.value
+            reloadRecoveries()
+        } catch { lowSpaceError = error.localizedDescription }
+    }
+    public func retryUsingExternalDisk(_ id: UUID, folder: URL, disk: LowSpaceDisk) throws {
+        guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].phase.isFinished,
+            workers[id] == nil, !pendingRecoveries.contains(where: { $0.source == jobs[index].input })
+        else { return }
+        let required = try LowSpaceDisk.requiredBytes(
+            for: jobs[index].input,
+            estimatedOutput: jobs[index].diskSpaceIssue?.requiredBytes)
+        let current = try LowSpaceDisk.inspect(folder, source: jobs[index].input, requiredBytes: required)
+        guard current.uuid == disk.uuid else { throw CompressionError.localized(.init("lowSpace.wrongDisk")) }
+        let probe = folder.appendingPathComponent(".notchcompressor-write-" + UUID().uuidString)
+        try Data([0]).write(to: probe, options: .withoutOverwriting)
+        try FileManager.default.removeItem(at: probe)
+        scheduleExternalRetry(
+            id,
+            workspace: LowSpaceWorkspace(folder: folder, volumeUUID: disk.uuid, recoveryDirectory: recoveryDirectory))
+    }
+    func scheduleExternalRetry(_ id: UUID, workspace: LowSpaceWorkspace) {
+        guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].phase.isFinished,
+            workers[id] == nil, !pendingRecoveries.contains(where: { $0.source == jobs[index].input })
+        else { return }
+        externalWorkspaces[id] = workspace
+        jobs[index].phase = .waiting
+        jobs[index].progress = 0
+        jobs[index].diskSpaceIssue = nil
+        jobs[index].localizedMessage = nil
+        jobs[index].technicalDetails = nil
+        persist(); startNext()
+    }
     private let storage: URL?
     private let operation: Operation
     @Published public var execution: QueueExecution = .automatic { didSet { persist(); startNext() } }
@@ -189,6 +240,7 @@ public final class JobQueue: ObservableObject {
                 persistenceDetails = error.localizedDescription
             }
         }
+        reloadRecoveries()
         resourceMonitor = Timer.publish(every: 5, on: .main, in: .common).autoconnect().sink { [weak self] _ in
             self?.refreshEnvironment()
         }
@@ -409,15 +461,22 @@ public final class JobQueue: ObservableObject {
     }
 
     private func startNext() {
-        guard accepting, !isPaused, !systemSleeping else { return }
+        guard accepting, !isPaused, !systemSleeping, !isRecoveringWorkspace else { return }
         environment = readEnvironment()
         let limit = execution == .serial || (execution == .automatic && environment.conservesResources) ? 1 : 2
         while workers.count < limit {
+            if runningIDs.contains(where: { externalWorkspaces[$0] != nil }) { break }
+            if let first = waitingJobs.first, externalWorkspaces[first.id] != nil {
+                guard workers.isEmpty else { break }
+                launch(first); break
+            }
             let activePaths = Set(jobs.filter { runningIDs.contains($0.id) }.map { $0.input.path })
             let videoActive = jobs.contains { runningIDs.contains($0.id) && $0.usesVisualEncoder }
             guard
                 let job = waitingJobs.first(where: {
-                    !activePaths.contains($0.input.path)
+                    externalWorkspaces[$0.id] == nil
+                        && !pendingRecoveries.map(\.source).contains($0.input)
+                        && !activePaths.contains($0.input.path)
                         && !activeResources.values.contains(resourceKey($0.input))
                         && !(execution == .automatic && videoActive && $0.usesVisualEncoder)
                 })
@@ -438,25 +497,27 @@ public final class JobQueue: ObservableObject {
             guard let self else { return }
             do {
                 try Task.checkCancellation()
-                let result = try await CompressionControl.$current.withValue(control) {
-                    try await MediaInputContext.$expectedKind.withValue(job.effectiveMediaKind) {
-                        try await self.operation(job.input, job.mode, job.settings) {
-                            [weak self] phase, progress, note in
-                            Task { @MainActor in
-                                guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
-                                    !self.cancelling.contains(job.id),
-                                    let index = self.jobs.firstIndex(where: { $0.id == job.id }),
-                                    !self.jobs[index].phase.isFinished
-                                else { return }
-                                let changedPhase = self.jobs[index].phase != phase
-                                self.jobs[index].phase = phase
-                                self.jobs[index].progress = progress
-                                self.jobs[index].localizedMessage =
-                                    ["note.silent", "note.sleepRetry"].first(where: { note == L10n.text($0) }).map {
-                                        .init($0)
-                                    }
-                                self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
-                                if changedPhase { self.persist() }
+                let result = try await LowSpaceWorkspace.$current.withValue(externalWorkspaces[job.id]) {
+                    try await CompressionControl.$current.withValue(control) {
+                        try await MediaInputContext.$expectedKind.withValue(job.effectiveMediaKind) {
+                            try await self.operation(job.input, job.mode, job.settings) {
+                                [weak self] phase, progress, note in
+                                Task { @MainActor in
+                                    guard let self, self.runningIDs.contains(job.id), !self.pausedIDs.contains(job.id),
+                                        !self.cancelling.contains(job.id),
+                                        let index = self.jobs.firstIndex(where: { $0.id == job.id }),
+                                        !self.jobs[index].phase.isFinished
+                                    else { return }
+                                    let changedPhase = self.jobs[index].phase != phase
+                                    self.jobs[index].phase = phase
+                                    self.jobs[index].progress = progress
+                                    self.jobs[index].localizedMessage =
+                                        ["note.silent", "note.sleepRetry"].first(where: { note == L10n.text($0) }).map {
+                                            .init($0)
+                                        }
+                                    self.jobs[index].message = self.jobs[index].localizedMessage == nil ? note : nil
+                                    if changedPhase { self.persist() }
+                                }
                             }
                         }
                     }
@@ -477,9 +538,11 @@ public final class JobQueue: ObservableObject {
                     jobs[index].diskSpaceIssue = DiskSpaceIssue.classify(error)
                     jobs[index].phase = error is CancellationError ? .cancelled : .failed
                     jobs[index].localizedMessage =
-                        error is CancellationError
-                        ? .init("queue.cancelled")
-                        : (error as? CompressionError)?.localizedMessage ?? .init("error.generic")
+                        error is LowSpaceRecoveryRequired
+                        ? .init("lowSpace.recoveryRequired")
+                        : error is CancellationError
+                            ? .init("queue.cancelled")
+                            : (error as? CompressionError)?.localizedMessage ?? .init("error.generic")
                     jobs[index].technicalDetails =
                         error is CancellationError
                         ? nil
@@ -487,7 +550,10 @@ public final class JobQueue: ObservableObject {
                             ?? (error is CompressionError || error is DiskSpaceIssue ? nil : error.localizedDescription)
                     jobs[index].message = nil
                     if !(error is CancellationError) {
-                        failureEvents.send(FailureNotice(diskSpaceIssue: jobs[index].diskSpaceIssue))
+                        failureEvents.send(
+                            FailureNotice(
+                                diskSpaceIssue: jobs[index].diskSpaceIssue,
+                                recoveryRequired: error is LowSpaceRecoveryRequired, jobID: job.id))
                     }
                     if error is CancellationError {
                         // Keep the stopped card visible above inactive cards instead of
@@ -510,6 +576,8 @@ public final class JobQueue: ObservableObject {
             activeOrder.removeAll { $0 == job.id }
             runningIDs.remove(job.id)
             workers.removeValue(forKey: job.id)
+            externalWorkspaces.removeValue(forKey: job.id)
+            reloadRecoveries()
             trimHistory()
             persist()
             startNext()

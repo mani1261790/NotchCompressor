@@ -47,14 +47,14 @@
 "disk.title" = "Not enough free space";
 "disk.freeMore" = "Free up about %@ more. ";
 "disk.check" = "Check the free space on the destination and this Mac. ";
-"disk.notice" = "%@Remove unneeded files, or move the file to another disk and add it again. Click to see details in the queue.";
+"disk.notice" = "%@Use an external disk as a temporary workspace. Click to choose a disk.";
 "failure.body" = "The original was not replaced. Click to see the cause in the queue, address it, and try again.";
 "disk.unknown" = "The destination or this Mac’s temporary storage ran out of space.";
-"disk.source" = "The disk containing the original file does not have enough free space.";
+"disk.source" = "The working disk does not have enough free space.";
 "disk.amounts" = "Available: %@ / Estimated space needed: %@ / About %@ more needed";
 "disk.staging" = "For a safe replacement, the original is kept while a temporary output is created on the same disk. The original has not been replaced.";
 "disk.cleanup" = "1. Move unneeded files to another disk, or delete files you no longer need and empty the Trash if appropriate. Then choose Retry.";
-"disk.move" = "2. If you cannot free enough space, move the file to an external disk with available space, remove this task, and add the moved file. Moving between folders on the same disk does not free space.";
+"disk.move" = "2. If you cannot free enough space, choose “Use an external disk” for temporary work. Only disks with enough available space are offered.";
 "disk.estimate" = "Required space is an estimate. Other apps and concurrent tasks can change the available space.";
 "error.noAudio" = "This video has no audio. Choose Video only.";
 "error.unsupportedColor" = "This video’s color format, bit depth, or transparency is not supported. You can use Audio only to keep the video unchanged.";
@@ -372,3 +372,23 @@
 "music.startHint" = "Resume playback, or play the first library track if nothing can be resumed.";
 
 "settings.helpFor" = "About %@";
+
+// Temporary external workspace
+"lowSpace.title" = "Use an external disk";
+"lowSpace.explanation" = "Use this disk temporarily for this task. After compression and verification, the original is backed up to the disk and the smaller file is returned to its original location. Temporary files and recovery records are removed on completion. Keep the disk connected until then.";
+"lowSpace.noDisk" = "Connect an external disk with enough free space, then refresh.";
+"lowSpace.capacity" = "%@ available · estimated workspace %@";
+"lowSpace.choose" = "Choose another location…";
+"lowSpace.chooseExplanation" = "Choose a folder on an external disk for temporary work. Its available space will be checked after selection.";
+"lowSpace.refresh" = "Refresh";
+"lowSpace.later" = "Not now";
+"lowSpace.use" = "Use this disk";
+"lowSpace.recover" = "Check and recover";
+"lowSpace.recoveryRequired" = "Temporary work needs recovery. Connect the external disk and recover from the queue. Do not delete the original backup until recovery is complete.";
+"lowSpace.invalidRecord" = "The recovery record or file could not be safely verified. Work files have been retained.";
+"lowSpace.unverifiedDisk" = "The disk could not be identified. Choose another disk.";
+"lowSpace.unsuitable" = "Choose a writable external disk with verifiable free space.";
+"lowSpace.sameDisk" = "Choose an external disk that does not share storage space with the source.";
+"lowSpace.wrongDisk" = "Connect the original source and workspace disks. Automatic recovery cannot proceed if their locations have changed.";
+"lowSpace.destinationExists" = "The file at the original location has changed. It will not be overwritten; the backup has been retained.";
+"lowSpace.copyVerification" = "The copied file could not be verified. The backup has been retained.";

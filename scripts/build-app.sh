@@ -45,6 +45,7 @@ cat > "$app_dir/Contents/Info.plist" <<'PLIST'
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSRemovableVolumesUsageDescription</key><string>Use the external disk you choose for temporary compression work and recovery.</string>
 <key>NSAppleEventsUsageDescription</key><string>Show the current Apple Music track beside the notch when you enable music display.</string>
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/mani1261790/NotchCompressor/main/updates/appcast.xml</string>
 <key>SUEnableAutomaticChecks</key><true/>
@@ -59,9 +60,11 @@ PLIST
 /usr/libexec/PlistBuddy -c "Add :SUPublicEDKey string $(cat config/sparkle-public-key.txt)" "$app_dir/Contents/Info.plist"
 mkdir -p "$app_dir/Contents/Resources/ja.lproj" "$app_dir/Contents/Resources/en.lproj"
 cat > "$app_dir/Contents/Resources/ja.lproj/InfoPlist.strings" <<'STRINGS'
+"NSRemovableVolumesUsageDescription" = "選択した外付けディスクを圧縮と復旧のための一時的な作業に使用します。";
 "NSAppleEventsUsageDescription" = "音楽表示を有効にしたとき、Apple Musicで再生中の曲をノッチの横に表示します。";
 STRINGS
 cat > "$app_dir/Contents/Resources/en.lproj/InfoPlist.strings" <<'STRINGS'
+"NSRemovableVolumesUsageDescription" = "Use the external disk you choose for temporary compression work and recovery.";
 "NSAppleEventsUsageDescription" = "Show the current Apple Music track beside the notch when you enable music display.";
 STRINGS
 bash scripts/sign-app.sh "$app_dir"

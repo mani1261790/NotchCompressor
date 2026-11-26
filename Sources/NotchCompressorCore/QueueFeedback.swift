@@ -57,9 +57,14 @@ public struct QueueStatus: Equatable, Sendable {
 
 public struct FailureNotice: Equatable, Sendable {
     public let diskSpaceIssue: DiskSpaceIssue?
-    public init(diskSpaceIssue: DiskSpaceIssue? = nil) { self.diskSpaceIssue = diskSpaceIssue }
+    public let jobID: UUID?
+    public let recoveryRequired: Bool
+    public init(diskSpaceIssue: DiskSpaceIssue? = nil, recoveryRequired: Bool = false, jobID: UUID? = nil) {
+        self.diskSpaceIssue = diskSpaceIssue; self.recoveryRequired = recoveryRequired; self.jobID = jobID
+    }
     public var title: String { diskSpaceIssue == nil ? L10n.text("failure.title") : L10n.text("disk.title") }
     public var body: String {
+        if recoveryRequired { return L10n.text("lowSpace.recoveryRequired") }
         if let issue = diskSpaceIssue {
             let deficit =
                 issue.additionalBytes.map {

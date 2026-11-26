@@ -216,6 +216,7 @@ public struct CompressionEngine: Sendable {
         do {
             _ = try FileManager.default.replaceItemAt(original, withItemAt: staged)
         } catch {
+            if let issue = DiskSpaceIssue.classify(error) { throw issue }
             throw CompressionError.localized(.init("error.replace"), details: error.localizedDescription)
         }
         return original

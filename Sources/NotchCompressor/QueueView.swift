@@ -133,6 +133,26 @@ struct QueueView: View {
                     IconControl(title: L10n.text("ui.close"), symbol: "xmark") { app.dropError = nil }
                 }.padding()
             }
+            if let error = queue.lowSpaceError {
+                Text(error).font(.caption).foregroundStyle(.orange).padding()
+            }
+            ForEach(queue.pendingRecoveries) { record in
+                HStack {
+                    VStack(alignment: .leading) {
+                        Text(record.source.lastPathComponent).font(.headline)
+                        Text(L10n.text("lowSpace.recoveryRequired")).font(.caption)
+                    }
+                    Spacer()
+                    Button(L10n.text("lowSpace.recover")) { Task { await queue.recover(record) } }
+                        .capsuleControl().disabled(!queue.runningIDs.isEmpty || queue.isRecoveringWorkspace)
+                    Button {
+                        NSWorkspace.shared.open(record.workspace)
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                    .help(L10n.text("queue.openFolder"))
+                }.padding()
+            }
             if let error = queue.persistenceError {
                 Text(error).font(.caption).foregroundStyle(.orange).padding()
                 if let details = queue.persistenceDetails {
@@ -185,6 +205,14 @@ struct QueueView: View {
                 }
             }.padding(16)
         }
+        .sheet(
+            item: Binding(
+                get: {
+                    queue.jobs.first { $0.id == queue.requestedWorkspaceJobID && $0.diskSpaceIssue != nil }
+                }, set: { _ in queue.requestedWorkspaceJobID = nil })
+        ) { job in
+            LowSpaceWorkspaceView(job: job, queue: queue)
+        }
     }
     private func card(_ job: CompressionJob) -> some View {
         JobRow(job: job, queue: queue, draggingID: $draggingJobID)
@@ -199,6 +227,7 @@ private struct JobRow: View {
     let job: CompressionJob
     @ObservedObject var queue: JobQueue
     @Binding var draggingID: UUID?
+    @State private var choosingDisk = false
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .center, spacing: 12) {
@@ -299,10 +328,11 @@ private struct JobRow: View {
             }
             if job.diskSpaceIssue != nil {
                 Button {
-                    NSWorkspace.shared.open(job.input.resolvingSymlinksInPath().deletingLastPathComponent())
+                    choosingDisk = true
                 } label: {
-                    Label(L10n.text("queue.openFolder"), systemImage: "externaldrive")
+                    Label(L10n.text("lowSpace.title"), systemImage: "externaldrive")
                 }.capsuleControl()
+                    .sheet(isPresented: $choosingDisk) { LowSpaceWorkspaceView(job: job, queue: queue) }
             }
             DisclosureGroup(L10n.text("queue.compressionDetails")) {
                 Text(job.settingsSummary)
@@ -341,6 +371,7 @@ private struct QueueDragSource: ViewModifier {
     let jobID: UUID
     let enabled: Bool
     @Binding var draggingID: UUID?
+    @State private var choosingDisk = false
 
     func body(content: Content) -> some View {
         if enabled {
@@ -363,6 +394,7 @@ private struct QueueDropTarget: ViewModifier {
     @ObservedObject var queue: JobQueue
     let job: CompressionJob
     @Binding var draggingID: UUID?
+    @State private var choosingDisk = false
     @State private var targeted = false
     private var movesDown: Bool {
         let ids = queue.queuedJobs.map(\.id)
@@ -389,6 +421,7 @@ private struct QueueCardDrop: DropDelegate {
     let queue: JobQueue
     let destination: UUID
     @Binding var draggingID: UUID?
+    @State private var choosingDisk = false
     @Binding var targeted: Bool
     func validateDrop(info: DropInfo) -> Bool {
         let supported = info.hasItemsConforming(to: [.notchQueueJob])

@@ -12,18 +12,33 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
     @Published private(set) var changing = false
     @Published private(set) var status = ""
     private var subscriptions = Set<AnyCancellable>()
+    private weak var queue: JobQueue?
     private let center = UNUserNotificationCenter.current()
 
     func start(queue: JobQueue) {
         guard subscriptions.isEmpty else { return }
+        self.queue = queue
         center.delegate = self
+        center.setNotificationCategories([
+            UNNotificationCategory(
+                identifier: "low-space",
+                actions: [
+                    UNNotificationAction(
+                        identifier: "external-workspace", title: L10n.text("lowSpace.title"), options: [.foreground])
+                ],
+                intentIdentifiers: [])
+        ])
         queue.completionEvents.sink { [weak self] result in
             var notice = CompletionNotice()
             notice.include(result)
             Task { await self?.send(title: L10n.text("notify.complete"), body: notice.text) }
         }.store(in: &subscriptions)
         queue.failureEvents.sink { [weak self] notice in
-            Task { await self?.send(title: notice.title, body: notice.body) }
+            Task {
+                await self?.send(
+                    title: notice.title, body: notice.body,
+                    workspaceJobID: notice.diskSpaceIssue == nil ? nil : notice.jobID)
+            }
         }.store(in: &subscriptions)
     }
 
@@ -72,7 +87,7 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
         }
     }
 
-    private func send(title: String, body: String) async {
+    private func send(title: String, body: String, workspaceJobID: UUID? = nil) async {
         guard enabled else { return }
         let settings = await center.notificationSettings()
         guard enabled, settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
@@ -81,6 +96,10 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
         content.title = title
         content.body = body
         content.threadIdentifier = "compression-tasks"
+        if let workspaceJobID {
+            content.categoryIdentifier = "low-space"
+            content.userInfo = ["jobID": workspaceJobID.uuidString]
+        }
         do {
             try await center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
         } catch {
@@ -100,7 +119,14 @@ final class TaskNotifications: NSObject, ObservableObject, UNUserNotificationCen
         didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         Task { @MainActor in
-            if response.actionIdentifier == UNNotificationDefaultActionIdentifier { AppState.shared.presentQueue() }
+            if response.actionIdentifier == UNNotificationDefaultActionIdentifier
+                || response.actionIdentifier == "external-workspace"
+            {
+                if let id = response.notification.request.content.userInfo["jobID"] as? String {
+                    self.queue?.requestedWorkspaceJobID = UUID(uuidString: id)
+                }
+                AppState.shared.presentQueue()
+            }
             completionHandler()
         }
     }
