@@ -8,6 +8,10 @@ function draw(){
   if(appearance.value==='auto') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme=theme;
   document.querySelector('.device-frame').src='assets/lunamo-laptop-'+theme+'-v2.png';
+  const language = document.documentElement.lang === 'ja' ? 'ja' : 'en';
+  const queueImage = `assets/queue-window-${language}${theme === 'dark' ? '-dark' : ''}.png`;
+  document.querySelector('.queue-shot img').src = queueImage;
+  document.querySelector('.queue-shot a').href = queueImage;
 }
 appearance.value=document.documentElement.dataset.theme||'auto';
 appearance.addEventListener('change',()=>{
