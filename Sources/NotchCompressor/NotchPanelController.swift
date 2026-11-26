@@ -313,6 +313,11 @@ final class NotchPanelController {
         let screen = screens[screenIndex]
         let geometry = geometry(on: screen)
         if !drag.active {
+            // Empty widgets must not create an information panel. Check this before
+            // preserving a mouse-down inside an already expanded widget panel.
+            guard widgets.showClock || widgets.showMusic else {
+                hover.reset(); collapse(); return
+            }
             if leftDown {
                 if presentation.visible && presentation.showingWidgets && panel.frame.contains(pointer) { return }
                 hover.reset(); collapse(); return
