@@ -1,12 +1,14 @@
 /* Stationary device, with its original wallpaper visible beneath the UI. */
 .hero .preview-notice{max-width:46rem;margin:20px auto 16px;font-size:.85rem;line-height:1.7;color:var(--muted)}
 .skip{position:fixed;top:-100px;left:12px;z-index:20;background:var(--page);padding:12px}.skip:focus{top:12px}
-.tour{display:block;width:min(1100px,96%);height:auto}
+/* Keep the interactive demo independent of the template’s two-column tour. */
+.drop-demo{display:block;width:96%;max-width:1100px;min-width:0;height:auto;margin-inline:auto}
 .demo-intro{width:min(700px,88%);margin:0 auto 28px;text-align:center}
 .demo-intro h2{justify-content:center;font-size:clamp(1.4rem,2.4vw,2.2rem)}
 .demo-intro p{color:var(--muted);line-height:1.85;margin-top:14px;text-wrap:pretty}
-.tour .showcase{position:relative;top:auto;max-width:none}
-.tour .face,.tour .housing,.tour .machine::after{transform:none;opacity:1}
+.drop-demo .showcase{display:block;position:relative;top:auto;width:100%;min-width:0;max-width:none;margin:0;grid-area:auto}
+.drop-demo .machine{width:100%;min-width:0}
+.drop-demo .face,.drop-demo .housing,.drop-demo .machine::after{transform:none;opacity:1}
 .face{inset:6.934% auto auto 7.943%;width:84.115%;pointer-events:auto}
 .housing .screen-slot{inset:0;width:100%}.screen{container-type:inline-size;filter:none}
 .demo-screen{position:relative;aspect-ratio:1292/824;overflow:hidden;border-radius:1.4cqw;background:transparent;color:light-dark(#242424,#f0f0f0);font:400 1.05cqw/1.5 -apple-system,BlinkMacSystemFont,sans-serif}
@@ -54,9 +56,9 @@
 @media(max-width:400px){header .brand{font-size:.8rem}.nav-end{gap:6px}header .brand img{width:24px;height:24px}.appearance-value{font-size:.75rem;inline-size:2.8em}header .language{font-size:.75rem}}
 /* On phones, crop the same mock desktop rather than shrink the touch targets. */
 @media(max-width:600px){
- .tour{width:94%}.demo-intro{width:94%;margin-bottom:22px;text-align:left}.demo-intro h2{justify-content:flex-start}.demo-intro p{font-size:.94rem}
+ .demo-intro{width:100%;padding-inline:4%;margin-bottom:22px;text-align:left}.demo-intro h2{justify-content:flex-start}.demo-intro p{font-size:.94rem}
  .machine{aspect-ratio:auto;height:440px;border:4px solid #252b28;border-radius:16px;overflow:hidden;background:#252b28}
- .housing{display:none}.tour .face{width:680px;inset:0 auto auto 50%;transform:translateX(-50%)}
+ .housing{display:none}.drop-demo .face{width:680px;inset:0 auto auto 50%;transform:translateX(-50%)}
  .demo-screen{border-radius:0;background:url(assets/lunamo-laptop-light-v2.png) 50% 35.5%/118.89% auto}
  :root[data-theme=dark] .demo-screen{background-image:url(assets/lunamo-laptop-dark-v2.png)}
  .demo-menu-left{visibility:hidden}.demo-workspace{inset:18cqw 0 8cqw}
