@@ -194,3 +194,6 @@ footer.copyright{flex-wrap:wrap;gap:12px 24px}
 .housing .mac-menus{gap:1.05cqw}
 .housing .mac-dock{bottom:.8%;gap:.35cqw;padding:.3cqw .5cqw .5cqw}
 .housing .mac-dock .dock-folder,.housing .mac-dock .dock-terminal{width:3.2cqw;height:3.2cqw}
+
+/* Keep hero sentences together, as in Lunamo’s phrase-based introduction. */
+.hero .intro-phrase{display:inline-block}
