@@ -39,16 +39,20 @@ final class LowSpaceTests: XCTestCase {
             try fixture { initial, fingerprint in
                 var record = initial
                 XCTAssertThrowsError(
-                    try LowSpaceRecovery.install(&record, expected: fingerprint) {
-                        if $0 == stage { throw Injected() }
-                    })
+                    try LowSpaceRecovery.install(
+                        &record, expected: fingerprint,
+                        fault: {
+                            if $0 == stage { throw Injected() }
+                        }))
                 let persisted = try XCTUnwrap(LowSpaceRecovery.pending(in: record.directory).first)
                 if stage == "sourceRemoved" {
                     XCTAssertFalse(FileManager.default.fileExists(atPath: record.source.path))
                     XCTAssertEqual(try Data(contentsOf: record.backup), Data(repeating: 42, count: 8192))
                 }
                 try LowSpaceRecovery.recover(persisted)
-                let expected = stage == "installed" ? Data(repeating: 7, count: 2048) : Data(repeating: 42, count: 8192)
+                let expected =
+                    ["installed", "sourceRemoved"].contains(stage)
+                    ? Data(repeating: 7, count: 2048) : Data(repeating: 42, count: 8192)
                 XCTAssertEqual(try Data(contentsOf: record.source), expected)
                 XCTAssertFalse(FileManager.default.fileExists(atPath: record.directory.path))
             }
@@ -59,15 +63,106 @@ final class LowSpaceTests: XCTestCase {
         try fixture { initial, fingerprint in
             var record = initial
             XCTAssertThrowsError(
-                try LowSpaceRecovery.install(&record, expected: fingerprint) {
-                    if $0 == "sourceRemoved" { throw Injected() }
-                })
+                try LowSpaceRecovery.install(
+                    &record, expected: fingerprint,
+                    fault: {
+                        if $0 == "sourceRemoved" { throw Injected() }
+                    }))
             try Data("new user file".utf8).write(to: record.source)
             XCTAssertThrowsError(try LowSpaceRecovery.recover(record))
             XCTAssertEqual(try Data(contentsOf: record.source), Data("new user file".utf8))
             XCTAssertTrue(FileManager.default.fileExists(atPath: record.backup.path))
             XCTAssertTrue(FileManager.default.fileExists(atPath: record.journal.path))
         }
+    }
+    func testWriteProbeLeavesNoFilesAndDoesNotCreateMissingFolder() throws {
+        try fixture { record, _ in
+            let before = try FileManager.default.contentsOfDirectory(atPath: record.workspace.path)
+            try LowSpaceWorkspace.checkWritable(in: record.workspace)
+            XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: record.workspace.path), before)
+            let missing = record.workspace.appendingPathComponent("missing")
+            XCTAssertThrowsError(try LowSpaceWorkspace.checkWritable(in: missing))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: missing.path))
+        }
+    }
+    func testUnknownOrdinaryCapacityDoesNotOfferPurgeableSpace() {
+        XCTAssertNil(DiskSpaceIssue.usableCapacity(ordinary: nil, important: 10_000_000_000))
+    }
+    func testExternalSpaceEstimateDoesNotGrowOnEveryRetry() throws {
+        try fixture { record, _ in
+            let required = try LowSpaceDisk.requiredBytes(for: record.source, estimatedOutput: 100_000_000)
+            let issue = DiskSpaceIssue(availableBytes: 1, requiredBytes: required, externalWorkspaceBytes: required)
+            for _ in 0..<5 {
+                XCTAssertEqual(try LowSpaceDisk.requiredBytes(for: record.source, issue: issue), required)
+            }
+            let restored = try JSONDecoder().decode(DiskSpaceIssue.self, from: JSONEncoder().encode(issue))
+            XCTAssertEqual(restored.externalWorkspaceBytes, required)
+            let legacy = try JSONDecoder().decode(DiskSpaceIssue.self, from: Data("{\"requiredBytes\":123}".utf8))
+            XCTAssertNil(legacy.externalWorkspaceBytes)
+        }
+    }
+    func testCorruptRecordDoesNotHideOtherRecoveries() throws {
+        try fixture { record, _ in
+            let corrupt = record.directory.appendingPathComponent("corrupt.json")
+            try Data("broken".utf8).write(to: corrupt)
+            let scan = try LowSpaceRecovery.scan(in: record.directory)
+            XCTAssertEqual(scan.records.map(\.id), [record.id])
+            XCTAssertEqual(scan.unreadable.map { $0.resolvingSymlinksInPath() }, [corrupt.resolvingSymlinksInPath()])
+            XCTAssertTrue(FileManager.default.fileExists(atPath: corrupt.path))
+        }
+    }
+    func testCapacityLossAfterEvacuationRetainsBackupAndResumesSmallerOutput() throws {
+        try fixture { initial, fingerprint in
+            var record = initial, checks = 0
+            XCTAssertThrowsError(
+                try LowSpaceRecovery.install(
+                    &record, expected: fingerprint,
+                    capacity: { _ in
+                        checks += 1
+                        return checks == 1 ? 100_000_000 : 0
+                    }))
+            XCTAssertFalse(FileManager.default.fileExists(atPath: record.source.path))
+            XCTAssertEqual(try Data(contentsOf: record.backup), Data(repeating: 42, count: 8192))
+            try LowSpaceRecovery.recover(record)
+            XCTAssertEqual(try Data(contentsOf: record.source), Data(repeating: 7, count: 2048))
+        }
+    }
+    func testUnknownCapacityDoesNotRemoveOriginal() throws {
+        try fixture { initial, fingerprint in
+            var record = initial
+            XCTAssertThrowsError(try LowSpaceRecovery.install(&record, expected: fingerprint, capacity: { _ in nil }))
+            XCTAssertTrue(record.sourceUnchanged())
+            try LowSpaceRecovery.recover(record)
+            XCTAssertFalse(FileManager.default.fileExists(atPath: record.journal.path))
+        }
+    }
+    func testDamagedCandidateRecoveryFallsBackToVerifiedOriginal() throws {
+        struct Injected: Error {}
+        try fixture { initial, fingerprint in
+            var record = initial
+            XCTAssertThrowsError(
+                try LowSpaceRecovery.install(
+                    &record, expected: fingerprint,
+                    fault: {
+                        if $0 == "sourceRemoved" { throw Injected() }
+                    }))
+            try Data("broken".utf8).write(to: record.candidate)
+            try LowSpaceRecovery.recover(record)
+            XCTAssertEqual(try Data(contentsOf: record.source), Data(repeating: 42, count: 8192))
+        }
+    }
+    @MainActor
+    func testStaleTaskDoesNotInspectOrWriteToDisk() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let disk = LowSpaceDisk(root: root, name: "not accessed", uuid: "test", storageGroup: "test", availableBytes: 1)
+        let queue = JobQueue()
+        do {
+            try await queue.retryUsingExternalDisk(UUID(), folder: root, disk: disk)
+            XCTFail("A removed task must not succeed")
+        } catch let error as CompressionError {
+            XCTAssertEqual(error.localizedMessage.key, "lowSpace.taskUnavailable")
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
     }
     func testCrossVolumeBackupAndInstall() throws {
         try fixture { initial, fingerprint in

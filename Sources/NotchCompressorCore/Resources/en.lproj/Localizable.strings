@@ -392,3 +392,5 @@
 "lowSpace.wrongDisk" = "Connect the original source and workspace disks. Automatic recovery cannot proceed if their locations have changed.";
 "lowSpace.destinationExists" = "The file at the original location has changed. It will not be overwritten; the backup has been retained.";
 "lowSpace.copyVerification" = "The copied file could not be verified. The backup has been retained.";
+"lowSpace.taskUnavailable" = "This task was removed, is running, or needs recovery. Check its status in the queue.";
+"lowSpace.accessDenied" = "The selected location is not writable. Use “Choose another location” to select a folder. If access was denied in macOS, check NotchCompressor under System Settings → Privacy & Security → Files and Folders.";

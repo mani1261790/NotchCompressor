@@ -114,7 +114,11 @@ public final class JobQueue: ObservableObject {
             .appendingPathComponent("TemporaryRecovery", isDirectory: true)
     }
     public func reloadRecoveries() {
-        do { pendingRecoveries = try LowSpaceRecovery.pending(in: recoveryDirectory); lowSpaceError = nil } catch {
+        do {
+            let scan = try LowSpaceRecovery.scan(in: recoveryDirectory)
+            pendingRecoveries = scan.records
+            lowSpaceError = scan.unreadable.isEmpty ? nil : L10n.text("lowSpace.invalidRecord")
+        } catch {
             lowSpaceError = error.localizedDescription
         }
     }
@@ -127,21 +131,43 @@ public final class JobQueue: ObservableObject {
             reloadRecoveries()
         } catch { lowSpaceError = error.localizedDescription }
     }
-    public func retryUsingExternalDisk(_ id: UUID, folder: URL, disk: LowSpaceDisk) throws {
-        guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].phase.isFinished,
-            workers[id] == nil, !pendingRecoveries.contains(where: { $0.source == jobs[index].input })
-        else { return }
-        let required = try LowSpaceDisk.requiredBytes(
-            for: jobs[index].input,
-            estimatedOutput: jobs[index].diskSpaceIssue?.requiredBytes)
-        let current = try LowSpaceDisk.inspect(folder, source: jobs[index].input, requiredBytes: required)
-        guard current.uuid == disk.uuid else { throw CompressionError.localized(.init("lowSpace.wrongDisk")) }
-        let probe = folder.appendingPathComponent(".notchcompressor-write-" + UUID().uuidString)
-        try Data([0]).write(to: probe, options: .withoutOverwriting)
-        try FileManager.default.removeItem(at: probe)
+    private func externalRetryJob(_ id: UUID) throws -> CompressionJob {
+        guard let job = jobs.first(where: { $0.id == id }), job.phase.isFinished,
+            workers[id] == nil, !pendingRecoveries.contains(where: { $0.source == job.input })
+        else { throw CompressionError.localized(.init("lowSpace.taskUnavailable")) }
+        return job
+    }
+    public func retryUsingExternalDisk(_ id: UUID, folder: URL, disk: LowSpaceDisk) async throws {
+        let job = try externalRetryJob(id)
+        // Metadata checks can involve a slow/unplugged disk. Never block the UI thread.
+        let check = Task.detached {
+            let required = try LowSpaceDisk.requiredBytes(for: job.input, issue: job.diskSpaceIssue)
+            let current = try LowSpaceDisk.inspect(folder, source: job.input, requiredBytes: required)
+            guard current.uuid == disk.uuid else { throw CompressionError.localized(.init("lowSpace.wrongDisk")) }
+        }
+        do { try await check.value } catch {
+            if Self.isAccessDenied(error) { throw CompressionError.localized(.init("lowSpace.accessDenied")) }
+            throw error
+        }
+        try Task.checkCancellation()
+        _ = try externalRetryJob(id)  // A removed/retried job must not trigger a write or permission prompt.
+        let write = Task.detached { try LowSpaceWorkspace.checkWritable(in: folder) }
+        do { try await write.value } catch {
+            if Self.isAccessDenied(error) { throw CompressionError.localized(.init("lowSpace.accessDenied")) }
+            throw error
+        }
+        try Task.checkCancellation()
+        _ = try externalRetryJob(id)
         scheduleExternalRetry(
             id,
-            workspace: LowSpaceWorkspace(folder: folder, volumeUUID: disk.uuid, recoveryDirectory: recoveryDirectory))
+            workspace: LowSpaceWorkspace(
+                folder: folder, volumeUUID: disk.uuid, recoveryDirectory: recoveryDirectory))
+    }
+    static func isAccessDenied(_ error: Error) -> Bool {
+        let error = error as NSError
+        return (error.domain == NSPOSIXErrorDomain && [Int(EACCES), Int(EPERM)].contains(error.code))
+            || (error.domain == NSCocoaErrorDomain
+                && [NSFileReadNoPermissionError, NSFileWriteNoPermissionError].contains(error.code))
     }
     func scheduleExternalRetry(_ id: UUID, workspace: LowSpaceWorkspace) {
         guard let index = jobs.firstIndex(where: { $0.id == id }), jobs[index].phase.isFinished,

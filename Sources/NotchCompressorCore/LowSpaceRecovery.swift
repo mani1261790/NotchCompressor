@@ -42,15 +42,27 @@ public struct LowSpaceRecoveryRequired: LocalizedError, Sendable {
 
 public enum LowSpaceRecovery {
     public static func pending(in directory: URL) throws -> [LowSpaceRecord] {
-        guard FileManager.default.fileExists(atPath: directory.path) else { return [] }
-        return try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "json" }.map { url in
+        let result = try scan(in: directory)
+        if !result.unreadable.isEmpty { throw CompressionError.localized(.init("lowSpace.invalidRecord")) }
+        return result.records
+    }
+    public static func scan(in directory: URL) throws -> (records: [LowSpaceRecord], unreadable: [URL]) {
+        guard FileManager.default.fileExists(atPath: directory.path) else { return ([], []) }
+        var records: [LowSpaceRecord] = [], unreadable: [URL] = []
+        for url in try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        where url.pathExtension == "json" {
+            do {
                 let record = try JSONDecoder().decode(LowSpaceRecord.self, from: Data(contentsOf: url))
-                guard record.journal.standardizedFileURL == url.standardizedFileURL else {
-                    throw CompressionError.localized(.init("lowSpace.invalidRecord"))
-                }
-                return record
-            }
+                guard record.journal.standardizedFileURL == url.standardizedFileURL,
+                    record.source.isFileURL, record.workspace.isFileURL,
+                    record.workspace.lastPathComponent.hasPrefix(".notchcompressor-"),
+                    UUID(uuidString: String(record.workspace.lastPathComponent.dropFirst(".notchcompressor-".count)))
+                        != nil
+                else { throw CompressionError.localized(.init("lowSpace.invalidRecord")) }
+                records.append(record)
+            } catch { unreadable.append(url) }
+        }
+        return (records, unreadable)
     }
 
     static func volumeUUID(_ url: URL) throws -> String {
@@ -106,6 +118,7 @@ public enum LowSpaceRecovery {
     /// All work after 'prepared' is recoverable; no error/cancellation may erase the backup.
     static func install(
         _ record: inout LowSpaceRecord, expected: Fingerprint,
+        capacity: (URL) throws -> Int64? = DiskSpaceIssue.availableCapacity,
         fault: (String) throws -> Void = { _ in }
     ) throws {
         let fm = FileManager.default
@@ -135,7 +148,7 @@ public enum LowSpaceRecovery {
             throw CompressionError.localized(.init("error.changedReplace"))
         }
         let size = Int64(clamping: try Fingerprint(record.candidate).size)
-        guard let before = try DiskSpaceIssue.availableCapacity(in: record.source.deletingLastPathComponent()) else {
+        guard let before = try capacity(record.source.deletingLastPathComponent()) else {
             throw DiskSpaceIssue(requiredBytes: size + 64 * 1024 * 1024)
         }
         guard Double(before) + Double(expected.size) >= Double(size) + 64 * 1024 * 1024 else {
@@ -145,7 +158,7 @@ public enum LowSpaceRecovery {
         try sync(record.source.deletingLastPathComponent())
         try fault("sourceRemoved")
         // Snapshots/clones may prevent unlinking from reclaiming the logical file size.
-        if let capacity = try DiskSpaceIssue.availableCapacity(in: record.source.deletingLastPathComponent()),
+        if let capacity = try capacity(record.source.deletingLastPathComponent()),
             capacity < size + 64 * 1024 * 1024
         {
             throw DiskSpaceIssue(availableBytes: capacity, requiredBytes: size + 64 * 1024 * 1024)
@@ -180,7 +193,8 @@ public enum LowSpaceRecovery {
         }
     }
 
-    /// Restore the original when absent; never overwrite an unrelated file.
+    /// Finish the verified smaller output when absent, falling back to the original if necessary.
+    /// Neither path may overwrite a different file created by the user.
     public static func recover(_ record: LowSpaceRecord) throws {
         let fm = FileManager.default
         if !fm.fileExists(atPath: record.workspace.path),
@@ -208,10 +222,17 @@ public enum LowSpaceRecovery {
             try sync(record.source)
             try sync(record.source.deletingLastPathComponent())
         } else {
-            guard let digest = record.originalHash, try hash(record.backup) == digest else {
-                throw CompressionError.localized(.init("lowSpace.copyVerification"))
+            if let digest = record.candidateHash,
+                (try? hash(record.candidate)) == digest,
+                (try Fingerprint(record.candidate).size) < record.originalSize
+            {
+                try copyBack(record.candidate, digest: digest, record: record)
+            } else {
+                guard let digest = record.originalHash, try hash(record.backup) == digest else {
+                    throw CompressionError.localized(.init("lowSpace.copyVerification"))
+                }
+                try copyBack(record.backup, digest: digest, record: record)
             }
-            try copyBack(record.backup, digest: digest, record: record)
         }
         try finish(record)
     }

@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 /// A current observation, never a saved permission or preferred destination.
 public struct LowSpaceDisk: Identifiable, Equatable, Sendable {
@@ -9,6 +10,12 @@ public struct LowSpaceDisk: Identifiable, Equatable, Sendable {
     public let storageGroup: String
     public let availableBytes: Int64
 
+    public static func requiredBytes(for source: URL, issue: DiskSpaceIssue?) throws -> Int64 {
+        if let required = issue?.externalWorkspaceBytes {
+            return max(required, try requiredBytes(for: source, estimatedOutput: nil))
+        }
+        return try requiredBytes(for: source, estimatedOutput: issue?.requiredBytes)
+    }
     public static func requiredBytes(for source: URL, estimatedOutput: Int64?) throws -> Int64 {
         let size = Int64(clamping: try Fingerprint(source).size)
         let output = max(size, estimatedOutput ?? size)
@@ -41,7 +48,8 @@ public struct LowSpaceDisk: Identifiable, Equatable, Sendable {
         let destinationGroup = try storageGroup(for: root, requirePhysical: true)
         guard sourceGroup != destinationGroup else { throw CompressionError.localized(.init("lowSpace.sameDisk")) }
         guard available >= requiredBytes else {
-            throw DiskSpaceIssue(availableBytes: available, requiredBytes: requiredBytes)
+            throw DiskSpaceIssue(
+                availableBytes: available, requiredBytes: requiredBytes, externalWorkspaceBytes: requiredBytes)
         }
         return LowSpaceDisk(
             root: root, name: values.volumeName ?? root.lastPathComponent, uuid: uuid,
@@ -81,6 +89,14 @@ public struct LowSpaceWorkspace: Sendable {
     public let recoveryDirectory: URL
     public init(folder: URL, volumeUUID: String, recoveryDirectory: URL) {
         self.folder = folder; self.volumeUUID = volumeUUID; self.recoveryDirectory = recoveryDirectory
+    }
+    static func checkWritable(in folder: URL) throws {
+        let probe = folder.appendingPathComponent(".notchcompressor-write-" + UUID().uuidString)
+        let fd = open(probe.path, O_CREAT | O_EXCL | O_WRONLY | O_NOFOLLOW, 0o600)
+        guard fd >= 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        defer { close(fd); _ = unlink(probe.path) }
+        var byte: UInt8 = 0
+        guard Darwin.write(fd, &byte, 1) == 1 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
     }
     @TaskLocal static var current: LowSpaceWorkspace?
 }

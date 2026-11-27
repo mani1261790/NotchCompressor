@@ -12,6 +12,7 @@ struct LowSpaceWorkspaceView: View {
     @State private var required: Int64 = 0
     @State private var loading = true
     @State private var error: String?
+    @State private var submission: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -32,34 +33,42 @@ struct LowSpaceWorkspaceView: View {
                         }
                         Spacer()
                     }.padding(12)
-                }.buttonStyle(.plain)
+                }.buttonStyle(.plain).disabled(loading)
+            }
+            if let folder, let selection, folder != selection.root {
+                Text(folder.path).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             }
             if let error { Text(error).font(.callout).foregroundStyle(.orange).textSelection(.enabled) }
             HStack {
-                Button(L10n.text("lowSpace.choose")) { chooseFolder() }.capsuleControl()
+                Button(L10n.text("lowSpace.choose")) { chooseFolder() }.capsuleControl().disabled(loading)
                 Button {
                     Task { await refresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                 }
-                .help(L10n.text("lowSpace.refresh"))
+                .help(L10n.text("lowSpace.refresh")).disabled(loading)
                 Spacer()
                 Button(L10n.text("lowSpace.later")) { dismiss() }.capsuleControl()
                 Button(L10n.text("lowSpace.use")) {
                     guard let selection, let folder else { return }
-                    do { try queue.retryUsingExternalDisk(job.id, folder: folder, disk: selection); dismiss() } catch {
-                        self.error = error.localizedDescription
+                    loading = true; error = nil
+                    submission = Task {
+                        defer { loading = false }
+                        do {
+                            try await queue.retryUsingExternalDisk(job.id, folder: folder, disk: selection)
+                            dismiss()
+                        } catch is CancellationError {} catch { self.error = error.localizedDescription }
                     }
                 }.capsuleControl().disabled(selection == nil || loading)
             }
-        }.padding(24).frame(width: 560).task { await refresh() }
+        }.padding(24).frame(width: 560).task { await refresh() }.onDisappear { submission?.cancel() }
     }
     private func refresh() async {
         loading = true; selection = nil; folder = nil; error = nil
         do {
-            let source = job.input, estimate = job.diskSpaceIssue?.requiredBytes
+            let source = job.input, issue = job.diskSpaceIssue
             let result = try await Task.detached {
-                let required = try LowSpaceDisk.requiredBytes(for: source, estimatedOutput: estimate)
+                let required = try LowSpaceDisk.requiredBytes(for: source, issue: issue)
                 return (required, LowSpaceDisk.candidates(for: source, requiredBytes: required))
             }.value
             required = result.0; disks = result.1
@@ -68,12 +77,16 @@ struct LowSpaceWorkspaceView: View {
         loading = false
     }
     private func chooseFolder() {
+        guard !loading else { return }
+        loading = true
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.allowsMultipleSelection = false
         panel.message = L10n.text("lowSpace.chooseExplanation")
         panel.begin { response in
-            guard response == .OK, let folder = panel.url else { return }
+            guard response == .OK, let folder = panel.url else { loading = false; return }
+            selection = nil; self.folder = nil; error = nil
             Task { @MainActor in
+                defer { loading = false }
                 do {
                     let source = job.input, required = required
                     let disk = try await Task.detached {

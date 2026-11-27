@@ -3,10 +3,12 @@ import Foundation
 public struct DiskSpaceIssue: LocalizedError, Codable, Equatable, Sendable {
     public let availableBytes: Int64?
     public let requiredBytes: Int64?
+    public let externalWorkspaceBytes: Int64?
 
-    public init(availableBytes: Int64? = nil, requiredBytes: Int64? = nil) {
+    public init(availableBytes: Int64? = nil, requiredBytes: Int64? = nil, externalWorkspaceBytes: Int64? = nil) {
         self.availableBytes = availableBytes
         self.requiredBytes = requiredBytes
+        self.externalWorkspaceBytes = externalWorkspaceBytes
     }
     // Reclaimable/important-usage space is not guaranteed to be free for this write.
     static func availableCapacity(in folder: URL) throws -> Int64? {
@@ -20,7 +22,8 @@ public struct DiskSpaceIssue: LocalizedError, Codable, Equatable, Sendable {
 
     static func usableCapacity(ordinary: Int64?, important: Int64?) -> Int64? {
         if let ordinary { return max(0, ordinary) }
-        return important.map { max(0, $0) }
+        // Purgeable space alone is not proof that an external workspace can be written.
+        return nil
     }
 
     public var additionalBytes: Int64? {
