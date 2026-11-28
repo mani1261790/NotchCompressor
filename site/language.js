@@ -27,6 +27,13 @@
       for (const text of field.texts) text.node.nodeValue = text[language];
       for (const attribute of field.attributes) field.element.setAttribute(attribute.name, attribute[language]);
     }
+    for (const field of ['title', 'description']) {
+      const value = document.querySelector(`meta[property="og:${field}"]`)?.content;
+      const target = document.querySelector(`meta[name="twitter:${field}"]`);
+      if (target && value) target.content = value;
+    }
+    document.querySelector('meta[property="og:locale"]')?.setAttribute('content', language === 'ja' ? 'ja_JP' : 'en_US');
+    document.querySelector('meta[property="og:locale:alternate"]')?.setAttribute('content', language === 'ja' ? 'en_US' : 'ja_JP');
     button.lang = language === 'ja' ? 'en' : 'ja';
     button.textContent = language === 'ja' ? 'English' : '日本語';
     button.hidden = false;

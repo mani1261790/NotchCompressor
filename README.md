@@ -19,7 +19,7 @@
 
 macOS 14以降・Apple Siliconに対応しています。
 
-1. [0.2.0のリリース](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.0)から `NotchCompressor-0.2.0-arm64-ja.dmg` をダウンロードします。
+1. [0.2.1のリリース](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.1)から `NotchCompressor-0.2.1-arm64-ja.dmg` をダウンロードします。
 2. DMGを開き、`NotchCompressor.app` をApplicationsへドラッグします。
 3. アプリケーションフォルダから起動します。メニューバーとノッチ周辺に常駐します。
 

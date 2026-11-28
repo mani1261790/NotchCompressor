@@ -19,7 +19,7 @@ The drop panel expands when you drag files toward it. Drop multiple videos toget
 
 Requires macOS 14 or later and Apple Silicon.
 
-1. Download `NotchCompressor-0.2.0-arm64-en.dmg` from the [0.2.0 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.0).
+1. Download `NotchCompressor-0.2.1-arm64-en.dmg` from the [0.2.1 release](https://github.com/mani1261790/NotchCompressor/releases/tag/v0.2.1).
 2. Open the DMG and drag `NotchCompressor.app` to Applications.
 3. Open the app from Applications. It runs in the menu bar and near the notch.
 

@@ -20,6 +20,9 @@ info="dist/build-information"
 mkdir -p "$info"
 cp scripts/build-ffmpeg.sh "$info/"
 cp ".build/vendor/install-$arch/config.h" "$info/"
+if [[ -f ".build/vendor/install-$arch/provenance.txt" ]]; then
+  cp ".build/vendor/install-$arch/provenance.txt" "$info/ffmpeg-provenance.txt"
+fi
 "$app/Contents/MacOS/ffmpeg" -buildconf > "$info/ffmpeg-buildconf.txt" 2>&1
 xcrun clang --version > "$info/compiler.txt"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$info/"
