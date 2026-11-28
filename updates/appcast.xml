@@ -4,15 +4,15 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>NotchCompressor</title>
         <item>
-            <title>0.2.0</title>
-            <pubDate>Thu, 26 Nov 2026 00:41:18 +0900</pubDate>
-            <sparkle:version>28</sparkle:version>
-            <sparkle:shortVersionString>0.2.0</sparkle:shortVersionString>
+            <title>0.2.1</title>
+            <pubDate>Sat, 28 Nov 2026 13:40:09 +0900</pubDate>
+            <sparkle:version>29</sparkle:version>
+            <sparkle:shortVersionString>0.2.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/mani1261790/NotchCompressor/releases/download/v0.2.0/NotchCompressor-0.2.0-arm64.zip" length="24943594" type="application/octet-stream" sparkle:edSignature="bPb2mT6EXFbzBIPP+I/W39OTLsf3RqvDFq1GgB6s/QQdxqMdt5JHwsbfbQurd6zKyprvHfDE9x5NpLG92J8/Cw=="></enclosure>
+            <enclosure url="https://github.com/mani1261790/NotchCompressor/releases/download/v0.2.1/NotchCompressor-0.2.1-arm64.zip" length="25293660" type="application/octet-stream" sparkle:edSignature="MK3RcyHNBUu8pXVovhV05nNrDlmaVtmt4sHW5qjY4+BAxMUzSvX46pXsNmJ6jgtzWnDs/cV37WCKJ+bebWjPCw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Ks8sIm3hThJFV3TUZstPpyqMox9yAZTUH0bZgohlGv7wNdsxD+PJnoEwGdTsjndYLjc8C9DEuip62ZxRdSiqDg==
+edSignature: POJi7vepVynKNMrpNo+eV6CSPh4GjVbpkGdcTjN7Xxl58LyHETfbiW9FvihtU0HnR8vHrV+GKmLcSqWbzDkIDQ==
 length: 1073
 -->
